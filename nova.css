@@ -181,3 +181,23 @@ button:focus-visible, menubutton:focus-within, checkbutton:focus-visible {
   outline: 2px solid @nova_accent;
   outline-offset: -2px;
 }
+
+/* Persistent navigation and native window controls. */
+.sidebar { padding: 12px 10px 10px; min-width: 166px; }
+.sidebar .nav-caption { margin: 12px 10px 4px; letter-spacing: 0.35px; }
+.sidebar button.nav-button { padding: 7px 10px; min-height: 22px; }
+.sidebar button.nav-active { background: #2e2a39; border-color: #51485f; }
+.sidebar-footer { border-top: 1px solid @nova_border; padding-top: 8px; }
+button.version-button:not(.primary) { color: @nova_muted; background: transparent; border-color: transparent; }
+button.version-button:not(.primary):hover { background: @nova_control; color: @nova_text; }
+.nova-titlebar { padding: 5px 10px 5px 15px; }
+.nova-titlebar windowcontrols.end {
+  border-left: 1px solid @nova_border;
+  margin-left: 5px;
+  padding-left: 9px;
+}
+.nova-titlebar windowcontrols button { min-width: 32px; min-height: 32px; }
+.account-switcher > button { background: @nova_control; padding: 5px 10px; min-height: 24px; }
+.account-switcher > button:hover { border-color: @nova_accent; }
+button.quiet-button { background: transparent; border-color: transparent; color: @nova_muted; }
+button.quiet-button:hover { background: @nova_control; color: @nova_text; }

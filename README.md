@@ -5,8 +5,8 @@ Launcher de terceros para Minecraft Java Edition en Fedora. Gestiona instancias,
 Descargá el RPM y el archivo SHA-256 desde **Releases**. En la carpeta de descarga, ejecutá:
 
 ```bash
-sha256sum -c nova-launcher-0.9.8-1.noarch.rpm.sha256
-sudo dnf install ./nova-launcher-0.9.8-1.noarch.rpm
+sha256sum -c nova-launcher-0.9.9-1.noarch.rpm.sha256
+sudo dnf install ./nova-launcher-0.9.9-1.noarch.rpm
 ```
 
 Después abrí **Nova Launcher** desde el menú de aplicaciones. El RPM de 0.9.0 todavía está sin firma.
@@ -17,4 +17,4 @@ El inicio de sesión con Microsoft requiere un ID de aplicación aprobado para M
 
 Nova es un launcher de terceros, sin afiliación ni aprobación de Mojang o Microsoft.
 
-La web está en `docs/`. En GitHub Pages, seleccioná **Deploy from a branch**, rama `main` y carpeta `/docs`. La página consulta la última release estable de GitHub y actualiza la descarga, el SHA-256 y los comandos de instalación. Si GitHub no está disponible, ofrece el RPM 0.9.8 incluido con la web.
+La web está en `docs/`. En GitHub Pages, seleccioná **Deploy from a branch**, rama `main` y carpeta `/docs`. La página consulta la última release estable de GitHub y actualiza la descarga, el SHA-256 y los comandos de instalación. Si GitHub no está disponible, ofrece el RPM 0.9.9 incluido con la web.

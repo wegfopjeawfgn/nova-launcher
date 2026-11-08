@@ -134,20 +134,25 @@ class Nova(Gtk.Application):
             self.selected = motor.ROOT / "instances" / last
         self.profile = accounts["active"]
         self.profiles = accounts["profiles"]
-        titlebar = Gtk.HeaderBar()
+        titlebar = Gtk.HeaderBar(decoration_layout=":minimize,maximize,close")
+        titlebar.add_css_class("nova-titlebar")
         titlebar.set_title_widget(Gtk.Label())
         identity = Gtk.Box(spacing=8)
         logo = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(HERE / "nova-logo.svg"), 24, 24, True)
         identity.append(Gtk.Image.new_from_pixbuf(logo))
         identity.append(label("Nova Launcher", "brand"))
         titlebar.pack_start(identity)
-        self.accounts = Gtk.MenuButton()
+        self.accounts = Gtk.MenuButton(css_classes=["account-switcher"])
         titlebar.pack_end(self.accounts)
         self.window.set_titlebar(titlebar)
         shell = Gtk.Box()
         self.window.set_child(shell)
-        nav = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
-        nav.add_css_class("sidebar")
+        sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, css_classes=["sidebar"])
+        nav_scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER,
+                                        propagate_natural_width=True)
+        nav = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+        nav_scroll.set_child(nav)
+        sidebar.append(nav_scroll)
         nav.append(label("BIBLIOTECA", "nav-caption"))
         nav.append(self.nav_button("Instancias", "view-grid-symbolic",
                                    lambda: scroll.get_vadjustment().set_value(0), active=True))
@@ -161,11 +166,12 @@ class Nova(Gtk.Application):
         nav.append(self.nav_button("Skins", "applications-graphics-symbolic", self.open_skins))
         nav.append(self.nav_button("Servidores", "network-server-symbolic", self.open_servers))
         nav.append(self.nav_button("Respaldos", "document-open-symbolic", self.show_backups))
-        nav.append(Gtk.Box(vexpand=True))
-        self.release_button = button(f"Nova {actualizaciones.VERSION}", self.release_details)
-        nav.append(self.release_button)
-        nav.append(self.nav_button("Ajustes", "preferences-system-symbolic", self.global_settings))
-        shell.append(nav)
+        footer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, css_classes=["sidebar-footer"])
+        footer.append(self.nav_button("Ajustes", "preferences-system-symbolic", self.global_settings))
+        self.release_button = button(f"Nova {actualizaciones.VERSION}", self.release_details, "version-button")
+        footer.append(self.release_button)
+        sidebar.append(footer)
+        shell.append(sidebar)
         scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         shell.append(scroll)
@@ -367,6 +373,7 @@ class Nova(Gtk.Application):
         row = Gtk.Box(spacing=10)
         bundled = HERE / "icons" / f"{icon}.svg"
         icon_widget = Gtk.Image.new_from_file(str(bundled)) if bundled.is_file() else Gtk.Image.new_from_icon_name(icon)
+        icon_widget.set_pixel_size(16)
         row.append(icon_widget)
         row.append(label(title))
         control.set_child(row)
@@ -388,26 +395,75 @@ class Nova(Gtk.Application):
 
     def update_accounts(self):
         name = self.microsoft[1]["name"] if self.microsoft_active else self.profile
-        self.accounts.set_label(f"◈  {name or 'Cuentas'}")
+        account = Gtk.Box(spacing=8)
+        account.append(Gtk.Image.new_from_icon_name("avatar-default-symbolic"))
+        account.append(label(name or "Cuentas"))
+        account.append(Gtk.Image.new_from_icon_name("pan-down-symbolic"))
+        self.accounts.set_child(account)
+        self.accounts.update_property([Gtk.AccessibleProperty.LABEL],
+                                      [f"Cuentas · {name}" if name else "Cuentas"])
         popover = Gtk.Popover()
         options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         options.add_css_class("menu")
         options.append(label("Cuentas", "subheading"))
         if name:
             options.append(button("Ver mi perfil", self.show_profile))
-        for profile in self.profiles:
-            style = "primary" if profile == self.profile and not self.microsoft_active else None
-            options.append(button(f"{profile}    ·    Offline",
-                                  lambda name=profile: self.select_profile(name), style))
+        if self.profiles:
+            profiles = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            scroll = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER,
+                                        max_content_height=230, propagate_natural_height=True,
+                                        propagate_natural_width=True)
+            scroll.set_child(profiles)
+            options.append(scroll)
+            for profile in self.profiles:
+                style = "primary" if profile == self.profile and not self.microsoft_active else None
+                row = Gtk.Box(spacing=6)
+                select = button(f"{profile} · Offline", lambda name=profile: self.select_profile(name), style)
+                select.set_hexpand(True)
+                row.append(select)
+                remove = button("Quitar", lambda name=profile: self.confirm_remove_profile(name), "quiet-button")
+                remove.update_property([Gtk.AccessibleProperty.LABEL], [f"Quitar perfil {profile}"])
+                row.append(remove)
+                profiles.append(row)
         if self.microsoft:
             options.append(button(f"{self.microsoft[1]['name']}    ·    Microsoft", self.select_microsoft,
                                   "primary" if self.microsoft_active else None))
-            options.append(button("Desconectar Microsoft", self.disconnect_microsoft))
+            options.append(button("Quitar cuenta Microsoft", self.disconnect_microsoft, "quiet-button"))
         else:
             options.append(button("+  Conectar Microsoft", self.connect_microsoft))
         options.append(button("+  Agregar cuenta offline", self.edit_profile))
         popover.set_child(options)
         self.accounts.set_popover(popover)
+
+    def confirm_remove_profile(self, profile):
+        self.accounts.popdown()
+        dialog = Gtk.Dialog(title="Quitar perfil offline", transient_for=self.window, modal=True)
+        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Quitar perfil", Gtk.ResponseType.OK).add_css_class("danger")
+        dialog.set_default_response(Gtk.ResponseType.CANCEL)
+        box = dialog.get_content_area()
+        box.add_css_class("menu")
+        message = label(f"¿Querés quitar «{profile}» de la lista de cuentas de Nova?")
+        message.set_wrap(True)
+        box.append(message)
+
+        def respond(_, response):
+            if response == Gtk.ResponseType.OK:
+                try:
+                    remaining = [name for name in self.profiles if name != profile]
+                    active = self.profile if self.profile in remaining else next(iter(remaining), "")
+                    motor.save(motor.ROOT / "accounts.json", {"active": active, "profiles": remaining})
+                except OSError as error:
+                    message.set_text(f"No se pudo quitar el perfil: {error}")
+                    return
+                self.profiles = remaining
+                self.profile = active
+                self.update_accounts()
+                self.status.set_text(f"Perfil offline «{profile}» quitado.")
+            dialog.destroy()
+
+        dialog.connect("response", respond)
+        dialog.present()
 
     def show_profile(self):
         self.accounts.popdown()
