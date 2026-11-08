@@ -143,7 +143,8 @@ class Nova(Gtk.Application):
         nav.append(label("MODRINTH", "nav-caption"))
         nav.append(self.nav_button("Explorar", "system-search-symbolic", self.browse))
         nav.append(self.nav_button("Modpacks", "package-x-generic-symbolic", self.browse_packs))
-        nav.append(self.nav_button("Importar pack", "document-open-symbolic", self.import_pack))
+        nav.append(self.nav_button("Importar pack", "document-open-symbolic",
+                                   lambda: self.add_instance(import_only=True)))
         nav.append(self.nav_button("Skins", "applications-graphics-symbolic", self.open_skins))
         nav.append(self.nav_button("Respaldos", "document-open-symbolic", self.show_backups))
         nav.append(Gtk.Box(vexpand=True))
@@ -445,26 +446,31 @@ class Nova(Gtk.Application):
         except OSError as exc:
             self.status.set_text(str(exc))
 
-    def add_instance(self):
-        chooser = Gtk.Window(title="Nueva instancia", transient_for=self.window,
+    def add_instance(self, *, import_only=False):
+        title = "Importar modpack" if import_only else "Nueva instancia"
+        chooser = Gtk.Window(title=title, transient_for=self.window,
                              modal=True, default_width=510, resizable=False)
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, css_classes=["menu"])
-        content.append(label("Nueva instancia", "subheading"))
-        content.append(label("Elegí cómo querés empezar", "muted"))
+        content.append(label(title, "subheading"))
+        content.append(label("Elegí el formato del archivo" if import_only else
+                             "Elegí cómo querés empezar", "muted"))
 
         def choose(action):
             chooser.destroy()
             action()
 
-        for title, detail, action in (
+        options = (
             ("◇   Personalizada", "Elegí la versión de Minecraft y el cargador.",
              lambda: self.instance_form(None)),
             ("↓   Buscar un modpack", "Descargá un pack completo desde Modrinth.",
              self.browse_packs),
-            ("＋   Importar un archivo", "Importá un .mrpack de Modrinth o un ZIP de CurseForge.",
-             self.import_pack),
-        ):
-            content.append(feature_button(title, detail, lambda run=action: choose(run)))
+            ("Importar Modrinth (.mrpack)", "Elegí un archivo .mrpack de Modrinth.",
+             lambda: self.import_pack("mrpack")),
+            ("Importar CurseForge (.zip)", "Elegí un ZIP exportado desde CurseForge.",
+             lambda: self.import_pack("zip")),
+        )
+        for name, detail, action in options[2:] if import_only else options:
+            content.append(feature_button(name, detail, lambda run=action: choose(run)))
         chooser.set_child(content)
         chooser.present()
 
@@ -752,22 +758,29 @@ class Nova(Gtk.Application):
         if not self.busy:
             biblioteca.Browser(self, self.selected, self.instances.get(self.selected))
 
-    def import_pack(self):
+    def import_pack(self, extension):
         if self.busy:
             return
-        picker = Gtk.FileChooserNative(title="Importar modpack", transient_for=self.window,
-                                       action=Gtk.FileChooserAction.OPEN)
-        filters = Gtk.FileFilter(name="Modpacks de Modrinth y CurseForge")
-        filters.add_suffix("mrpack")
-        filters.add_suffix("zip")
-        picker.add_filter(filters)
+        format_name = "Modrinth" if extension == "mrpack" else "CurseForge"
+        picker = Gtk.FileChooserNative(title=f"Importar {format_name} (.{extension})",
+                                       transient_for=self.window, action=Gtk.FileChooserAction.OPEN)
+        file_filter = Gtk.FileFilter(name=f"{format_name} (*.{extension})")
+        pattern = "".join(f"[{letter}{letter.upper()}]" for letter in extension)
+        file_filter.add_pattern(f"*.{pattern}")
+        picker.add_filter(file_filter)
+        all_files = Gtk.FileFilter(name="Todos los archivos")
+        all_files.add_pattern("*")
+        picker.add_filter(all_files)
+        picker.set_filter(file_filter)
 
         def selected(dialog, response):
             if response == Gtk.ResponseType.ACCEPT:
                 path = dialog.get_file().get_path()
                 if path:
                     dialog.destroy()
-                    if Path(path).suffix.lower() == ".zip" and not os.environ.get("CURSEFORGE_API_KEY"):
+                    if Path(path).suffix.lower() != f".{extension}":
+                        self.status.set_text(f"Elegí un archivo .{extension} para importar desde {format_name}.")
+                    elif extension == "zip" and not os.environ.get("CURSEFORGE_API_KEY"):
                         self.import_curseforge(path)
                     else:
                         self.import_local(path)
