@@ -4,6 +4,10 @@ import hashlib
 import os
 from pathlib import Path
 import re
+import shlex
+import shutil
+from tempfile import TemporaryDirectory
+import time
 import subprocess
 import sys
 import threading
@@ -21,6 +25,7 @@ import consola
 import catalogo
 import motor
 import respaldos
+import servidores
 
 HERE = Path(__file__).resolve().parent
 RESOLUTIONS = ("854x480", "1280x720", "1600x900", "1920x1080", "2560x1440")
@@ -92,6 +97,9 @@ class Nova(Gtk.Application):
         self.window = None
         self.selected = None
         self.busy = False
+        self.parallel = False
+        self.running = None
+        self.launch_stage = ""
         self.versions = []
         self.microsoft = None
         self.microsoft_active = False
@@ -109,7 +117,7 @@ class Nova(Gtk.Application):
                                             default_width=1150, default_height=730)
         self.window.add_css_class("nova-main")
         self.window.set_icon_name("io.nova.launcher")
-        self.window.connect("close-request", lambda _: self.busy)
+        self.window.connect("close-request", lambda _: self.busy or self.parallel)
         accounts = motor.read(motor.ROOT / "accounts.json", {"active": "", "profiles": []})
         self.preferences = {
             "memory": 4, "java": "", "resolution": "default", "console": False,
@@ -120,6 +128,10 @@ class Nova(Gtk.Application):
             motor.read(HERE / "canal.json", {}).get("repository", "")
         )
         self.checking_release = False
+        self.library = motor.read(motor.ROOT / "library.json", {})
+        last = self.library.get("selected")
+        if isinstance(last, str) and Path(last).name == last:
+            self.selected = motor.ROOT / "instances" / last
         self.profile = accounts["active"]
         self.profiles = accounts["profiles"]
         titlebar = Gtk.HeaderBar()
@@ -147,6 +159,7 @@ class Nova(Gtk.Application):
                                    lambda: self.add_instance(import_only=True)))
         nav.append(label("HERRAMIENTAS", "nav-caption"))
         nav.append(self.nav_button("Skins", "applications-graphics-symbolic", self.open_skins))
+        nav.append(self.nav_button("Servidores", "network-server-symbolic", self.open_servers))
         nav.append(self.nav_button("Respaldos", "document-open-symbolic", self.show_backups))
         nav.append(Gtk.Box(vexpand=True))
         self.release_button = button(f"Nova {actualizaciones.VERSION}", self.release_details)
@@ -173,6 +186,15 @@ class Nova(Gtk.Application):
         new.set_valign(Gtk.Align.CENTER)
         library_header.append(new)
         main.append(library_header)
+        library_controls = Gtk.Box(spacing=8)
+        self.library_query = Gtk.SearchEntry(hexpand=True, placeholder_text="Buscar instancias")
+        self.library_filter = Gtk.ComboBoxText()
+        for key, title in (("all", "Todas"), ("favorites", "Favoritas"), ("recent", "Jugadas recientemente")):
+            self.library_filter.append(key, title)
+        self.library_filter.set_active_id("all")
+        library_controls.append(self.library_query)
+        library_controls.append(self.library_filter)
+        main.append(library_controls)
         self.cards = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=3,
                                  homogeneous=True, column_spacing=12, row_spacing=12)
         main.append(self.cards)
@@ -187,7 +209,15 @@ class Nova(Gtk.Application):
         self.status = label("Listo", "muted")
         self.status.set_wrap(True)
         self.status.add_css_class("status-line")
-        main.append(self.status)
+        status_row = Gtk.Box(spacing=8)
+        self.status.set_hexpand(True)
+        status_row.append(self.status)
+        self.failure_log = button("Ver registro", lambda: consola.open_console(self.window, self.failed_log))
+        self.failure_log.set_visible(False)
+        status_row.append(self.failure_log)
+        main.append(status_row)
+        self.library_query.connect("search-changed", lambda _: self.refresh())
+        self.library_filter.connect("changed", lambda _: self.refresh())
         self.update_accounts()
         self.refresh()
         self.window.present()
@@ -245,7 +275,7 @@ class Nova(Gtk.Application):
         dialog = Gtk.Window(title="Versiones de Nova", transient_for=self.window, modal=True,
                             default_width=440)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, css_classes=["menu"])
-        box.append(label(f"Nova Launcher {actualizaciones.VERSION}", "subheading"))
+        box.append(label(f"Versión instalada · Nova {actualizaciones.VERSION}", "subheading"))
         notice = label("Launcher de terceros para Minecraft Java Edition. Sin afiliación con Mojang o Microsoft.",
                        "muted")
         notice.set_wrap(True)
@@ -260,7 +290,8 @@ class Nova(Gtk.Application):
                     self.save_file("Guardar actualización de Nova", rpm.rsplit("/", 1)[-1],
                                    lambda path: self.background_file("Descargando actualización…",
                                        lambda: actualizaciones.download(rpm, path),
-                                       f"RPM guardado en {path}."))
+                                       "RPM listo para instalar.",
+                                       after_save=lambda: self.update_ready(path, tag)))
 
                 box.append(button("Descargar RPM para Fedora", save_update, "primary"))
             if notes:
@@ -273,6 +304,24 @@ class Nova(Gtk.Application):
                 box.append(scroll)
             box.append(Gtk.LinkButton(uri=page, label="Ver cambios en GitHub"))
         box.append(button("Buscar actualizaciones", lambda: (dialog.destroy(), self.check_release(manual=True))))
+        dialog.set_child(box)
+        dialog.present()
+
+    def update_ready(self, path, tag):
+        dialog = Gtk.Window(title="Actualización de Nova", transient_for=self.window, modal=True,
+                            default_width=460)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
+        box.append(label(f"{tag} · RPM listo para instalar", "subheading"))
+        box.append(label(f"Versión instalada · {actualizaciones.VERSION}", "muted"))
+        box.append(label("Instalá el RPM y volvé a abrir Nova.", "muted"))
+        box.append(button("Abrir carpeta", lambda: subprocess.Popen(["xdg-open", str(path.parent)])))
+
+        def copy_command():
+            dialog.get_clipboard().set(f"sudo dnf install {shlex.quote(str(path.absolute()))}")
+            copy.set_label("Comando copiado")
+
+        copy = button("Copiar comando de instalación", copy_command, "primary")
+        box.append(copy)
         dialog.set_child(box)
         dialog.present()
 
@@ -916,16 +965,28 @@ class Nova(Gtk.Application):
             config.parent: {**motor.DEFAULTS, **motor.read(config, {})}
             for config in sorted((motor.ROOT / "instances").glob("*/instance.json"))
         }
-        count = len(self.instances)
+        favorites = self.library.get("favorites", [])
+        recent = self.library.get("recent", {})
+        mode = self.library_filter.get_active_id()
+        query = self.library_query.get_text().strip().casefold()
+        visible = {folder: entry for folder, entry in self.instances.items()
+                   if query in entry["name"].casefold()
+                   and (mode != "favorites" or folder.name in favorites)
+                   and (mode != "recent" or folder.name in recent)}
+        if mode == "recent":
+            visible = dict(sorted(visible.items(), key=lambda item: recent[item[0].name], reverse=True))
+        elif self.preferences["alphabetical"]:
+            visible = dict(sorted(visible.items(), key=lambda item: item[1]["name"].casefold()))
+        self.visible_instances = visible
+        count = len(visible)
         self.library_count.set_text("1 instancia" if count == 1 else f"{count} instancias")
-        if self.selected not in self.instances:
-            self.selected = next(iter(self.instances), None)
-        if self.preferences["alphabetical"]:
-            self.instances = dict(sorted(self.instances.items(), key=lambda item: item[1]["name"].casefold()))
-        compact = bool(self.instances) and (len(self.instances) > 2 or self.preferences["compact"])
+        if self.selected not in visible:
+            self.selected = next((folder for folder in visible
+                                  if folder.name == self.library.get("selected")), next(iter(visible), None))
+        compact = bool(self.visible_instances) and (len(self.visible_instances) > 2 or self.preferences["compact"])
         layout = (compact, tuple((folder, instance["name"], instance["version"], instance["loader"],
                                   instance["artwork"], instance.get("cover"))
-                                 for folder, instance in self.instances.items()))
+                                 for folder, instance in self.visible_instances.items()))
         if layout != self.library_layout:
             for container in (self.cards, self.compact):
                 while child := container.get_first_child():
@@ -933,11 +994,11 @@ class Nova(Gtk.Application):
             self.instance_rows.clear()
             self.expanded_folder = None
             self.library_layout = layout
-            self.cards.set_visible(bool(self.instances) and not compact)
+            self.cards.set_visible(bool(self.visible_instances) and not compact)
             self.details.set_visible(not compact)
             self.compact.set_visible(compact)
             if compact:
-                for folder, instance in self.instances.items():
+                for folder, instance in self.visible_instances.items():
                     self.add_compact_instance(folder, instance)
             else:
                 self.render_cards()
@@ -950,7 +1011,7 @@ class Nova(Gtk.Application):
                 if key != self.selected:
                     reveal.set_child(None)
         else:
-            for child, folder in zip(self.cards, self.instances):
+            for child, folder in zip(self.cards, self.visible_instances):
                 tile = child.get_child()
                 if folder == self.selected:
                     tile.add_css_class("selected")
@@ -959,7 +1020,7 @@ class Nova(Gtk.Application):
             self.render_details(self.details)
 
     def render_cards(self):
-        for folder, instance in self.instances.items():
+        for folder, instance in self.visible_instances.items():
             card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             artwork = instance_art(instance)
             card.append(artwork)
@@ -1040,6 +1101,9 @@ class Nova(Gtk.Application):
         while child := details.get_first_child():
             details.remove(child)
         if self.selected is None:
+            if self.instances:
+                details.append(label("No hay instancias para este filtro.", "subheading"))
+                return
             details.append(label("Tu biblioteca está vacía", "subheading"))
             hint = label("Creá una instancia de Minecraft Java o importá un modpack.", "muted")
             hint.set_wrap(True)
@@ -1060,10 +1124,11 @@ class Nova(Gtk.Application):
         play = button("", self.play, "primary")
         play_content = Gtk.Box(spacing=8)
         play_content.append(Gtk.Image.new_from_icon_name("media-playback-start-symbolic"))
-        play_content.append(label("Jugar"))
+        self.play_label = label(self.launch_stage or "Jugar")
+        play_content.append(self.play_label)
         play.set_child(play_content)
         play.update_property([Gtk.AccessibleProperty.LABEL], ["Jugar"])
-        play.set_sensitive(not self.busy)
+        play.set_sensitive(not self.busy and not self.parallel)
         row.append(play)
         info.append(row)
         info.append(label("Minecraft Java", "muted"))
@@ -1096,6 +1161,7 @@ class Nova(Gtk.Application):
         actions = Gtk.Box(spacing=8, css_classes=["instance-toolbar"])
         actions.append(button("Editar instancia", self.edit_settings))
         actions.append(button("Ver registro", lambda: self.open_log(folder)))
+        actions.append(button("Servidores", lambda: self.open_servers(folder)))
         more = Gtk.MenuButton(label="Más acciones")
         popover = Gtk.Popover()
         menu = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, css_classes=["action-menu"])
@@ -1112,6 +1178,13 @@ class Nova(Gtk.Application):
             control.set_sensitive(not self.busy)
             menu.append(control)
 
+        favorite = folder.name in self.library.get("favorites", [])
+        add_action("Quitar de favoritas" if favorite else "Marcar como favorita",
+                   lambda: self.toggle_favorite(folder))
+        alternate = button("Jugar con otra cuenta", lambda: (popover.popdown(), self.play_parallel(folder)))
+        alternate.set_sensitive(not self.parallel and (not self.busy or
+                                (self.running and self.running[0] == folder)))
+        menu.append(alternate)
         add_action("Abrir carpeta", lambda: subprocess.Popen(["xdg-open", str(folder)]))
         add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))
         add_action("Duplicar instancia", lambda: self.copy_instance(folder, "duplicate"))
@@ -1144,12 +1217,17 @@ class Nova(Gtk.Application):
         picker.connect("response", respond)
         picker.show()
 
-    def background_file(self, message, task, success):
+    def background_file(self, message, task, success, *, after_save=None):
         if self.busy:
             return
         self.busy = True
         self.status.set_text(message)
         self.refresh()
+
+        def saved():
+            self.finished(success)
+            if after_save:
+                after_save()
 
         def worker():
             try:
@@ -1157,7 +1235,7 @@ class Nova(Gtk.Application):
             except Exception as exc:
                 GLib.idle_add(self.finished, f"No se pudo completar: {exc}")
             else:
-                GLib.idle_add(self.finished, success)
+                GLib.idle_add(saved)
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -1188,6 +1266,9 @@ class Nova(Gtk.Application):
         dialog.present()
 
     def remove_instance(self, folder, name):
+        if self.parallel:
+            self.status.set_text("Cerrá la segunda sesión antes de eliminar instancias.")
+            return
         dialog = Gtk.Dialog(title="Eliminar instancia", transient_for=self.window, modal=True)
         dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
         dialog.add_button("Mover a la Papelera", Gtk.ResponseType.OK).add_css_class("danger")
@@ -1221,16 +1302,215 @@ class Nova(Gtk.Application):
         if self.selected == folder:
             return
         self.selected = folder
+        self.library["selected"] = folder.name
+        self.save_library()
         if self.instance_rows:
             self.expand_instance(folder)
         else:
             self.refresh()
 
-    def play(self):
+    def open_servers(self, folder=None):
+        folder = folder or self.selected
+        if folder is None:
+            self.status.set_text("Elegí una instancia para ver sus servidores.")
+            return
         if self.busy:
             return
+        dialog = Gtk.Window(title="Servidores", transient_for=self.window, modal=True,
+                            default_width=560, default_height=410)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
+        box.append(label(self.instances[folder]["name"], "subheading"))
+        box.append(label("Servidores de esta instancia", "muted"))
+        scroll = Gtk.ScrolledWindow(vexpand=True)
+        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        scroll.set_child(rows)
+        box.append(scroll)
+        address = Gtk.Entry(placeholder_text="ejemplo.net:25565", hexpand=True)
+        address.update_property([Gtk.AccessibleProperty.LABEL], ["Dirección del servidor"])
+        name = Gtk.Entry(placeholder_text="Nombre opcional", hexpand=True)
+        name.update_property([Gtk.AccessibleProperty.LABEL], ["Nombre del servidor"])
+        form = Gtk.Box(spacing=8)
+        form.append(name)
+        form.append(address)
+        form.append(button("Guardar", lambda: add_server()))
+        box.append(form)
+        feedback = label("", "muted")
+        feedback.set_wrap(True)
+        box.append(feedback)
+        path = folder / "nova-servers.json"
+
+        def join(target):
+            try:
+                servidores.address_parts(target)
+            except ValueError as error:
+                feedback.set_text(str(error))
+                return
+            dialog.destroy()
+            self.select(folder)
+            self.play(target)
+
+        def populate():
+            while child := rows.get_first_child():
+                rows.remove(child)
+            try:
+                saved = servidores.saved_servers(folder / "game" / "servers.dat")
+            except (OSError, ValueError, EOFError) as error:
+                saved = []
+                feedback.set_text(f"No se pudo leer la lista de Minecraft: {error}")
+            extra = motor.read(path, {})
+            saved_addresses = {target.casefold() for _, target in saved}
+            for title, target in [*saved, *((title, target) for target, title in extra.items()
+                                           if target.casefold() not in saved_addresses)]:
+                row = Gtk.Box(spacing=8, css_classes=["catalog-row"])
+                info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, hexpand=True)
+                for value, style in ((title, "form-label"), (target, "muted")):
+                    text = label(value, style)
+                    text.set_ellipsize(Pango.EllipsizeMode.END)
+                    info.append(text)
+                row.append(info)
+                row.append(button("Entrar", lambda target=target: join(target), "primary"))
+                rows.append(row)
+            if not rows.get_first_child():
+                rows.append(label("Agregá un servidor para entrar desde Nova.", "muted"))
+
+        def add_server():
+            target = address.get_text().strip()
+            try:
+                servidores.address_parts(target)
+                with motor.instance_lock(folder):
+                    extra = motor.read(path, {})
+                    extra[target] = name.get_text().strip()[:80] or target
+                    motor.save(path, extra)
+            except (OSError, ValueError, RuntimeError) as error:
+                feedback.set_text(str(error))
+                return
+            address.set_text("")
+            name.set_text("")
+            feedback.set_text("Servidor guardado en Nova.")
+            populate()
+
+        address.connect("activate", lambda _: add_server())
+        populate()
+        dialog.set_child(box)
+        dialog.present()
+
+    def play_parallel(self, folder):
+        if self.parallel or (self.busy and (not self.running or self.running[0] != folder)):
+            return
+        dialog = Gtk.Dialog(title="Jugar con otra cuenta", transient_for=self.window, modal=True)
+        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
+        play = dialog.add_button("Jugar", Gtk.ResponseType.OK)
+        play.add_css_class("primary")
+        box = dialog.get_content_area()
+        box.add_css_class("menu")
+        hint = label("La segunda cuenta offline usa los mods y ajustes de la instancia. "
+                     "Sus mundos se guardan por separado.", "muted")
+        hint.set_wrap(True)
+        hint.set_max_width_chars(52)
+        box.append(hint)
+        profile = Gtk.ComboBoxText()
+        active = {self.profile.casefold()}
+        if self.running:
+            active.add(self.running[1].casefold())
+        if self.microsoft_active and self.microsoft:
+            active.add(self.microsoft[1].get("name", "").casefold())
+        for player in self.profiles:
+            if player.casefold() not in active:
+                profile.append_text(player)
+        profile.set_active(0)
+        play.set_sensitive(profile.get_active() >= 0)
+        if profile.get_active() < 0:
+            box.append(label("Creá otro perfil offline en el menú de cuentas.", "muted"))
+        box.append(profile)
+
+        def respond(_, response):
+            player = profile.get_active_text()
+            dialog.destroy()
+            if response == Gtk.ResponseType.OK and player:
+                self.start_parallel(folder, player)
+
+        dialog.connect("response", respond)
+        dialog.present()
+
+    def start_parallel(self, folder, player):
+        if (self.parallel or folder not in self.instances
+                or not re.fullmatch(r"[A-Za-z0-9_]{3,16}", player)):
+            return
+        self.parallel = True
+        self.failure_log.set_visible(False)
+        self.status.set_text(f"Preparando la segunda sesión · {player}…")
+        self.refresh()
+        instance = dict(self.instances[folder])
+        instance["java"] = instance["java"] or self.preferences["java"]
+        if instance.get("resolution", "default") == "default":
+            instance["resolution"] = self.preferences["resolution"]
+        isolated = folder / "sessions" / player.casefold()
+        log_path = isolated / "minecraft.log"
+
+        def finish(message, failed):
+            self.parallel = False
+            self.status.set_text(message)
+            self.refresh()
+            if failed:
+                self.failure_log.set_visible(True)
+                self.failed_log = log_path
+
+        def worker():
+            try:
+                isolated.mkdir(parents=True, exist_ok=True)
+                with motor.instance_lock(isolated) as lock, TemporaryDirectory(dir=isolated) as temporary:
+                    game = isolated / "game"
+                    game.mkdir(exist_ok=True)
+                    source = folder / "game"
+                    for name in ("mods", "config", "defaultconfigs", "resourcepacks", "shaderpacks",
+                                 "scripts", "kubejs"):
+                        item = source / name
+                        staged = Path(temporary) / name
+                        target = game / name
+                        if item.is_dir() and not item.is_symlink():
+                            shutil.copytree(item, staged, ignore=lambda directory, names: [
+                                child for child in names if (Path(directory) / child).is_symlink()])
+                        if target.is_dir() and not target.is_symlink():
+                            shutil.rmtree(target)
+                        else:
+                            target.unlink(missing_ok=True)
+                        if staged.exists():
+                            staged.rename(target)
+                    for name in ("options.txt", "servers.dat"):
+                        item = source / name
+                        target = game / name
+                        if item.is_file() and not item.is_symlink() and not target.exists():
+                            shutil.copy2(item, target)
+                    result = motor.launch(folder, player, instance,
+                                          lambda text: GLib.idle_add(self.status.set_text, text),
+                                          game=game, log_path=log_path, held_lock=lock)
+                message = f"Sesión de {player} cerrada" + (f" · código {result}" if result else ".")
+                GLib.idle_add(finish, message, result != 0)
+            except Exception as error:
+                GLib.idle_add(finish, f"No se pudo abrir la segunda sesión: {error}", True)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def save_library(self):
+        try:
+            motor.save(motor.ROOT / "library.json", self.library)
+        except OSError as error:
+            self.status.set_text(f"No se pudo guardar la biblioteca: {error}")
+
+    def toggle_favorite(self, folder):
+        favorites = self.library.setdefault("favorites", [])
+        if folder.name in favorites:
+            favorites.remove(folder.name)
+        else:
+            favorites.append(folder.name)
+        self.save_library()
+        self.refresh()
+
+    def play(self, server=None):
+        if self.busy or self.parallel or self.selected is None:
+            return
         if not self.profile and not self.microsoft_active:
-            self.edit_profile(after_save=self.play)
+            self.edit_profile(after_save=lambda: self.play(server))
             self.status.set_text("Elegí el nombre con el que querés jugar.")
             return
         folder = self.selected
@@ -1244,42 +1524,65 @@ class Nova(Gtk.Application):
         if self.preferences["console"] and behavior != "close":
             self.open_log(folder)
         self.busy = True
+        self.failure_log.set_visible(False)
+        self.launch_stage = "Preparando…"
         self.status.set_text("Preparando Minecraft…")
         self.refresh()
 
         minimized = False
 
-        def started():
+        def started(player):
             nonlocal minimized
-            if behavior == "close":
+            self.running = folder, player
+            self.library["selected"] = folder.name
+            self.library.setdefault("recent", {})[folder.name] = time.time()
+            self.save_library()
+            if behavior == "close" and not self.parallel:
                 self.quit()
-            elif behavior == "minimize":
+                return
+            if behavior == "minimize":
                 self.window.minimize()
                 minimized = True
+            self.refresh()
 
-        def finish(message):
+        def finish(message, failed):
+            self.running = None
+            self.launch_stage = ""
             self.finished(message)
+            self.failed_log = folder / "minecraft.log"
+            self.failure_log.set_visible(failed)
             if minimized:
                 self.window.unminimize()
                 self.window.present()
 
+        def show_stage(message):
+            self.status.set_text(message)
+            self.launch_stage = ("Descargando…" if message.startswith("Descargando") else
+                                 "En juego" if message.startswith("Minecraft abierto") else
+                                 "Iniciando…" if message.startswith("Iniciando") else "Preparando…")
+            if self.selected == folder:
+                self.play_label.set_text(self.launch_stage)
+
         def worker():
             def status(message):
-                GLib.idle_add(self.status.set_text, message)
+                GLib.idle_add(show_stage, message)
             try:
+                failed = False
                 session = None
                 if microsoft:
+                    status("Verificando la cuenta de Microsoft…")
                     import cuentas
                     session = cuentas.refresh(*microsoft)
                 if session:
                     GLib.idle_add(self.store_session, microsoft, session)
                 result = motor.launch(
                     folder, profile, instance, status, session=session,
-                    on_started=(lambda: GLib.idle_add(started)) if behavior in {"close", "minimize"} else None,
-                    detach=behavior == "close",
+                    on_started=lambda: GLib.idle_add(started, session["name"] if session else profile),
+                    detach=behavior == "close", server=server,
                 )
                 message = "Minecraft cerrado."
                 if result != 0:
+                    failed = True
                     try:
                         diagnosis = consola.diagnose(consola.read_log(folder / "minecraft.log"))
                     except OSError:
@@ -1287,8 +1590,9 @@ class Nova(Gtk.Application):
                     message = (f"Minecraft terminó con código {result}. "
                                f"{diagnosis or 'Abrí Ver registro para ver los detalles.'}")
             except Exception as exc:
+                failed = True
                 message = f"Error al iniciar Minecraft: {exc}"
-            GLib.idle_add(finish, message)
+            GLib.idle_add(finish, message, failed)
 
         threading.Thread(target=worker, daemon=True).start()
 

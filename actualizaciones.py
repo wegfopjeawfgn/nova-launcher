@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 
 import requests
 
-VERSION = "0.9.7"
+VERSION = "0.9.8"
 REPO = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_.-]{1,100}")
 
 

@@ -1,5 +1,5 @@
 """Persist isolated instances and start Minecraft on Linux."""
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import fcntl
 import hashlib
 import json
@@ -11,12 +11,14 @@ import uuid
 
 import requests
 
+import servidores
+
 VERSION = "1.21.4"
 ROOT = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "nova-launcher"
 LOADERS = {"vanilla": "Vanilla", "fabric": "Fabric", "forge": "Forge",
            "neoforge": "NeoForge", "quilt": "Quilt"}
 DEFAULTS = {"version": VERSION, "loader": "vanilla", "loader_version": "", "java": ""}
-USER_AGENT = "NovaLauncher/0.9.7 (desktop Minecraft launcher)"
+USER_AGENT = "NovaLauncher/0.9.8 (desktop Minecraft launcher)"
 
 
 def save(path, data):
@@ -80,15 +82,25 @@ def prepare(instance, status):
             launch_id = version
         if launch_id and (shared / "versions" / launch_id / f"{launch_id}.json").is_file():
             return shared, launch_id
-        status(f"Instalando {version} · {LOADERS[loader_id]}…")
+        status(f"Descargando Minecraft {version}…")
+
+        def install_status(message):
+            stages = {"Download Libraries": "Descargando bibliotecas de Minecraft…",
+                      "Download Assets": "Descargando recursos de Minecraft…",
+                      "Install java runtime": "Preparando Java…"}
+            if message in stages:
+                status(stages[message])
+
+        callback = {"setStatus": install_status}
         if loader_id == "vanilla":
-            install.install_minecraft_version(version, str(shared))
+            install.install_minecraft_version(version, str(shared), callback=callback)
             launch_id = version
         else:
             loader = mod_loader.get_mod_loader(loader_id)
             if not loader.is_minecraft_version_supported(version):
                 raise ValueError(f"{LOADERS[loader_id]} no ofrece soporte para Minecraft {version}.")
-            install.install_minecraft_version(version, str(shared))
+            install.install_minecraft_version(version, str(shared), callback=callback)
+            status(f"Preparando {LOADERS[loader_id]}…")
             java = instance["java"] or command.get_minecraft_command(version, str(shared), {
                 "username": "Nova", "uuid": "0", "token": "0",
             })[0]
@@ -98,14 +110,14 @@ def prepare(instance, status):
         return shared, launch_id
 
 
-def launch(folder, profile, instance, status, session=None, *, on_started=None, detach=False):
+def launch(folder, profile, instance, status, session=None, *, on_started=None, detach=False, server=None, game=None, log_path=None, held_lock=None):
     from minecraft_launcher_lib import command
 
     if not session and not re.fullmatch(r"[A-Za-z0-9_]{3,16}", profile):
         raise ValueError("Elegí un nombre offline de 3 a 16 letras, números o guiones bajos.")
-    game = folder / "game"
+    game = game or folder / "game"
     game.mkdir(exist_ok=True)
-    with instance_lock(folder) as lock:
+    with (nullcontext(held_lock) if held_lock else instance_lock(folder)) as lock:
         shared, launch_id = prepare(instance, status)
         player_id = uuid.UUID(bytes=hashlib.md5(
             f"OfflinePlayer:{profile}".encode(), usedforsecurity=False
@@ -113,7 +125,7 @@ def launch(folder, profile, instance, status, session=None, *, on_started=None, 
         options = {
             "username": profile, "uuid": player_id.hex, "token": "0",
             "gameDirectory": str(game), "launcherName": "Nova Launcher",
-            "launcherVersion": "0.9.7", "jvmArguments": [f"-Xmx{instance['memory']}G"],
+            "launcherVersion": "0.9.8", "jvmArguments": [f"-Xmx{instance['memory']}G"],
         }
         if (instance["version"] == "1.21.11" and instance["loader"] == "fabric"
                 and read(folder / "nova-loading.json", {}).get("logo")):
@@ -127,8 +139,20 @@ def launch(folder, profile, instance, status, session=None, *, on_started=None, 
             options.update(username=session["name"], uuid=session["id"], token=session["access_token"])
         if instance["java"]:
             options["executablePath"] = instance["java"]
+        if server:
+            host, port = servidores.address_parts(server)
+            options["quickPlayMultiplayer"] = f"{host}:{port}" if port else host
+        status("Iniciando Minecraft…" if not server else f"Iniciando Minecraft para entrar a {server}…")
         args = command.get_minecraft_command(launch_id, str(shared), options)
-        with (folder / "minecraft.log").open("w", encoding="utf-8") as log:
+        if server and "--quickPlayMultiplayer" not in args:
+            version = re.match(r"^(\d+)\.(\d+)", instance["version"])
+            if version and tuple(map(int, version.groups())) < (1, 20):
+                args.extend(("--server", host.strip("[]")))
+                if port:
+                    args.extend(("--port", port))
+            else:
+                args.extend(("--quickPlayMultiplayer", options["quickPlayMultiplayer"]))
+        with (log_path or folder / "minecraft.log").open("w", encoding="utf-8") as log:
             process = subprocess.Popen(args, cwd=game, stdout=log, stderr=subprocess.STDOUT,
                                        pass_fds=(lock.fileno(),), start_new_session=detach)
             status("Minecraft abierto · " + profile)
