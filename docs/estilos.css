@@ -66,3 +66,12 @@ article svg { color: var(--accent); }
   .feature-grid, .install { grid-template-columns: 1fr; }
   .hero { padding-block: 2.75rem; }
 }
+
+.terminal > span { display: block; }
+.terminal button {
+  background: transparent; color: inherit; border: 1px solid var(--line);
+  border-radius: 6px; padding: .5rem .7rem; margin-bottom: .75rem;
+  font: inherit; font-size: .82rem; cursor: pointer;
+}
+.terminal button:hover, .terminal button:focus-visible { border-color: var(--accent); }
+#copy-status:empty { display: none; }

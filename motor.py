@@ -16,7 +16,7 @@ ROOT = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "
 LOADERS = {"vanilla": "Vanilla", "fabric": "Fabric", "forge": "Forge",
            "neoforge": "NeoForge", "quilt": "Quilt"}
 DEFAULTS = {"version": VERSION, "loader": "vanilla", "loader_version": "", "java": ""}
-USER_AGENT = "NovaLauncher/0.9.6 (desktop Minecraft launcher)"
+USER_AGENT = "NovaLauncher/0.9.7 (desktop Minecraft launcher)"
 
 
 def save(path, data):
@@ -113,7 +113,7 @@ def launch(folder, profile, instance, status, session=None, *, on_started=None, 
         options = {
             "username": profile, "uuid": player_id.hex, "token": "0",
             "gameDirectory": str(game), "launcherName": "Nova Launcher",
-            "launcherVersion": "0.9.6", "jvmArguments": [f"-Xmx{instance['memory']}G"],
+            "launcherVersion": "0.9.7", "jvmArguments": [f"-Xmx{instance['memory']}G"],
         }
         if (instance["version"] == "1.21.11" and instance["loader"] == "fabric"
                 and read(folder / "nova-loading.json", {}).get("logo")):

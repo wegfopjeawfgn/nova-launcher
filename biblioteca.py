@@ -324,7 +324,10 @@ class Browser:
     def install(self, category, release):
         def task():
             if category == "modpack":
-                return catalogo.install_pack(release, self.app.preferences["memory"])
+                return catalogo.install_pack(
+                    release, self.app.preferences["memory"],
+                    progress=lambda message: GLib.idle_add(self.status.set_text, message),
+                )
             catalogo.install_content(self.folder, self.instance, category, release)
             return None
 

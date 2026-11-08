@@ -64,8 +64,11 @@
       <div class="terminal">
         <span>Si el archivo está en Descargas</span>
         <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-0.9.1-1.noarch.rpm"</code></pre>
+        <button type="button" data-copy-command="install-downloads" hidden>Copiar comando para Descargas</button>
         <span>Si ya estás en la carpeta del archivo</span>
         <pre><code id="install-current">sudo dnf install ./nova-launcher-0.9.1-1.noarch.rpm</code></pre>
+        <button type="button" data-copy-command="install-current" hidden>Copiar comando para esta carpeta</button>
+        <p id="copy-status" role="status"></p>
         <p>RPM sin firma. El primer arranque de Minecraft descarga los archivos del juego.</p>
       </div>
     </section>

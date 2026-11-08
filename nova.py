@@ -252,10 +252,25 @@ class Nova(Gtk.Application):
         box.append(notice)
         release = getattr(self, "available_release", None)
         if release:
-            tag, rpm, page = release
+            tag, rpm, page, notes = release
             box.append(label(f"Nueva versión disponible · {tag}", "form-label"))
             if rpm:
-                box.append(Gtk.LinkButton(uri=rpm, label="Descargar RPM para Fedora"))
+                def save_update():
+                    dialog.destroy()
+                    self.save_file("Guardar actualización de Nova", rpm.rsplit("/", 1)[-1],
+                                   lambda path: self.background_file("Descargando actualización…",
+                                       lambda: actualizaciones.download(rpm, path),
+                                       f"RPM guardado en {path}."))
+
+                box.append(button("Descargar RPM para Fedora", save_update, "primary"))
+            if notes:
+                changelog = Gtk.TextView(editable=False, cursor_visible=False,
+                                         wrap_mode=Gtk.WrapMode.WORD_CHAR)
+                changelog.get_buffer().set_text(notes)
+                scroll = Gtk.ScrolledWindow(min_content_height=120, max_content_height=220,
+                                            propagate_natural_height=True)
+                scroll.set_child(changelog)
+                box.append(scroll)
             box.append(Gtk.LinkButton(uri=page, label="Ver cambios en GitHub"))
         box.append(button("Buscar actualizaciones", lambda: (dialog.destroy(), self.check_release(manual=True))))
         dialog.set_child(box)
@@ -478,7 +493,7 @@ class Nova(Gtk.Application):
              self.browse_packs),
             ("Importar Modrinth (.mrpack)", "Elegí un archivo .mrpack de Modrinth.",
              lambda: self.import_pack("mrpack")),
-            ("Importar CurseForge (.zip)", "Elegí un ZIP exportado desde CurseForge.",
+            ("Importar ZIP", "Abrí un ZIP de CurseForge o exportado desde Nova.",
              lambda: self.import_pack("zip")),
         )
         for name, detail, action in options[2:] if import_only else options:
@@ -775,7 +790,7 @@ class Nova(Gtk.Application):
     def import_pack(self, extension):
         if self.busy:
             return
-        format_name = "Modrinth" if extension == "mrpack" else "CurseForge"
+        format_name = "Modrinth" if extension == "mrpack" else "Nova o CurseForge"
         picker = Gtk.FileChooserNative(title=f"Importar {format_name} (.{extension})",
                                        transient_for=self.window, action=Gtk.FileChooserAction.OPEN)
         file_filter = Gtk.FileFilter(name=f"{format_name} (*.{extension})")
@@ -794,15 +809,40 @@ class Nova(Gtk.Application):
                     dialog.destroy()
                     if Path(path).suffix.lower() != f".{extension}":
                         self.status.set_text(f"Elegí un archivo .{extension} para importar desde {format_name}.")
-                    elif extension == "zip" and not os.environ.get("CURSEFORGE_API_KEY"):
-                        self.import_curseforge(path)
                     else:
-                        self.import_local(path)
+                        self.preview_pack(path)
                     return
             dialog.destroy()
 
         picker.connect("response", selected)
         picker.show()
+
+    def preview_pack(self, path):
+        try:
+            name, version, loader, needs_key = catalogo.pack_summary(path)
+        except (OSError, ValueError, KeyError, TypeError, catalogo.zipfile.BadZipFile) as exc:
+            self.status.set_text(f"No se pudo leer el modpack: {exc}")
+            return
+        dialog = Gtk.Dialog(title="Revisar modpack", transient_for=self.window, modal=True)
+        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Continuar", Gtk.ResponseType.OK).add_css_class("primary")
+        box = dialog.get_content_area()
+        box.add_css_class("menu")
+        title = label(name[:100], "subheading")
+        title.set_wrap(True)
+        box.append(title)
+        box.append(label(f"Minecraft {version} · {loader}", "muted"))
+
+        def respond(_, response):
+            dialog.destroy()
+            if response == Gtk.ResponseType.OK:
+                if needs_key and not os.environ.get("CURSEFORGE_API_KEY"):
+                    self.import_curseforge(path)
+                else:
+                    self.import_local(path)
+
+        dialog.connect("response", respond)
+        dialog.present()
 
     def import_curseforge(self, path):
         dialog = Gtk.Dialog(title="Importar ZIP de CurseForge", transient_for=self.window,
@@ -841,10 +881,29 @@ class Nova(Gtk.Application):
             if folder:
                 self.selected = folder
             self.finished(message)
+            if not folder:
+                dialog = Gtk.Dialog(title="Importación interrumpida", transient_for=self.window, modal=True)
+                dialog.add_button("Cerrar", Gtk.ResponseType.CANCEL)
+                dialog.add_button("Reintentar", Gtk.ResponseType.OK)
+                box = dialog.get_content_area()
+                box.add_css_class("menu")
+                error = label(message, "form-error")
+                error.set_wrap(True)
+                error.set_max_width_chars(60)
+                box.append(error)
+
+                def respond(_, response):
+                    dialog.destroy()
+                    if response == Gtk.ResponseType.OK:
+                        self.preview_pack(path)
+
+                dialog.connect("response", respond)
+                dialog.present()
 
         def worker():
             try:
-                folder = catalogo.import_pack(path, memory, api_key)
+                folder = catalogo.import_pack(path, memory, api_key, progress=lambda message:
+                                              GLib.idle_add(self.status.set_text, message))
             except Exception as exc:
                 GLib.idle_add(finish, None, f"No se pudo importar: {exc}")
             else:
@@ -1057,6 +1116,7 @@ class Nova(Gtk.Application):
         add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))
         add_action("Duplicar instancia", lambda: self.copy_instance(folder, "duplicate"))
         add_action("Crear respaldo", lambda: self.copy_instance(folder, "backup"))
+        add_action("Exportar instancia a ZIP", lambda: self.export_instance(folder))
         if instance["loader"] in ("fabric", "quilt"):
             full_branding = instance["version"] == "1.21.11" and instance["loader"] == "fabric"
             title = "Pantalla de carga Nova" if full_branding else "Colores Nova en la carga"
@@ -1068,6 +1128,64 @@ class Nova(Gtk.Application):
             ))
         menu.append(Gtk.Separator())
         add_action("Eliminar instancia", lambda: self.remove_instance(folder, instance["name"]), "danger")
+
+    def save_file(self, title, filename, action):
+        picker = Gtk.FileChooserNative(title=title, transient_for=self.window,
+                                       action=Gtk.FileChooserAction.SAVE)
+        picker.set_current_name(filename)
+
+        def respond(dialog, response):
+            file = dialog.get_file() if response == Gtk.ResponseType.ACCEPT else None
+            path = file.get_path() if file else None
+            dialog.destroy()
+            if path:
+                action(Path(path))
+
+        picker.connect("response", respond)
+        picker.show()
+
+    def background_file(self, message, task, success):
+        if self.busy:
+            return
+        self.busy = True
+        self.status.set_text(message)
+        self.refresh()
+
+        def worker():
+            try:
+                task()
+            except Exception as exc:
+                GLib.idle_add(self.finished, f"No se pudo completar: {exc}")
+            else:
+                GLib.idle_add(self.finished, success)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def export_instance(self, folder):
+        dialog = Gtk.Dialog(title="Exportar instancia", transient_for=self.window, modal=True)
+        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Guardar ZIP", Gtk.ResponseType.OK).add_css_class("primary")
+        box = dialog.get_content_area()
+        box.add_css_class("menu")
+        info = label("El ZIP incluye el nombre, la versión de Minecraft y el cargador. "
+                     "Los mods, shaders y texturas se instalan por separado.", "muted")
+        info.set_wrap(True)
+        info.set_max_width_chars(48)
+        box.append(info)
+        worlds = Gtk.CheckButton(label="Incluir mis mundos")
+        box.append(worlds)
+
+        def respond(_, response):
+            include_worlds = worlds.get_active()
+            dialog.destroy()
+            if response == Gtk.ResponseType.OK:
+                self.save_file("Exportar instancia a ZIP", "instancia-nova.zip", lambda path:
+                               self.background_file("Exportando instancia…",
+                                   lambda: respaldos.export_instance(folder, path, include_worlds),
+                                   f"Instancia exportada en {path}."))
+
+        dialog.connect("response", respond)
+        dialog.present()
 
     def remove_instance(self, folder, name):
         dialog = Gtk.Dialog(title="Eliminar instancia", transient_for=self.window, modal=True)
@@ -1160,8 +1278,14 @@ class Nova(Gtk.Application):
                     on_started=(lambda: GLib.idle_add(started)) if behavior in {"close", "minimize"} else None,
                     detach=behavior == "close",
                 )
-                message = ("Minecraft cerrado." if result == 0 else
-                           f"Minecraft terminó con código {result}. Consultá {folder / 'minecraft.log'}")
+                message = "Minecraft cerrado."
+                if result != 0:
+                    try:
+                        diagnosis = consola.diagnose(consola.read_log(folder / "minecraft.log"))
+                    except OSError:
+                        diagnosis = ""
+                    message = (f"Minecraft terminó con código {result}. "
+                               f"{diagnosis or 'Abrí Ver registro para ver los detalles.'}")
             except Exception as exc:
                 message = f"Error al iniciar Minecraft: {exc}"
             GLib.idle_add(finish, message)

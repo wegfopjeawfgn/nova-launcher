@@ -42,6 +42,22 @@
     document.getElementById("install-current").textContent = `sudo dnf install ./${rpm.name}`;
   }
 
+  if (navigator.clipboard) {
+    for (const button of document.querySelectorAll("[data-copy-command]")) {
+      button.hidden = false;
+      button.addEventListener("click", async () => {
+        const command = document.getElementById(button.dataset.copyCommand);
+        const status = document.getElementById("copy-status");
+        try {
+          await navigator.clipboard.writeText(command.textContent);
+          status.textContent = "Comando copiado.";
+        } catch {
+          status.textContent = "Seleccioná el comando y copialo manualmente.";
+        }
+      });
+    }
+  }
+
   refreshRelease().catch(() => {
     // Keep the bundled installer usable if GitHub is unavailable.
   });

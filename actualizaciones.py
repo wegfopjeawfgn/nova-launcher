@@ -1,9 +1,12 @@
 """Read the stable release channel without installing anything automatically."""
+import hashlib
+from pathlib import Path
 import re
+from tempfile import TemporaryDirectory
 
 import requests
 
-VERSION = "0.9.6"
+VERSION = "0.9.7"
 REPO = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_.-]{1,100}")
 
 
@@ -43,4 +46,32 @@ def check(repo):
     rpm = next((asset["browser_download_url"] for asset in release.get("assets", [])
                 if asset["name"].lower().endswith(".noarch.rpm")
                 and asset["browser_download_url"].lower().startswith(prefix.lower())), None)
-    return tag, rpm, page
+    return tag, rpm, page, (release.get("body") or "")[:4000]
+
+
+def download(url, destination):
+    if destination.suffix.lower() != ".rpm":
+        raise ValueError("Guardá la actualización con extensión .rpm.")
+    with TemporaryDirectory(dir=destination.parent) as temporary:
+        staged = Path(temporary) / "update.rpm"
+        with requests.get(url, timeout=30, stream=True) as response:
+            response.raise_for_status()
+            size = 0
+            with staged.open("wb") as output:
+                for chunk in response.iter_content(128 * 1024):
+                    size += len(chunk)
+                    if size > 128 * 1024**2:
+                        raise ValueError("El RPM supera los 128 MiB.")
+                    output.write(chunk)
+        with staged.open("rb") as source:
+            if source.read(4) != bytes.fromhex("edabeedb"):
+                raise ValueError("La descarga no es un paquete RPM.")
+            source.seek(0)
+            digest = hashlib.file_digest(source, "sha256").hexdigest()
+        # The checksum asset is published with every official Nova RPM.
+        with requests.get(url + ".sha256", timeout=15, stream=True) as response:
+            response.raise_for_status()
+            expected = response.raw.read(256, decode_content=True).split()
+        if not expected or expected[0] != digest.encode("ascii"):
+            raise ValueError("El SHA-256 del RPM no coincide con el publicado.")
+        staged.replace(destination)

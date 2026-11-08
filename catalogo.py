@@ -237,7 +237,7 @@ def pack_path(name):
     return path
 
 
-def curseforge_index(manifest, game, api_key):
+def curseforge_dependencies(manifest):
     if (manifest.get("manifestType") != "minecraftModpack"
             or manifest.get("manifestVersion") != 1):
         raise ValueError("El ZIP no contiene un manifiesto de CurseForge compatible.")
@@ -252,6 +252,11 @@ def curseforge_index(manifest, game, api_key):
             raise ValueError("El modpack requiere un loader que Nova no reconoce.")
         deps[loader] = version
     validate_pack_dependencies(deps)
+    return deps
+
+
+def curseforge_index(manifest, game, api_key, progress):
+    deps = curseforge_dependencies(manifest)
     override = manifest.get("overrides", "overrides")
     prefix = pack_path(override).as_posix() + "/" if override else None
     files = [item for item in manifest["files"] if item.get("required", True)]
@@ -260,10 +265,11 @@ def curseforge_index(manifest, game, api_key):
     if files and not api_key:
         raise ValueError("Este ZIP referencia archivos de CurseForge. Ingresá una clave de API al importarlo.")
     with requests.Session() as session:
-        for item in files:
+        for number, item in enumerate(files, 1):
             project, file_id = item["projectID"], item["fileID"]
             if any(type(value) is not int or value <= 0 for value in (project, file_id)):
                 raise ValueError("El manifiesto contiene un identificador inválido.")
+            progress(f"CurseForge · {number}/{len(files)} · archivo {file_id}")
             response = session.get(
                 f"https://api.curseforge.com/v1/mods/{project}/files/{file_id}",
                 headers={"x-api-key": api_key, "User-Agent": motor.USER_AGENT},
@@ -272,10 +278,10 @@ def curseforge_index(manifest, game, api_key):
             if response.status_code != 200:
                 raise ValueError(f"CurseForge devolvió HTTP {response.status_code} para el archivo {file_id}.")
             entry = response.json()["data"]
+            name = entry["fileName"]
             url = entry.get("downloadUrl")
             if not url:
-                raise ValueError(f"CurseForge no habilita la descarga del archivo {file_id} desde Nova.")
-            name = entry["fileName"]
+                raise ValueError(f"Descarga manual requerida para {name} · proyecto {project}, archivo {file_id}.")
             if (pack_path(name).parts != (name,)
                     or entry["id"] != file_id or entry["modId"] != project):
                 raise ValueError("CurseForge devolvió un archivo inesperado.")
@@ -300,6 +306,7 @@ def curseforge_index(manifest, game, api_key):
             size = entry["fileLength"]
             if not re.fullmatch(r"[0-9a-fA-F]{40}", sha1) or not 0 < size <= 512 * 1024**2:
                 raise ValueError(f"No se puede verificar el archivo {file_id}.")
+            progress(f"Descargando {number}/{len(files)} · {name}")
             fetch_file(url, game / directory / name, sha1.lower(), algorithm="sha1", size=size)
     return manifest["name"], deps, (prefix,) if prefix else ()
 
@@ -312,28 +319,48 @@ def validate_pack_dependencies(deps):
         raise ValueError("El modpack tiene una versión inválida.")
 
 
-def import_pack(path, memory, api_key="", *, project=None):
+def read_pack_index(pack):
+    names = pack.namelist()
+    for manifest in ("modrinth.index.json", "nova-pack.json", "manifest.json"):
+        if manifest in names:
+            info = pack.getinfo(manifest)
+            if names.count(manifest) != 1 or info.file_size > 10_000_000:
+                raise ValueError("El índice del modpack es inválido o demasiado grande.")
+            return manifest, json.loads(pack.read(info))
+    raise ValueError("El archivo no contiene un índice de Modrinth, CurseForge o Nova.")
+
+
+def pack_summary(path):
+    with zipfile.ZipFile(path) as pack:
+        manifest, index = read_pack_index(pack)
+    deps = (curseforge_dependencies(index) if manifest == "manifest.json"
+            else index["dependencies"])
+    validate_pack_dependencies(deps)
+    loader = next((key for key in PACK_LOADERS if key in deps), None)
+    needs_key = manifest == "manifest.json" and any(
+        item.get("required", True) for item in index["files"])
+    return (index["name"], deps["minecraft"],
+            motor.LOADERS[PACK_LOADERS[loader]] if loader else "Vanilla", needs_key)
+
+
+def import_pack(path, memory, api_key="", *, project=None, progress=lambda _: None):
     parent = motor.ROOT / "instances"
     parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path) as pack, TemporaryDirectory(dir=parent) as temporary:
-        names = pack.namelist()
-        if "modrinth.index.json" in names:
-            manifest_name = "modrinth.index.json"
-        elif "manifest.json" in names:
-            manifest_name = "manifest.json"
-        else:
-            raise ValueError("El archivo no contiene un índice de Modrinth ni un manifest.json de CurseForge.")
-        info = pack.getinfo(manifest_name)
-        if names.count(manifest_name) != 1 or info.file_size > 10_000_000:
-            raise ValueError("El índice del modpack es inválido o demasiado grande.")
-        index = json.loads(pack.read(info))
+        manifest_name, index = read_pack_index(pack)
         staged = Path(temporary) / "instance"
         game = staged / "game"
         game.mkdir(parents=True)
         if manifest_name == "manifest.json":
             name, deps, prefixes = curseforge_index(
-                index, game, api_key or os.environ.get("CURSEFORGE_API_KEY", ""))
+                index, game, api_key or os.environ.get("CURSEFORGE_API_KEY", ""), progress)
             modrinth_files = ()
+        elif manifest_name == "nova-pack.json":
+            if index["formatVersion"] != 1:
+                raise ValueError("Formato de ZIP Nova no compatible.")
+            name, deps = index["name"], index["dependencies"]
+            validate_pack_dependencies(deps)
+            prefixes, modrinth_files = ("overrides/",), ()
         else:
             if index["game"] != "minecraft" or index["formatVersion"] != 1:
                 raise ValueError("Formato de modpack no compatible.")
@@ -342,9 +369,10 @@ def import_pack(path, memory, api_key="", *, project=None):
             prefixes = ("overrides/", "client-overrides/")
             modrinth_files = index["files"]
         loader = next((key for key in PACK_LOADERS if key in deps), None)
-        for item in modrinth_files:
-            if item.get("env", {}).get("client", "required") != "required":
-                continue
+        required = [item for item in modrinth_files
+                    if item.get("env", {}).get("client", "required") == "required"]
+        for number, item in enumerate(required, 1):
+            progress(f"Descargando {number}/{len(required)} · {item['path']}")
             target = game / pack_path(item["path"])
             mirrors = [url for url in item["downloads"] if url.startswith((
                 "https://cdn.modrinth.com/", "https://github.com/",
@@ -364,6 +392,7 @@ def import_pack(path, memory, api_key="", *, project=None):
                     break
             else:
                 raise ValueError(f"No se pudo verificar {item['path']}: {last_error}") from last_error
+        progress("Copiando los archivos incluidos…")
         extracted = 0
         for prefix in prefixes:
             for entry in pack.infolist():
@@ -380,13 +409,15 @@ def import_pack(path, memory, api_key="", *, project=None):
                     "artwork": 1, "version": deps["minecraft"], "pack": True,
                     "loader": PACK_LOADERS[loader] if loader else "vanilla",
                     "loader_version": deps[loader] if loader else ""}
+        if manifest_name == "nova-pack.json" and settings["loader_version"] == "auto":
+            settings["loader_version"] = ""
         if project:
             settings["modrinth_pack"] = project
         motor.save(staged / "instance.json", settings)
         return staged.rename(parent / uuid.uuid4().hex)
 
 
-def install_pack(version, memory):
+def install_pack(version, memory, *, progress=lambda _: None):
     with TemporaryDirectory() as temporary:
         return import_pack(download(version, Path(temporary), ".mrpack"), memory,
-                           project=version["project_id"])
+                           project=version["project_id"], progress=progress)
