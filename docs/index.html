@@ -14,6 +14,7 @@
   <header class="bar wrap">
     <a class="brand" href="./"><img src="assets/nova.svg" width="36" height="36" alt=""> Nova Launcher</a>
     <nav aria-label="Navegación">
+      <a href="#servidores">Servidores</a>
       <a href="#funciones">Funciones</a>
       <a href="#instalacion">Instalación</a>
       <a href="https://github.com/wegfopjeawfgn/nova-launcher">GitHub <span aria-hidden="true">↗</span></a>
@@ -29,11 +30,24 @@
           <a class="primary" id="release-rpm" href="descargas/nova-launcher-0.9.8-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg> Descargar para Fedora</a>
           <a class="secondary" href="#instalacion">Cómo instalar</a>
         </div>
+        <p class="platform-note"><strong>Próximamente en Windows</strong> · Sin fecha anunciada</p>
         <p class="download-meta">Paquete RPM <a id="release-checksum" href="descargas/nova-launcher-0.9.8-1.noarch.rpm.sha256" download>SHA-256</a></p>
       </div>
       <figure class="preview">
-        <img src="assets/nova-escritorio.png" width="1206" height="786" alt="Ventana de Nova con su biblioteca de instancias, botón Jugar y secciones de mods, shaders y texturas">
-        <figcaption>Biblioteca de instancias en Fedora</figcaption>
+        <img src="assets/nova-098.webp" width="1206" height="786" alt="Biblioteca de Nova con buscador de instancias, filtros y acceso a servidores">
+        <figcaption>Nova Launcher 0.9.8 en Fedora · Biblioteca de ejemplo</figcaption>
+      </figure>
+    </section>
+    <section class="section install server-feature wrap" id="servidores" aria-labelledby="servidores-titulo">
+      <div class="server-copy">
+        <p class="release-note">Novedad de Nova 0.9.8</p>
+        <h2 id="servidores-titulo">Entrá directo a tu servidor</h2>
+        <p>Elegí una instancia y abrí <strong>Servidores</strong>. Nova muestra los que guardaste en Minecraft y te permite sumar otros por dirección.</p>
+        <p>Al pulsar <strong>Entrar</strong>, Nova inicia Minecraft con la versión y los mods de esa instancia e intenta conectarse al servidor elegido.</p>
+      </div>
+      <figure class="preview">
+        <img src="assets/nova-servidores.webp" width="560" height="410" loading="lazy" alt="Panel de servidores con dos direcciones de ejemplo y un botón Entrar junto a cada una">
+        <figcaption>Panel de servidores con datos de ejemplo</figcaption>
       </figure>
     </section>
     <section class="section wrap" id="funciones" aria-labelledby="funciones-titulo">
@@ -76,7 +90,11 @@
   <footer class="wrap footer">
     <a class="brand" href="./"><img src="assets/nova.svg" width="30" height="30" alt=""> Nova Launcher</a>
     <p>Proyecto de terceros para Minecraft Java Edition, sin afiliación ni aprobación de Mojang o Microsoft.</p>
-    <a href="https://github.com/wegfopjeawfgn/nova-launcher">Repositorio ↗</a>
+    <nav aria-label="Información del proyecto">
+      <a href="terminos.html">Términos y condiciones</a>
+      <a href="terminos.html#privacidad">Privacidad</a>
+      <a href="https://github.com/wegfopjeawfgn/nova-launcher/issues">Soporte ↗</a>
+    </nav>
   </footer>
   <script src="version.js" defer></script>
 </body>

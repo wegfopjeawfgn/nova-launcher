@@ -75,3 +75,16 @@ article svg { color: var(--accent); }
 }
 .terminal button:hover, .terminal button:focus-visible { border-color: var(--accent); }
 #copy-status:empty { display: none; }
+
+.platform-note { color: var(--muted); font-size: .83rem; margin: 1.2rem 0 0; }
+.platform-note strong { color: var(--text); }
+.server-feature { align-items: center; }
+.server-copy { max-width: 40ch; }
+.release-note { color: var(--accent); font-size: .85rem; font-weight: 650; margin: 0 0 .7rem; }
+.server-copy > p:not(.release-note) { color: var(--muted); line-height: 1.65; }
+.legal { max-width: 760px; padding-block: clamp(2.5rem, 7vw, 5rem); }
+.legal h1 { font-size: clamp(2.35rem, 5vw, 4rem); }
+.legal section { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.legal h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); }
+.legal p { color: var(--muted); line-height: 1.65; }
+.legal p a { color: var(--accent); text-decoration: underline; text-underline-offset: .2em; }
