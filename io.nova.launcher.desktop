@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Nova Launcher
+Comment=Instancias, mods y mundos de Minecraft Java
+Exec=nova-launcher
+Icon=io.nova.launcher
+Terminal=false
+Categories=Game;
+StartupNotify=true

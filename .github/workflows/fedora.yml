@@ -1,0 +1,49 @@
+name: Compilar RPM para Fedora
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rpm:
+    runs-on: ubuntu-latest
+    container: fedora:45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Instalar herramientas de compilación
+        run: dnf -y install git rpm-build python3-pip python3-requests tar gzip desktop-file-utils
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Construir y verificar el RPM
+        run: |
+          set -euo pipefail
+          version=$(python3 -c 'import actualizaciones; print(actualizaciones.VERSION)')
+          spec_version=$(rpmspec -q --qf '%{version}' nova-launcher.spec)
+          test "$spec_version" = "$version"
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            test "$GITHUB_REF_NAME" = "v$version"
+          fi
+          desktop-file-validate io.nova.launcher.desktop
+          topdir=$(mktemp -d)
+          mkdir -p "$topdir/SOURCES" dist
+          git archive --format=tar --prefix=nova-launcher/ HEAD | tar -xf - -C "$topdir"
+          python3 -c 'import json, os; print(json.dumps({"repository": os.environ["GITHUB_REPOSITORY"]}))' > "$topdir/nova-launcher/canal.json"
+          tar -C "$topdir" -czf "$topdir/SOURCES/nova-launcher-$version.tar.gz" nova-launcher
+          python3 -m pip download --only-binary=:all: --no-deps -r requirements.txt -d "$topdir/SOURCES"
+          rpmbuild -bb --define "_topdir $topdir" nova-launcher.spec
+          cp "$topdir"/RPMS/noarch/nova-launcher-*.rpm dist/
+          cd dist
+          rpm -K --nosignature ./*.rpm
+          for rpm_file in *.rpm; do sha256sum "$rpm_file" > "$rpm_file.sha256"; done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nova-launcher-fedora
+          path: dist/
+          if-no-files-found: error

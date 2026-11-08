@@ -1,0 +1,144 @@
+window { background: #151618; color: #ececf0; }
+headerbar { background: #1b1d20; color: #ececf0; border-bottom: 1px solid #32353a; }
+.brand { font-weight: 800; font-size: 20px; }
+.sidebar { background: #191b1e; border-right: 1px solid #2d3035; padding: 20px 12px; min-width: 155px; }
+.main { padding: 24px; }
+.heading { font-size: 39px; font-weight: 800; }
+.subheading { font-size: 24px; font-weight: 750; }
+.muted { color: #b4b7c0; }
+.active { padding: 12px; background: #303239; border-radius: 9px; font-weight: 700; }
+button { background: #26282d; color: #ececf0; border: 1px solid #3a3d45; border-radius: 8px; padding: 8px 12px; }
+button:hover { background: #33363e; }
+button.primary { background: #c1bbd4; color: #202027; border-color: #c1bbd4; font-weight: 650; padding: 8px 15px; }
+button.primary:hover { background: #d6d1e5; }
+button:disabled { opacity: 0.5; }
+button.card { padding: 0; border: 2px solid #363941; }
+button.selected { border-color: #c1bbd4; }
+.card-label { padding: 12px; font-size: 17px; font-weight: 700; }
+.details { padding: 17px; background: #1d1f23; border: 1px solid #33363d; border-radius: 12px; }
+popover contents { background: #1d1f23; color: #ececf0; }
+.art0, .art1, .art2 {
+  background-image: url("referencia.png");
+  background-repeat: no-repeat;
+  border-radius: 5px 5px 0 0;
+}
+.art0 { background-size: 407% 450%; background-position: 25% 42%; }
+.art1 { background-size: 420% 475%; background-position: 58.5% 39%; }
+.art2 { background-size: 413% 538%; background-position: 92.4% 43.3%; }
+.card-meta { padding: 0 12px 12px; color: #b4b7c0; font-size: 13px; }
+.catalog-row { padding: 10px; background: #202227; border: 1px solid #33363d; border-radius: 8px; }
+.catalog-title { font-weight: 750; }
+button.feature {
+  background: #24262b;
+  border-color: #363941;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+button.feature:hover { background: #2d3037; border-color: #c1bbd4; }
+.feature-title { color: #ececf0; font-weight: 800; font-size: 15px; }
+.nav-caption {
+  color: #a5a8b2;
+  font-size: 11px;
+  font-weight: 800;
+  margin: 13px 9px 3px;
+}
+button.nav-button {
+  background: transparent;
+  border-color: transparent;
+  padding: 10px 11px;
+}
+button.nav-button:hover { background: #26292f; }
+button.nav-active { background: #2b2d34; border-color: #3e414a; color: #eeedf1; }
+.catalog-art { background: #2a2d33; border-radius: 8px; }
+.catalog-footer { background: #202226; border-radius: 8px; padding: 9px 12px; }
+button.danger { color: #ffb9c8; border-color: #795068; }
+button.danger:hover { background: #47273c; }
+
+window.dialog, window.background:not(.nova-main) {
+  background-color: #1c1e22;
+  background-image: none;
+  color: #f1f1f3;
+}
+window > decoration { border-radius: 14px; }
+headerbar, .titlebar {
+  background-color: #202226;
+  background-image: none;
+  color: #f1f1f3;
+  padding: 6px 12px;
+}
+.menu { padding: 20px; }
+.dialog-action-area { padding: 0 20px 16px; }
+button, entry, spinbutton, dropdown, combobox button, searchentry {
+  background-image: none;
+  box-shadow: none;
+}
+entry, spinbutton, searchentry {
+  background-color: #25272c;
+  border: 1px solid #41444c;
+  border-radius: 8px;
+  color: #f1f1f3;
+  min-height: 32px;
+}
+entry:focus-within, searchentry:focus-within { border-color: #c1bbd4; }
+stackswitcher { padding: 4px; }
+stackswitcher button:checked { background: #373941; color: #f1f1f3; }
+.catalog-row { padding: 12px; border-radius: 10px; }
+.catalog-title { color: #f1f1f3; font-size: 15px; }
+.catalog-footer { color: #dadbe0; }
+textview, textview text { background-color: #181a1d; color: #dadbe0; }
+
+/* Fedora themes can draw title controls as backgrounds and hide their native images. */
+headerbar windowcontrols { padding: 0 2px; border-spacing: 4px; }
+headerbar windowcontrols button {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+headerbar windowcontrols button > image {
+  color: #e9e9ee;
+  opacity: 1;
+  -gtk-icon-style: symbolic;
+}
+headerbar windowcontrols button:hover { background: #363941; }
+headerbar windowcontrols button.close:hover { background: #713548; }
+headerbar windowcontrols button:active { background: #41444c; }
+button:focus-visible, combobox:focus-within {
+  outline: 2px solid #c1bbd4;
+  outline-offset: -3px;
+}
+entry selection, textview text selection { background-color: #585467; color: #fff6ff; }
+button.feature { padding: 14px 16px; }
+.catalog-row { border-color: #34373e; }
+.catalog-row button:not(.primary) { padding: 6px 10px; }
+.instance-actions flowboxchild { padding: 0; }
+
+.form-label { font-weight: 650; }
+.form-error { color: #ffadb8; }
+.settings-row { border-top: 1px solid #34373e; padding-top: 12px; margin-top: 4px; }
+spinbutton > button { border-radius: 0; border-width: 0 0 0 1px; padding: 4px 9px; }
+spinbutton > entry { border-width: 0; min-width: 26px; }
+spinbutton:focus-within { border-color: #c1bbd4; }
+spinbutton > text:focus, spinbutton > entry:focus {
+  outline-color: #c1bbd4;
+  border-color: #c1bbd4;
+  box-shadow: none;
+}
+spinbutton text selection { background-color: #585467; color: #fff6ff; }
+button.compact-instance {
+  padding: 7px 11px;
+  background: #202226;
+  border-color: #34373e;
+}
+button.compact-instance:hover { background: #292c32; }
+button.compact-instance.selected {
+  background: #2a2c33;
+  border-color: #747084;
+}
+.compact-name { font-weight: 650; }
+.inline-details { margin: 1px 0 5px; }
+.instance-cover { border-radius: 6px; }
+notebook > header { background: #202226; border-color: #34373e; }
+notebook > header tab:checked { color: #eeeef2; background: #303239; }
