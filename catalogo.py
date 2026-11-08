@@ -107,7 +107,7 @@ def fetch_file(url, target, expected, *, algorithm="sha512", size=None):
         raise ValueError(f"No coincide la suma de verificación de {target.name}.")
 
 
-def install_content(folder, instance, category, version, *, update=False):
+def install_content(folder, instance, category, version, *, update=False, progress=lambda _: None):
     subfolder, suffix = DESTINATIONS[category]
     destination = folder / "game" / subfolder
     resolved = {}
@@ -155,18 +155,20 @@ def install_content(folder, instance, category, version, *, update=False):
                 raise ValueError("El archivo de la versión actual no está en la instancia.")
         resolve(version)
         staged = {}
-        for project, release in resolved.items():
+        for number, (project, release) in enumerate(resolved.items(), 1):
             previous = installed.get(project)
             if previous and not (update and project == root_project):
                 existing = destination / previous["file"]
                 if existing.is_file() or existing.with_name(existing.name + ".disabled").is_file():
                     continue
+            progress(f"Descargando {number}/{len(resolved)} · {release['name']}")
             file = download(release, Path(temp), suffix)
             target = destination / file.name
             disabled = target.with_name(target.name + ".disabled")
             if any(candidate.exists() and candidate != old for candidate in (target, disabled)):
                 raise ValueError(f"Ya existe {file.name} en la instancia.")
             staged[project] = file
+        progress("Guardando contenido verificado…")
         destination.mkdir(parents=True, exist_ok=True)
         placed = []
         backup = None

@@ -88,3 +88,7 @@ article svg { color: var(--accent); }
 .legal h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); }
 .legal p { color: var(--muted); line-height: 1.65; }
 .legal p a { color: var(--accent); text-decoration: underline; text-underline-offset: .2em; }
+
+.windows-download { margin-top: 1rem; }
+.windows-download > a { display: inline-block; padding: .65rem .85rem; border-radius: 8px; font-weight: 650; }
+.release-intro { margin-top: .8rem; line-height: 1.6; }

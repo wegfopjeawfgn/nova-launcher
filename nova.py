@@ -99,7 +99,7 @@ class Nova(Gtk.Application):
         self.parallel = False
         self.running = None
         self.second_session = None
-        self.download_progress = "Sin descargas de modpacks."
+        self.download_progress = "Sin descargas recientes."
         self.cancel_download = None
         self.download_view = None
         self.launch_stage = ""
@@ -306,12 +306,10 @@ class Nova(Gtk.Application):
                 def save_update():
                     dialog.destroy()
                     self.save_file("Guardar actualización de Nova", rpm.rsplit("/", 1)[-1],
-                                   lambda path: self.background_file("Descargando actualización…",
-                                       lambda: actualizaciones.download(rpm, path),
-                                       "RPM listo para instalar.",
-                                       after_save=lambda: self.update_ready(path, tag)))
+                                   lambda path: self.download_update(rpm, path, tag))
 
-                box.append(button("Descargar RPM para Fedora", save_update, "primary"))
+                box.append(button("Descargar instalador de Windows" if os.name == "nt" else
+                                  "Descargar RPM para Fedora", save_update, "primary"))
             if notes:
                 changelog = Gtk.TextView(editable=False, cursor_visible=False,
                                          wrap_mode=Gtk.WrapMode.WORD_CHAR)
@@ -325,21 +323,55 @@ class Nova(Gtk.Application):
         dialog.set_child(box)
         dialog.present()
 
+    def download_update(self, url, path, tag):
+        if self.busy or self.cancel_download:
+            return
+        self.busy = True
+        cancel = threading.Event()
+        self.cancel_download = cancel
+        self.set_download_progress("Descargando actualización…")
+        self.refresh()
+
+        def progress(message):
+            if cancel.is_set():
+                raise InterruptedError("Descarga cancelada.")
+            GLib.idle_add(self.set_download_progress, message)
+
+        def finish(error):
+            self.cancel_download = None
+            message = error or "Actualización lista para instalar."
+            self.set_download_progress(message)
+            self.finished(message)
+            if not error:
+                self.update_ready(path, tag)
+
+        def worker():
+            try:
+                actualizaciones.download(url, path, progress=progress)
+            except Exception as error:
+                GLib.idle_add(finish, f"No se descargó la actualización: {error}")
+            else:
+                GLib.idle_add(finish, None)
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def update_ready(self, path, tag):
         dialog = Gtk.Window(title="Actualización de Nova", transient_for=self.window, modal=True,
                             default_width=460)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
-        box.append(label(f"{tag} · RPM listo para instalar", "subheading"))
+        box.append(label(f"{tag} · Lista para instalar", "subheading"))
         box.append(label(f"Versión instalada · {actualizaciones.VERSION}", "muted"))
-        box.append(label("Instalá el RPM y volvé a abrir Nova.", "muted"))
+        box.append(label("Ejecutá el instalador y volvé a abrir Nova." if os.name == "nt" else
+                         "Instalá el RPM y volvé a abrir Nova.", "muted"))
         box.append(button("Abrir carpeta", lambda: motor.open_folder(path.parent)))
 
         def copy_command():
             dialog.get_clipboard().set(f"sudo dnf install {shlex.quote(str(path.absolute()))}")
             copy.set_label("Comando copiado")
 
-        copy = button("Copiar comando de instalación", copy_command, "primary")
-        box.append(copy)
+        if os.name != "nt":
+            copy = button("Copiar comando de instalación", copy_command, "primary")
+            box.append(copy)
         dialog.set_child(box)
         dialog.present()
 
@@ -1733,7 +1765,7 @@ class Nova(Gtk.Application):
     def show_downloads(self):
         dialog = Gtk.Window(title="Descargas", transient_for=self.window, modal=False, default_width=440)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
-        box.append(label("Descargas de modpacks", "subheading"))
+        box.append(label("Centro de descargas", "subheading"))
         text = label(self.download_progress, "muted")
         text.set_wrap(True)
         box.append(text)
@@ -1744,7 +1776,7 @@ class Nova(Gtk.Application):
                 text.set_text("Cancelando al terminar el archivo actual…")
                 control.set_sensitive(False)
 
-        control = button("Cancelar importación", cancel_current)
+        control = button("Cancelar descarga", cancel_current)
         control.set_sensitive(self.cancel_download is not None)
         box.append(control)
         self.download_view = text, control

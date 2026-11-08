@@ -158,6 +158,9 @@ class Browser:
         footer.append(self.spinner)
         self.status = Gtk.Label(xalign=0, wrap=True, hexpand=True, css_classes=["muted"])
         footer.append(self.status)
+        self.cancel = self.button("Cancelar descarga", self.cancel_install)
+        self.cancel.set_visible(False)
+        footer.append(self.cancel)
         downloads.append(footer)
         if folder and category in catalogo.DESTINATIONS:
             stack = Gtk.Stack(vexpand=True)
@@ -190,7 +193,7 @@ class Browser:
             widget.add_css_class("primary")
         return widget
 
-    def run(self, message, task, success):
+    def run(self, message, task, success, *, failure=None):
         if self.busy:
             return
         self.busy = True
@@ -208,6 +211,8 @@ class Browser:
             self.results.set_sensitive(True)
             if error:
                 self.status.set_text(f"No se pudo completar: {error}")
+                if failure:
+                    failure(error)
             else:
                 success(result)
 
@@ -321,17 +326,45 @@ class Browser:
             item["project_id"], category, self.instance
         ), show)
 
+    def cancel_install(self):
+        if self.app.cancel_download:
+            self.app.cancel_download.set()
+            self.cancel.set_sensitive(False)
+
     def install(self, category, release):
+        if self.busy or self.app.cancel_download:
+            return
+        cancel = threading.Event()
+        self.app.cancel_download = cancel
+        self.cancel.set_visible(True)
+        self.cancel.set_sensitive(True)
+        self.app.set_download_progress("Descargando contenido de Modrinth…")
+
+        def status(message):
+            self.status.set_text(message)
+            self.app.set_download_progress(message)
+
+        def progress(message):
+            if cancel.is_set():
+                raise InterruptedError("Descarga cancelada.")
+            GLib.idle_add(status, message)
+
+        def complete(message):
+            self.app.cancel_download = None
+            self.app.set_download_progress(message)
+            self.cancel.set_visible(False)
+
         def task():
             if category == "modpack":
                 return catalogo.install_pack(
                     release, self.app.preferences["memory"],
-                    progress=lambda message: GLib.idle_add(self.status.set_text, message),
+                    progress=progress,
                 )
-            catalogo.install_content(self.folder, self.instance, category, release)
+            catalogo.install_content(self.folder, self.instance, category, release, progress=progress)
             return None
 
         def finished(folder):
+            complete("Contenido de Modrinth instalado.")
             if folder:
                 self.app.selected = folder
             self.app.refresh()
@@ -343,7 +376,11 @@ class Browser:
             else:
                 self.search(self.results_offset)
 
-        self.run("Descargando y verificando archivos…", task, finished)
+        def failed(error):
+            complete(f"No se completó la descarga: {error}")
+            self.results.append(self.button("Reintentar descarga", lambda: self.install(category, release)))
+
+        self.run("Descargando y verificando archivos…", task, finished, failure=failed)
 
 
 def content_files(folder, category):

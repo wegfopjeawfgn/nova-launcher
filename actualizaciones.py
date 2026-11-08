@@ -1,5 +1,6 @@
 """Read the stable release channel without installing anything automatically."""
 import hashlib
+import os
 from pathlib import Path
 import re
 from tempfile import TemporaryDirectory
@@ -43,29 +44,38 @@ def check(repo):
         return None
     page = f"https://github.com/{repo}/releases/tag/{tag}"
     prefix = f"https://github.com/{repo}/releases/download/{tag}/"
+    suffix = "-windows-x64-setup.exe" if os.name == "nt" else ".noarch.rpm"
     rpm = next((asset["browser_download_url"] for asset in release.get("assets", [])
-                if asset["name"].lower().endswith(".noarch.rpm")
+                if asset["name"].lower().endswith(suffix)
                 and asset["browser_download_url"].lower().startswith(prefix.lower())), None)
     return tag, rpm, page, (release.get("body") or "")[:4000]
 
 
-def download(url, destination):
-    if destination.suffix.lower() != ".rpm":
-        raise ValueError("Guardá la actualización con extensión .rpm.")
+def download(url, destination, *, progress=lambda _: None):
+    extension = ".exe" if os.name == "nt" else ".rpm"
+    if destination.suffix.lower() != extension:
+        raise ValueError(f"Guardá la actualización con extensión {extension}.")
+    maximum = (512 if os.name == "nt" else 128) * 1024**2
+    signature = b"MZ" if os.name == "nt" else bytes.fromhex("edabeedb")
     with TemporaryDirectory(dir=destination.parent) as temporary:
-        staged = Path(temporary) / "update.rpm"
+        staged = Path(temporary) / ("update" + extension)
         with requests.get(url, timeout=30, stream=True) as response:
             response.raise_for_status()
             size = 0
+            reported = -1
             with staged.open("wb") as output:
                 for chunk in response.iter_content(128 * 1024):
                     size += len(chunk)
-                    if size > 128 * 1024**2:
-                        raise ValueError("El RPM supera los 128 MiB.")
+                    if size > maximum:
+                        raise ValueError("El instalador supera el tamaño permitido.")
                     output.write(chunk)
+                    mib = size // (1024**2)
+                    if mib != reported:
+                        progress(f"Descargando actualización · {size / 1024**2:.1f} MiB")
+                        reported = mib
         with staged.open("rb") as source:
-            if source.read(4) != bytes.fromhex("edabeedb"):
-                raise ValueError("La descarga no es un paquete RPM.")
+            if source.read(len(signature)) != signature:
+                raise ValueError("La descarga no es un instalador válido.")
             source.seek(0)
             digest = hashlib.file_digest(source, "sha256").hexdigest()
         # The checksum asset is published with every official Nova RPM.
@@ -73,5 +83,6 @@ def download(url, destination):
             response.raise_for_status()
             expected = response.raw.read(256, decode_content=True).split()
         if not expected or expected[0] != digest.encode("ascii"):
-            raise ValueError("El SHA-256 del RPM no coincide con el publicado.")
+            raise ValueError("El SHA-256 del instalador no coincide con el publicado.")
+        progress("Guardando el instalador verificado…")
         staged.replace(destination)

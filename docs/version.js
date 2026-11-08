@@ -23,6 +23,16 @@
 
     const number = tag.replace(/^v/, "");
     const assets = release.assets ?? [];
+    const windows = assets.find(({ name }) => name === `nova-launcher-${number}-windows-x64-setup.exe`);
+    const windowsSum = windows && assets.find(({ name }) => name === `${windows.name}.sha256`);
+    if (windows && windowsSum) {
+      document.getElementById("windows-installer").href = assetUrl(windows, tag);
+      const link = document.getElementById("windows-checksum");
+      link.href = assetUrl(windowsSum, tag);
+      link.hidden = false;
+      document.getElementById("windows-pending").hidden = true;
+      document.getElementById("windows-download").hidden = false;
+    }
     const rpm = assets.find(({ name }) => {
       if (!name.startsWith(`nova-launcher-${number}-`)) return false;
       const suffix = name.slice(`nova-launcher-${number}-`.length);
