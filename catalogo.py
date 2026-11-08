@@ -1,10 +1,12 @@
 """Modrinth catalog and verified downloads for an instance."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import shutil
 from tempfile import TemporaryDirectory
+from urllib.parse import urljoin, urlsplit
 import uuid
 import zipfile
 
@@ -15,6 +17,7 @@ import motor
 API = "https://api.modrinth.com/v2"
 DESTINATIONS = {"mod": ("mods", ".jar"), "shader": ("shaderpacks", ".zip"),
                 "resourcepack": ("resourcepacks", ".zip")}
+CURSEFORGE_CDN = {"edge.forgecdn.net", "mediafilez.forgecdn.net", "media.forgecdn.net"}
 PACK_LOADERS = {"forge": "forge", "neoforge": "neoforge", "fabric-loader": "fabric",
                 "quilt-loader": "quilt"}
 
@@ -58,17 +61,35 @@ def download(version, destination, suffix):
     return target
 
 
-def fetch_file(url, target, expected):
-    digest = hashlib.sha512()
+def fetch_file(url, target, expected, *, algorithm="sha512", size=None):
+    digest = hashlib.new(algorithm)
+    received = 0
     target.parent.mkdir(parents=True, exist_ok=True)
-    with requests.get(url, timeout=45, stream=True,
-                      headers={"User-Agent": motor.USER_AGENT}) as response:
-        response.raise_for_status()
-        with target.open("xb") as file:
-            for chunk in response.iter_content(1024 * 256):
-                file.write(chunk)
-                digest.update(chunk)
-    if digest.hexdigest() != expected:
+    for _ in range(4):
+        if size is not None:
+            parsed = urlsplit(url)
+            if parsed.scheme != "https" or parsed.netloc not in CURSEFORGE_CDN:
+                raise ValueError("Servidor de descarga de CurseForge no compatible.")
+        with requests.get(url, timeout=45, stream=True,
+                          headers={"User-Agent": motor.USER_AGENT},
+                          allow_redirects=size is None) as response:
+            if size is not None and response.is_redirect:
+                url = urljoin(url, response.headers["Location"])
+                continue
+            response.raise_for_status()
+            if size is not None and response.status_code != 200:
+                raise ValueError("Respuesta de descarga inesperada.")
+            with target.open("xb") as file:
+                for chunk in response.iter_content(1024 * 256):
+                    received += len(chunk)
+                    if size is not None and received > size:
+                        raise ValueError("La descarga excede el tamaño anunciado.")
+                    file.write(chunk)
+                    digest.update(chunk)
+            break
+    else:
+        raise ValueError("Demasiadas redirecciones al descargar desde CurseForge.")
+    if digest.hexdigest() != expected or (size is not None and received != size):
         raise ValueError(f"No coincide la suma de verificación de {target.name}.")
 
 
@@ -202,26 +223,112 @@ def pack_path(name):
     return path
 
 
-def import_pack(path, memory):
+def curseforge_index(manifest, game, api_key):
+    if (manifest.get("manifestType") != "minecraftModpack"
+            or manifest.get("manifestVersion") != 1):
+        raise ValueError("El ZIP no contiene un manifiesto de CurseForge compatible.")
+    minecraft = manifest["minecraft"]
+    deps = {"minecraft": minecraft["version"]}
+    loaders = minecraft["modLoaders"]
+    if loaders:
+        primary = next((item for item in loaders if item.get("primary")), loaders[0])
+        name, separator, version = primary["id"].partition("-")
+        loader = {"fabric": "fabric-loader", "quilt": "quilt-loader"}.get(name, name)
+        if not separator or loader not in PACK_LOADERS:
+            raise ValueError("El modpack requiere un loader que Nova no reconoce.")
+        deps[loader] = version
+    validate_pack_dependencies(deps)
+    override = manifest.get("overrides", "overrides")
+    prefix = pack_path(override).as_posix() + "/" if override else None
+    files = [item for item in manifest["files"] if item.get("required", True)]
+    if len(files) > 2000:
+        raise ValueError("El manifiesto contiene demasiados archivos.")
+    if files and not api_key:
+        raise ValueError("Este ZIP referencia archivos de CurseForge. Ingresá una clave de API al importarlo.")
+    with requests.Session() as session:
+        for item in files:
+            project, file_id = item["projectID"], item["fileID"]
+            if any(type(value) is not int or value <= 0 for value in (project, file_id)):
+                raise ValueError("El manifiesto contiene un identificador inválido.")
+            response = session.get(
+                f"https://api.curseforge.com/v1/mods/{project}/files/{file_id}",
+                headers={"x-api-key": api_key, "User-Agent": motor.USER_AGENT},
+                timeout=20, allow_redirects=False,
+            )
+            if response.status_code != 200:
+                raise ValueError(f"CurseForge devolvió HTTP {response.status_code} para el archivo {file_id}.")
+            entry = response.json()["data"]
+            url = entry.get("downloadUrl")
+            if not url:
+                raise ValueError(f"CurseForge no habilita la descarga del archivo {file_id} desde Nova.")
+            name = entry["fileName"]
+            if (pack_path(name).parts != (name,)
+                    or entry["id"] != file_id or entry["modId"] != project):
+                raise ValueError("CurseForge devolvió un archivo inesperado.")
+            suffix = Path(name).suffix.lower()
+            if suffix == ".jar":
+                directory = "mods"
+            elif suffix == ".zip":
+                response = session.get(
+                    f"https://api.curseforge.com/v1/mods/{project}",
+                    headers={"x-api-key": api_key, "User-Agent": motor.USER_AGENT},
+                    timeout=20, allow_redirects=False,
+                )
+                if response.status_code != 200:
+                    raise ValueError(f"No se pudo identificar el tipo de archivo {file_id}.")
+                directory = {12: "resourcepacks", 6552: "shaderpacks"}.get(
+                    response.json()["data"]["classId"])
+            else:
+                directory = None
+            if not directory:
+                raise ValueError(f"Tipo de contenido de CurseForge no compatible: {name}.")
+            sha1 = next((item["value"] for item in entry["hashes"] if item["algo"] == 1), "")
+            size = entry["fileLength"]
+            if not re.fullmatch(r"[0-9a-fA-F]{40}", sha1) or not 0 < size <= 512 * 1024**2:
+                raise ValueError(f"No se puede verificar el archivo {file_id}.")
+            fetch_file(url, game / directory / name, sha1.lower(), algorithm="sha1", size=size)
+    return manifest["name"], deps, (prefix,) if prefix else ()
+
+
+def validate_pack_dependencies(deps):
+    if "minecraft" not in deps or set(deps) - {"minecraft", *PACK_LOADERS} or len(deps) > 2:
+        raise ValueError("El modpack requiere un loader que Nova no reconoce.")
+    if any(not isinstance(v, str) or not re.fullmatch(r"[A-Za-z0-9._+-]+", v)
+           or v in {".", ".."} for v in deps.values()):
+        raise ValueError("El modpack tiene una versión inválida.")
+
+
+def import_pack(path, memory, api_key=""):
     parent = motor.ROOT / "instances"
     parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path) as pack, TemporaryDirectory(dir=parent) as temporary:
-        info = pack.getinfo("modrinth.index.json")
-        if info.file_size > 10_000_000:
-            raise ValueError("El índice del modpack es demasiado grande.")
+        names = pack.namelist()
+        if "modrinth.index.json" in names:
+            manifest_name = "modrinth.index.json"
+        elif "manifest.json" in names:
+            manifest_name = "manifest.json"
+        else:
+            raise ValueError("El archivo no contiene un índice de Modrinth ni un manifest.json de CurseForge.")
+        info = pack.getinfo(manifest_name)
+        if names.count(manifest_name) != 1 or info.file_size > 10_000_000:
+            raise ValueError("El índice del modpack es inválido o demasiado grande.")
         index = json.loads(pack.read(info))
-        if index["game"] != "minecraft" or index["formatVersion"] != 1:
-            raise ValueError("Formato de modpack no compatible.")
-        deps = index["dependencies"]
-        if "minecraft" not in deps or set(deps) - {"minecraft", *PACK_LOADERS} or len(deps) > 2:
-            raise ValueError("El modpack requiere un loader que Nova no reconoce.")
-        if any(not re.fullmatch(r"[A-Za-z0-9._+-]+", v) or v in {".", ".."} for v in deps.values()):
-            raise ValueError("El modpack tiene una versión inválida.")
-        loader = next((key for key in PACK_LOADERS if key in deps), None)
         staged = Path(temporary) / "instance"
         game = staged / "game"
         game.mkdir(parents=True)
-        for item in index["files"]:
+        if manifest_name == "manifest.json":
+            name, deps, prefixes = curseforge_index(
+                index, game, api_key or os.environ.get("CURSEFORGE_API_KEY", ""))
+            modrinth_files = ()
+        else:
+            if index["game"] != "minecraft" or index["formatVersion"] != 1:
+                raise ValueError("Formato de modpack no compatible.")
+            name, deps = index["name"], index["dependencies"]
+            validate_pack_dependencies(deps)
+            prefixes = ("overrides/", "client-overrides/")
+            modrinth_files = index["files"]
+        loader = next((key for key in PACK_LOADERS if key in deps), None)
+        for item in modrinth_files:
             if item.get("env", {}).get("client", "required") != "required":
                 continue
             target = game / pack_path(item["path"])
@@ -243,15 +350,19 @@ def import_pack(path, memory):
                     break
             else:
                 raise ValueError(f"No se pudo verificar {item['path']}: {last_error}") from last_error
-        for prefix in ("overrides/", "client-overrides/"):
+        extracted = 0
+        for prefix in prefixes:
             for entry in pack.infolist():
                 if entry.is_dir() or not entry.filename.startswith(prefix):
                     continue
+                extracted += entry.file_size
+                if extracted > 4 * 1024**3:
+                    raise ValueError("Los archivos incluidos superan los 4 GiB.")
                 target = game / pack_path(entry.filename.removeprefix(prefix))
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with pack.open(entry) as source, target.open("wb") as destination:
                     shutil.copyfileobj(source, destination)
-        settings = {**motor.DEFAULTS, "name": index["name"][:40], "memory": memory,
+        settings = {**motor.DEFAULTS, "name": name[:40], "memory": memory,
                     "artwork": 1, "version": deps["minecraft"], "pack": True,
                     "loader": PACK_LOADERS[loader] if loader else "vanilla",
                     "loader_version": deps[loader] if loader else ""}

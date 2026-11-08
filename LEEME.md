@@ -1,4 +1,4 @@
-# Nova Launcher 0.9.1 para Fedora
+# Nova Launcher 0.9.2 para Fedora
 
 Descomprimí el ZIP y ejecutá `./iniciar.sh` desde la carpeta `nova-launcher`.
 Si faltan dependencias de Fedora, instalalas con:
@@ -11,7 +11,7 @@ sudo dnf install python3-gobject python3-cairo gtk4 python3-pip xdg-utils
 - Seleccioná una instancia y abrí **Mods**, **Shaders** o **Texturas** desde su ficha para instalar contenido directamente en esa instancia.
 - **Nueva instancia → Buscar un modpack** instala un pack de Modrinth y selecciona la instancia recién creada.
 - **Explorar** busca en Modrinth. Los mods se filtran por versión y loader. Nova descarga las dependencias obligatorias que Modrinth declara para esos mods. Para activar los shaders dentro del juego necesitás un mod compatible, como Iris.
-- **Modpacks** se instalan en instancias separadas, con las versiones fijadas por el pack. **Importar pack** admite archivos locales `.mrpack`. Se instalan los archivos obligatorios para el cliente.
+- **Modpacks** se instalan en instancias separadas, con las versiones fijadas por el pack. **Importar pack** admite archivos locales `.mrpack` de Modrinth y `.zip` exportados desde CurseForge con `manifest.json`. Se instalan los archivos obligatorios para el cliente. Si el ZIP referencia archivos de CurseForge, ingresá una clave de su API en el importador o configurá `CURSEFORGE_API_KEY`. Nova no guarda la clave que ingresás en el diálogo.
 - **Ajustes** define la memoria predeterminada de nuevas instancias y una ruta opcional de Java. **Editar instancia** permite ajustar la RAM y Java de una instalación concreta.
 - El menú **Cuentas** permite crear y cambiar perfiles offline para partidas locales.
 - **Contenido instalado** administra los archivos descargados individualmente por Nova. **Ver registro** abre el log del último inicio.
@@ -32,12 +32,12 @@ En **Mods → Instalados** podés activar y desactivar mods, y consultar actuali
 
 **Pantalla de carga Nova** habilita el logo y los colores al iniciar Minecraft 1.21.11 con Fabric. Para otras versiones compatibles con Dark Loading Screen, el botón aplica los colores.
 
-El RPM instala Nova en el menú de aplicaciones de Fedora e incluye la biblioteca del launcher. Para instalar desde la terminal, usá `sudo dnf install ./nova-launcher-0.9.1-1.noarch.rpm`. Después buscá **Nova Launcher** en el menú.
+El RPM instala Nova en el menú de aplicaciones de Fedora e incluye la biblioteca del launcher. Para instalar desde la terminal, usá `sudo dnf install ./nova-launcher-0.9.2-1.noarch.rpm`. Después buscá **Nova Launcher** en el menú.
 
 Para conectar GitHub Releases, escribí `usuario/repositorio` en **Ajustes → Actualizaciones**. Antes de compilar el RPM para tus usuarios, poné ese valor en `canal.json`. Usá etiquetas estables como `v0.9.0` y adjuntá el RPM y su SHA-256 a cada release. Nova revisa las versiones al abrirse y ofrece el enlace de descarga cuando encuentra una más nueva.
 
 Nova es un launcher de terceros para Minecraft Java Edition, sin afiliación con Mojang o Microsoft.
 
-Para reconstruir el RPM en Fedora con `rpm-build` instalado, prepará `~/rpmbuild/SOURCES` y guardá ahí el archivo `nova-launcher-0.9.1.tar.gz` con la carpeta `nova-launcher` en su raíz y el wheel `minecraft_launcher_lib-8.0-py3-none-any.whl`. Ejecutá `rpmbuild -bb nova-launcher.spec`. Para cada versión nueva, actualizá la versión del spec y de `actualizaciones.py` antes de empaquetar.
+Para reconstruir el RPM en Fedora con `rpm-build` instalado, prepará `~/rpmbuild/SOURCES` y guardá ahí el archivo `nova-launcher-0.9.2.tar.gz` con la carpeta `nova-launcher` en su raíz y el wheel `minecraft_launcher_lib-8.0-py3-none-any.whl`. Ejecutá `rpmbuild -bb nova-launcher.spec`. Para cada versión nueva, actualizá la versión del spec y de `actualizaciones.py` antes de empaquetar.
 
 Los respaldos locales aparecen en **Respaldos**. Al restaurar, Nova crea una instancia separada. Los respaldos comparten la portada guardada en la biblioteca local de Nova.

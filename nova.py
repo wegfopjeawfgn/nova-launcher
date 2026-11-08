@@ -460,7 +460,7 @@ class Nova(Gtk.Application):
              lambda: self.instance_form(None)),
             ("↓   Buscar un modpack", "Descargá un pack completo desde Modrinth.",
              self.browse_packs),
-            ("＋   Importar un archivo", "Creá una instancia a partir de un archivo .mrpack.",
+            ("＋   Importar un archivo", "Importá un .mrpack de Modrinth o un ZIP de CurseForge.",
              self.import_pack),
         ):
             content.append(feature_button(title, detail, lambda run=action: choose(run)))
@@ -744,21 +744,54 @@ class Nova(Gtk.Application):
             return
         picker = Gtk.FileChooserNative(title="Importar modpack", transient_for=self.window,
                                        action=Gtk.FileChooserAction.OPEN)
-        filters = Gtk.FileFilter(name="Modrinth (*.mrpack)")
-        filters.add_pattern("*.mrpack")
+        filters = Gtk.FileFilter(name="Modpacks de Modrinth y CurseForge")
+        filters.add_suffix("mrpack")
+        filters.add_suffix("zip")
         picker.add_filter(filters)
 
         def selected(dialog, response):
             if response == Gtk.ResponseType.ACCEPT:
                 path = dialog.get_file().get_path()
                 if path:
-                    self.import_local(path)
+                    dialog.destroy()
+                    if Path(path).suffix.lower() == ".zip" and not os.environ.get("CURSEFORGE_API_KEY"):
+                        self.import_curseforge(path)
+                    else:
+                        self.import_local(path)
+                    return
             dialog.destroy()
 
         picker.connect("response", selected)
         picker.show()
 
-    def import_local(self, path):
+    def import_curseforge(self, path):
+        dialog = Gtk.Dialog(title="Importar ZIP de CurseForge", transient_for=self.window,
+                            modal=True, default_width=440)
+        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Importar", Gtk.ResponseType.OK).add_css_class("primary")
+        box = dialog.get_content_area()
+        box.add_css_class("menu")
+        box.set_spacing(10)
+        hint = label("Si el ZIP referencia archivos externos, ingresá tu clave de API de CurseForge. "
+                     "Si ya incluye todo el contenido, dejá el campo vacío.", "muted")
+        hint.set_wrap(True)
+        box.append(hint)
+        entry = Gtk.PasswordEntry(placeholder_text="Clave de API de CurseForge")
+        box.append(entry)
+        entry.connect("activate", lambda _: dialog.response(Gtk.ResponseType.OK))
+
+        def respond(_, response):
+            key = entry.get_text().strip()
+            dialog.destroy()
+            if response == Gtk.ResponseType.OK:
+                self.import_local(path, key)
+
+        dialog.connect("response", respond)
+        dialog.present()
+
+    def import_local(self, path, api_key=""):
+        if self.busy:
+            return
         self.busy = True
         self.status.set_text("Importando modpack…")
         self.refresh()
@@ -771,7 +804,7 @@ class Nova(Gtk.Application):
 
         def worker():
             try:
-                folder = catalogo.import_pack(path, memory)
+                folder = catalogo.import_pack(path, memory, api_key)
             except Exception as exc:
                 GLib.idle_add(finish, None, f"No se pudo importar: {exc}")
             else:
