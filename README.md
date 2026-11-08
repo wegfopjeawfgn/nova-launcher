@@ -16,3 +16,5 @@ Para publicar una versión, actualizá el spec y `actualizaciones.py`, creá una
 El inicio de sesión con Microsoft requiere un ID de aplicación aprobado para Minecraft Services. El repositorio debe incluir la licencia que el titular elija antes de distribuir el código públicamente.
 
 Nova es un launcher de terceros, sin afiliación ni aprobación de Mojang o Microsoft.
+
+La web está en `docs/`. En GitHub Pages, seleccioná **Deploy from a branch**, rama `main` y carpeta `/docs`. La página incluye el RPM y el SHA-256 de la beta 0.9.0. Al publicar otra versión, actualizá la versión, el comando de instalación y los enlaces de descarga en `docs/index.html`.
