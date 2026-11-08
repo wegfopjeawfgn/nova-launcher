@@ -1,0 +1,50 @@
+name: Validar Minecraft en Windows con Mesa
+
+on:
+  push:
+    branches: [nova-1.0-validation]
+    paths: [.github/workflows/windows-game-validation.yml, packaging/windows/first_game.py]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  game:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: nova-windows-preview
+          run-id: 42523932015
+          github-token: ${{ github.token }}
+          path: dist
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          pacboy: mesa:p
+      - name: Instalar Nova y probar Minecraft
+        shell: pwsh
+        run: |
+          $installer = Get-Item dist/nova-launcher-1.0.0-windows-x64-setup.exe
+          $expected = (Get-Content "$($installer.FullName).sha256" -Raw).Split()[0]
+          if ((Get-FileHash $installer -Algorithm SHA256).Hash -ne $expected) { throw 'SHA-256 inválido' }
+          $target = Join-Path $env:RUNNER_TEMP 'Nova Game Test'
+          $install = Start-Process $installer.FullName -ArgumentList ('/VERYSILENT /SUPPRESSMSGBOXES /DIR="{0}"' -f $target) -Wait -PassThru
+          if ($install.ExitCode -ne 0) { exit $install.ExitCode }
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'Nova Game Data'
+          New-Item -ItemType Directory -Force $env:LOCALAPPDATA | Out-Null
+          $env:NOVA_TEST_MESA = 'C:\msys64\ucrt64\bin'
+          & "$target/runtime/bin/python.exe" -u packaging/windows/first_game.py $target "$PWD/dist/first-game.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nova-windows-game-log
+          path: dist/first-game.log
+          if-no-files-found: ignore

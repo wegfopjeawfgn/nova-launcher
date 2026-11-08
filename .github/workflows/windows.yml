@@ -2,8 +2,6 @@ name: Probar instalador de Windows
 
 on:
   workflow_dispatch:
-  push:
-    branches: [nova-1.0-validation]
 
 permissions:
   contents: read
