@@ -1,6 +1,6 @@
 Name:           nova-launcher
-Version:        0.9.0
-Release:        2
+Version:        0.9.1
+Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        LicenseRef-Nova AND BSD-2-Clause
 BuildArch:      noarch
@@ -42,6 +42,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Sun Nov 08 2026 Nova Launcher <nova@localhost> - 0.9.1-1
+- Reuse instance rows and decode catalog images as thumbnails.
+
 * Sun Nov 08 2026 Nova Launcher <nova@localhost> - 0.9.0-2
 - Configure the public GitHub release channel by default.
 

@@ -1,4 +1,5 @@
 """Nova Launcher desktop window for GTK 4."""
+from functools import lru_cache
 import hashlib
 import os
 from pathlib import Path
@@ -12,14 +13,11 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
-from minecraft_launcher_lib.mod_loader import get_mod_loader
 
 import actualizaciones
 import biblioteca
 import integraciones
 import consola
-import cuentas
-import skins
 import catalogo
 import motor
 import respaldos
@@ -37,6 +35,12 @@ def resolution_field(value, automatic):
     return combo
 
 
+@lru_cache(maxsize=24)
+def cover_texture(path, width, height):
+    pixels = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), width, height, True)
+    return Gdk.Texture.new_for_pixbuf(pixels)
+
+
 def instance_art(instance, width=-1, height=145):
     frame = Gtk.Overlay(width_request=width, height_request=height)
     background = Gtk.Box(css_classes=[f"art{instance['artwork']}"])
@@ -48,7 +52,10 @@ def instance_art(instance, width=-1, height=145):
     if re.fullmatch(r"[a-f0-9]{64}\.png", cover):
         path = motor.ROOT / "covers" / cover
         if path.is_file():
-            picture.set_filename(str(path))
+            try:
+                picture.set_paintable(cover_texture(path, width * 2 if width > 0 else 768, height * 2))
+            except GLib.Error:
+                pass
     return frame
 
 
@@ -136,7 +143,7 @@ class Nova(Gtk.Application):
         nav.append(self.nav_button("Explorar", "system-search-symbolic", self.browse))
         nav.append(self.nav_button("Modpacks", "package-x-generic-symbolic", self.browse_packs))
         nav.append(self.nav_button("Importar pack", "document-open-symbolic", self.import_pack))
-        nav.append(self.nav_button("Skins", "applications-graphics-symbolic", lambda: skins.Editor(self)))
+        nav.append(self.nav_button("Skins", "applications-graphics-symbolic", self.open_skins))
         nav.append(self.nav_button("Respaldos", "document-open-symbolic", self.show_backups))
         nav.append(Gtk.Box(vexpand=True))
         self.release_button = button(f"Nova {actualizaciones.VERSION}", self.release_details)
@@ -159,6 +166,8 @@ class Nova(Gtk.Application):
         self.compact = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
         main.append(self.compact)
         self.instance_rows = {}
+        self.expanded_folder = None
+        self.library_layout = None
         self.details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         self.details.add_css_class("details")
         main.append(self.details)
@@ -317,7 +326,7 @@ class Nova(Gtk.Application):
                                   "primary" if self.microsoft_active else None))
             options.append(button("Desconectar Microsoft", self.disconnect_microsoft))
         else:
-            options.append(button("+  Conectar Microsoft", lambda: cuentas.connect(self)))
+            options.append(button("+  Conectar Microsoft", self.connect_microsoft))
         options.append(button("+  Agregar cuenta offline", self.edit_profile))
         popover.set_child(options)
         self.accounts.set_popover(popover)
@@ -335,10 +344,18 @@ class Nova(Gtk.Application):
         count = sum(1 for _ in (motor.ROOT / "skins" / name).glob("*.png"))
         box.append(label(f"{count} skins guardadas · {len(self.profiles)} perfiles offline"))
         box.append(button("Copiar nombre", lambda: dialog.get_clipboard().set(name)))
-        box.append(button("Abrir mis skins", lambda: (dialog.destroy(), skins.Editor(self))))
+        box.append(button("Abrir mis skins", lambda: (dialog.destroy(), self.open_skins())))
         box.append(button("Cambiar de cuenta", lambda: (dialog.destroy(), self.accounts.popup())))
         dialog.set_child(box)
         dialog.present()
+
+    def open_skins(self):
+        from skins import Editor
+        Editor(self)
+
+    def connect_microsoft(self):
+        import cuentas
+        cuentas.connect(self)
 
     def use_microsoft(self, client_id, session):
         self.microsoft = (client_id, session)
@@ -517,6 +534,7 @@ class Nova(Gtk.Application):
 
             def worker():
                 try:
+                    from minecraft_launcher_lib.mod_loader import get_mod_loader
                     available = get_mod_loader(loader_id).get_loader_versions(version, False)
                 except Exception as exc:
                     GLib.idle_add(finish, [], f"No se pudieron consultar las versiones: {exc}")
@@ -768,22 +786,42 @@ class Nova(Gtk.Application):
         }
         if self.selected not in self.instances:
             self.selected = next(iter(self.instances), None)
-        for container in (self.cards, self.compact):
-            while child := container.get_first_child():
-                container.remove(child)
-        self.instance_rows.clear()
         if self.preferences["alphabetical"]:
             self.instances = dict(sorted(self.instances.items(), key=lambda item: item[1]["name"].casefold()))
         compact = bool(self.instances) and (len(self.instances) > 2 or self.preferences["compact"])
-        self.cards.set_visible(not compact)
-        self.details.set_visible(not compact)
-        self.compact.set_visible(compact)
+        layout = (compact, tuple((folder, instance["name"], instance["version"], instance["loader"],
+                                  instance["artwork"], instance.get("cover"))
+                                 for folder, instance in self.instances.items()))
+        if layout != self.library_layout:
+            for container in (self.cards, self.compact):
+                while child := container.get_first_child():
+                    container.remove(child)
+            self.instance_rows.clear()
+            self.expanded_folder = None
+            self.library_layout = layout
+            self.cards.set_visible(not compact)
+            self.details.set_visible(not compact)
+            self.compact.set_visible(compact)
+            if compact:
+                for folder, instance in self.instances.items():
+                    self.add_compact_instance(folder, instance)
+            else:
+                self.render_cards()
         if compact:
-            for folder, instance in self.instances.items():
-                self.add_compact_instance(folder, instance)
+            already_open = self.expanded_folder == self.selected
             self.expand_instance(self.selected, animate=False)
+            if already_open:
+                self.render_details(self.instance_rows[self.selected][2].get_child())
+            for key, (_, _, reveal) in self.instance_rows.items():
+                if key != self.selected:
+                    reveal.set_child(None)
         else:
-            self.render_cards()
+            for child, folder in zip(self.cards, self.instances):
+                tile = child.get_child()
+                if folder == self.selected:
+                    tile.add_css_class("selected")
+                else:
+                    tile.remove_css_class("selected")
             self.render_details(self.details)
 
     def render_cards(self):
@@ -823,30 +861,46 @@ class Nova(Gtk.Application):
         self.compact.append(item)
         self.instance_rows[folder] = tile, arrow, reveal
 
+        def release_details(widget, _):
+            if not widget.get_child_revealed() and not widget.get_reveal_child():
+                widget.set_child(None)
+
+        reveal.connect("notify::child-revealed", release_details)
+
     def expand_instance(self, folder, *, animate=True):
-        for key, (tile, arrow, reveal) in self.instance_rows.items():
-            selected = key == folder
-            if selected:
-                tile.add_css_class("selected")
-            else:
-                tile.remove_css_class("selected")
-            arrow.set_from_icon_name("pan-down-symbolic" if selected else "pan-end-symbolic")
-            tile.update_state([Gtk.AccessibleState.EXPANDED], [int(selected)])
-            if selected:
-                details = reveal.get_child()
-                if details is None:
-                    details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16,
-                                      css_classes=["details", "inline-details"])
-                    self.render_details(details)
-                    reveal.set_child(details)
-                details.set_sensitive(True)
-                if not animate:
-                    reveal.set_transition_duration(0)
-            elif reveal.get_child():
+        if self.expanded_folder == folder:
+            return
+        previous = self.expanded_folder
+        self.expanded_folder = folder
+        if previous is not None:
+            tile, arrow, reveal = self.instance_rows[previous]
+            tile.remove_css_class("selected")
+            arrow.set_from_icon_name("pan-end-symbolic")
+            tile.update_state([Gtk.AccessibleState.EXPANDED], [0])
+            if reveal.get_child():
                 reveal.get_child().set_sensitive(False)
-            reveal.set_reveal_child(selected)
+            if not animate:
+                reveal.set_transition_duration(0)
+            reveal.set_reveal_child(False)
             if not animate:
                 reveal.set_transition_duration(180)
+
+        tile, arrow, reveal = self.instance_rows[folder]
+        tile.add_css_class("selected")
+        arrow.set_from_icon_name("pan-down-symbolic")
+        tile.update_state([Gtk.AccessibleState.EXPANDED], [1])
+        details = reveal.get_child()
+        if details is None:
+            details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16,
+                              css_classes=["details", "inline-details"])
+            self.render_details(details)
+            reveal.set_child(details)
+        details.set_sensitive(True)
+        if not animate:
+            reveal.set_transition_duration(0)
+        reveal.set_reveal_child(True)
+        if not animate:
+            reveal.set_transition_duration(180)
 
     def render_details(self, details):
         while child := details.get_first_child():
@@ -986,7 +1040,10 @@ class Nova(Gtk.Application):
             def status(message):
                 GLib.idle_add(self.status.set_text, message)
             try:
-                session = cuentas.refresh(*microsoft) if microsoft else None
+                session = None
+                if microsoft:
+                    import cuentas
+                    session = cuentas.refresh(*microsoft)
                 if session:
                     GLib.idle_add(self.store_session, microsoft, session)
                 result = motor.launch(folder, profile, instance, status, session=session)

@@ -5,7 +5,7 @@ from pathlib import Path
 import threading
 
 import requests
-from gi.repository import Gdk, Gio, GLib, Gtk
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
 
 import catalogo
 import motor
@@ -19,9 +19,9 @@ MAX_ARTWORK_BYTES = 2_000_000
 
 
 @lru_cache(maxsize=48)
-def artwork_bytes(url):
+def artwork_thumbnail(url):
     if not url.startswith("https://cdn.modrinth.com/"):
-        return b""
+        return None
     with requests.get(url, timeout=5, stream=True,
                       headers={"User-Agent": motor.USER_AGENT}) as response:
         response.raise_for_status()
@@ -29,8 +29,19 @@ def artwork_bytes(url):
         for chunk in response.iter_content(65536):
             data.extend(chunk)
             if len(data) > MAX_ARTWORK_BYTES:
-                return b""
-        return bytes(data)
+                return None
+    loader = GdkPixbuf.PixbufLoader.new()
+
+    def scale(pixbuf_loader, width, height):
+        ratio = min(1, 144 / max(width, height))
+        pixbuf_loader.set_size(max(1, round(width * ratio)), max(1, round(height * ratio)))
+
+    loader.connect("size-prepared", scale)
+    try:
+        loader.write(bytes(data))
+    finally:
+        loader.close()
+    return loader.get_pixbuf()
 
 
 def artwork(item):
@@ -42,24 +53,24 @@ def artwork(item):
     frame.add_overlay(picture)
     url = item.get("featured_gallery") or item.get("icon_url")
 
-    def show(data):
+    def show(thumbnail):
         if frame.get_root() is not None:
             try:
-                picture.set_paintable(Gdk.Texture.new_from_bytes(GLib.Bytes.new(data)))
+                picture.set_paintable(Gdk.Texture.new_for_pixbuf(thumbnail))
                 placeholder.set_visible(False)
             except GLib.Error:
                 pass
 
     def loaded(future):
         try:
-            data = future.result()
-        except requests.RequestException:
+            thumbnail = future.result()
+        except (requests.RequestException, GLib.Error):
             return
-        if data:
-            GLib.idle_add(show, data)
+        if thumbnail:
+            GLib.idle_add(show, thumbnail)
 
     if url:
-        ARTWORK.submit(artwork_bytes, url).add_done_callback(loaded)
+        ARTWORK.submit(artwork_thumbnail, url).add_done_callback(loaded)
     return frame
 
 

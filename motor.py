@@ -10,14 +10,13 @@ import subprocess
 import uuid
 
 import requests
-from minecraft_launcher_lib import command, install, mod_loader
 
 VERSION = "1.21.4"
 ROOT = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "nova-launcher"
 LOADERS = {"vanilla": "Vanilla", "fabric": "Fabric", "forge": "Forge",
            "neoforge": "NeoForge", "quilt": "Quilt"}
 DEFAULTS = {"version": VERSION, "loader": "vanilla", "loader_version": "", "java": ""}
-USER_AGENT = "NovaLauncher/0.9.0 (desktop Minecraft launcher)"
+USER_AGENT = "NovaLauncher/0.9.1 (desktop Minecraft launcher)"
 
 
 def save(path, data):
@@ -64,6 +63,8 @@ def instance_lock(folder):
 
 
 def prepare(instance, status):
+    from minecraft_launcher_lib import command, install, mod_loader
+
     version = instance["version"]
     loader_id = instance["loader"]
     requested = instance["loader_version"]
@@ -98,6 +99,8 @@ def prepare(instance, status):
 
 
 def launch(folder, profile, instance, status, session=None):
+    from minecraft_launcher_lib import command
+
     if not session and not re.fullmatch(r"[A-Za-z0-9_]{3,16}", profile):
         raise ValueError("Elegí un nombre offline de 3 a 16 letras, números o guiones bajos.")
     game = folder / "game"
@@ -110,7 +113,7 @@ def launch(folder, profile, instance, status, session=None):
         options = {
             "username": profile, "uuid": player_id.hex, "token": "0",
             "gameDirectory": str(game), "launcherName": "Nova Launcher",
-            "launcherVersion": "0.9.0", "jvmArguments": [f"-Xmx{instance['memory']}G"],
+            "launcherVersion": "0.9.1", "jvmArguments": [f"-Xmx{instance['memory']}G"],
         }
         if (instance["version"] == "1.21.11" and instance["loader"] == "fabric"
                 and read(folder / "nova-loading.json", {}).get("logo")):

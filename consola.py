@@ -30,15 +30,22 @@ def open_console(parent, path):
     box.append(scroll)
     window.set_child(box)
     previous = None
+    last_read = None
 
     def update():
-        nonlocal previous
+        nonlocal previous, last_read
         try:
+            stat = path.stat()
+            signature = (stat.st_ino, stat.st_size, stat.st_mtime_ns)
+            if signature == last_read:
+                return True
             with path.open("rb") as log:
                 size = log.seek(0, 2)
                 log.seek(max(0, size - 160_000))
                 text = log.read(160_000).decode(errors="replace")
+            last_read = signature
         except OSError:
+            last_read = None
             status.set_text("Esperando el registro de Minecraft…")
             return True
         if text != previous:
