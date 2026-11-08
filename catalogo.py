@@ -234,8 +234,16 @@ def restore_mod(folder, project):
 
 def pack_path(name):
     path = Path(name)
-    if path.is_absolute() or not path.parts or ".." in path.parts or "\\" in name:
+    if (path.is_absolute() or path.drive or not path.parts or ".." in path.parts
+            or "\\" in name or ":" in name):
         raise ValueError("El modpack contiene una ruta inválida.")
+    if os.name == "nt" and any(
+        component.endswith((" ", ".")) or re.search(r'[<>"|?*\x00-\x1f]', component)
+        or re.fullmatch(r"(?i:CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])",
+                        component.split(".", 1)[0])
+        for component in path.parts
+    ):
+        raise ValueError("El modpack contiene un nombre de archivo no compatible con Windows.")
     return path
 
 
