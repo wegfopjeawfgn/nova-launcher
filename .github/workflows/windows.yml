@@ -11,6 +11,7 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
         with:
@@ -52,9 +53,13 @@ jobs:
           $target = Join-Path $env:RUNNER_TEMP 'Nova Smoke Test'
           $install = Start-Process $installer.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /DIR=`"$target`"" -Wait -PassThru
           if ($install.ExitCode -ne 0) { exit $install.ExitCode }
+          $shortcut = Join-Path $env:APPDATA 'Microsoft/Windows/Start Menu/Programs/Nova Launcher/Nova Launcher.lnk'
+          if (-not (Test-Path $shortcut)) { throw 'Falta el acceso directo de Nova en Inicio.' }
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'Nova Test Data'
+          New-Item -ItemType Directory -Force $env:LOCALAPPDATA | Out-Null
           Push-Location "$target/app"
           try {
-            & "../runtime/bin/python.exe" -c "import nova; from gi.repository import GLib; app=nova.Nova(); app.check_release=lambda:None; nova.motor.versions=lambda:[]; GLib.timeout_add(1500, app.quit); raise SystemExit(app.run([]))"
+            & "../runtime/bin/python.exe" -c "import nova; from gi.repository import GLib; app=nova.Nova(); app.check_release=lambda:None; nova.motor.versions=lambda:[]; GLib.timeout_add(1500, app.quit); app.run([]); assert app.window is not None, 'No se abrió la ventana de Nova'"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally {
             Pop-Location
@@ -66,3 +71,17 @@ jobs:
           name: nova-windows-preview
           path: dist/
           if-no-files-found: error
+      - name: Probar el primer inicio de Minecraft
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'Nova Smoke Test'
+          $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'Nova Game Test Data'
+          New-Item -ItemType Directory -Force $env:LOCALAPPDATA | Out-Null
+          & "$target/runtime/bin/python.exe" packaging/windows/first_game.py $target "$PWD/dist/first-game.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nova-windows-game-log
+          path: dist/first-game.log
+          if-no-files-found: ignore
