@@ -53,10 +53,8 @@ class Editor:
         selection = motor.read(self.profile_settings, {})
         self.window = Gtk.Window(title="Editor de skins", transient_for=app.window,
                                  default_width=800, default_height=640)
-        scroll = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER)
-        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, css_classes=["menu", "skin-editor"])
-        scroll.set_child(root)
-        self.window.set_child(scroll)
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, css_classes=["menu", "skin-editor"])
+        self.window.set_child(root)
 
         header = Gtk.Box(spacing=12)
         title = Gtk.Label(label=f"Skins · {self.profile}", xalign=0, hexpand=True, css_classes=["subheading"])
@@ -78,7 +76,9 @@ class Editor:
         root.append(commands)
 
         workspace = Gtk.Box(spacing=12)
-        root.append(workspace)
+        scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.AUTOMATIC)
+        scroll.set_child(workspace)
+        root.append(scroll)
         self.drawing = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, css_classes=["skin-panel"])
         workspace.append(self.drawing)
         selectors = Gtk.Box(spacing=6)
@@ -137,7 +137,7 @@ class Editor:
         if not self.model.set_active_id(selection.get("model", "classic")):
             self.model.set_active_id("classic")
         preview_panel.append(self.model)
-        self.preview = Gtk.DrawingArea(content_width=240, content_height=310, hexpand=True)
+        self.preview = Gtk.DrawingArea(content_width=230, content_height=240, hexpand=True, vexpand=True)
         self.preview.set_draw_func(self.draw_model)
         preview_panel.append(self.preview)
         preview_panel.append(self.control("Girar modelo", self.rotate))
