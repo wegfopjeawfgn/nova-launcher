@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        0.9.2
+Version:        0.9.3
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        LicenseRef-Nova AND BSD-2-Clause
@@ -42,6 +42,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Sun Nov 08 2026 Nova Launcher <nova@localhost> - 0.9.3-1
+- Add settings to minimize or close Nova after Minecraft starts.
+
 * Sun Nov 08 2026 Nova Launcher <nova@localhost> - 0.9.2-1
 - Import CurseForge ZIP modpacks and verify referenced downloads.
 

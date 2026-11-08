@@ -113,7 +113,8 @@ class Nova(Gtk.Application):
         accounts = motor.read(motor.ROOT / "accounts.json", {"active": "", "profiles": []})
         self.preferences = {
             "memory": 4, "java": "", "resolution": "default", "console": False,
-            "compact": False, "alphabetical": False, **motor.read(motor.ROOT / "settings.json", {}),
+            "compact": False, "alphabetical": False, "launch_behavior": "keep",
+            **motor.read(motor.ROOT / "settings.json", {}),
         }
         self.release_repo = actualizaciones.repository(
             motor.read(HERE / "canal.json", {}).get("repository", "")
@@ -697,6 +698,17 @@ class Nova(Gtk.Application):
         box.append(memory)
         box.append(label("Tamaño de ventana predeterminado", "form-label"))
         box.append(resolution)
+        box.append(label("Al iniciar Minecraft", "subheading"))
+        behavior = Gtk.ComboBoxText()
+        behavior.append("keep", "Mantener Nova abierto")
+        behavior.append("minimize", "Minimizar Nova hasta que se cierre Minecraft")
+        behavior.append("close", "Cerrar Nova")
+        if not behavior.set_active_id(self.preferences["launch_behavior"]):
+            behavior.set_active_id("keep")
+        box.append(behavior)
+        hint = label("El registro de Minecraft se guarda aunque cierres Nova.", "muted")
+        hint.set_wrap(True)
+        box.append(hint)
         box.append(label("Biblioteca y diagnóstico", "subheading"))
         toggles = {}
         for key, title in (
@@ -722,6 +734,7 @@ class Nova(Gtk.Application):
                     settings = {**self.preferences, "java": self.java_path(java.get_text()),
                                 "memory": memory.get_value_as_int(), "resolution": resolution.get_active_id(),
                                 "release_repo": actualizaciones.repository(repo.get_text()),
+                                "launch_behavior": behavior.get_active_id(),
                                 **{key: control.get_active() for key, control in toggles.items()}}
                     motor.save(motor.ROOT / "settings.json", settings)
                     self.preferences = settings
@@ -1063,11 +1076,28 @@ class Nova(Gtk.Application):
         instance["java"] = instance["java"] or self.preferences["java"]
         if instance.get("resolution", "default") == "default":
             instance["resolution"] = self.preferences["resolution"]
-        if self.preferences["console"]:
+        behavior = self.preferences["launch_behavior"]
+        if self.preferences["console"] and behavior != "close":
             self.open_log(folder)
         self.busy = True
         self.status.set_text("Preparando Minecraft…")
         self.refresh()
+
+        minimized = False
+
+        def started():
+            nonlocal minimized
+            if behavior == "close":
+                self.quit()
+            elif behavior == "minimize":
+                self.window.minimize()
+                minimized = True
+
+        def finish(message):
+            self.finished(message)
+            if minimized:
+                self.window.unminimize()
+                self.window.present()
 
         def worker():
             def status(message):
@@ -1079,12 +1109,16 @@ class Nova(Gtk.Application):
                     session = cuentas.refresh(*microsoft)
                 if session:
                     GLib.idle_add(self.store_session, microsoft, session)
-                result = motor.launch(folder, profile, instance, status, session=session)
+                result = motor.launch(
+                    folder, profile, instance, status, session=session,
+                    on_started=(lambda: GLib.idle_add(started)) if behavior in {"close", "minimize"} else None,
+                    detach=behavior == "close",
+                )
                 message = ("Minecraft cerrado." if result == 0 else
                            f"Minecraft terminó con código {result}. Consultá {folder / 'minecraft.log'}")
             except Exception as exc:
                 message = f"Error al iniciar Minecraft: {exc}"
-            GLib.idle_add(self.finished, message)
+            GLib.idle_add(finish, message)
 
         threading.Thread(target=worker, daemon=True).start()
 

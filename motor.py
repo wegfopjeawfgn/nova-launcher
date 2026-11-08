@@ -16,7 +16,7 @@ ROOT = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "
 LOADERS = {"vanilla": "Vanilla", "fabric": "Fabric", "forge": "Forge",
            "neoforge": "NeoForge", "quilt": "Quilt"}
 DEFAULTS = {"version": VERSION, "loader": "vanilla", "loader_version": "", "java": ""}
-USER_AGENT = "NovaLauncher/0.9.2 (desktop Minecraft launcher)"
+USER_AGENT = "NovaLauncher/0.9.3 (desktop Minecraft launcher)"
 
 
 def save(path, data):
@@ -98,7 +98,7 @@ def prepare(instance, status):
         return shared, launch_id
 
 
-def launch(folder, profile, instance, status, session=None):
+def launch(folder, profile, instance, status, session=None, *, on_started=None, detach=False):
     from minecraft_launcher_lib import command
 
     if not session and not re.fullmatch(r"[A-Za-z0-9_]{3,16}", profile):
@@ -113,7 +113,7 @@ def launch(folder, profile, instance, status, session=None):
         options = {
             "username": profile, "uuid": player_id.hex, "token": "0",
             "gameDirectory": str(game), "launcherName": "Nova Launcher",
-            "launcherVersion": "0.9.2", "jvmArguments": [f"-Xmx{instance['memory']}G"],
+            "launcherVersion": "0.9.3", "jvmArguments": [f"-Xmx{instance['memory']}G"],
         }
         if (instance["version"] == "1.21.11" and instance["loader"] == "fabric"
                 and read(folder / "nova-loading.json", {}).get("logo")):
@@ -130,6 +130,11 @@ def launch(folder, profile, instance, status, session=None):
         args = command.get_minecraft_command(launch_id, str(shared), options)
         with (folder / "minecraft.log").open("w", encoding="utf-8") as log:
             process = subprocess.Popen(args, cwd=game, stdout=log, stderr=subprocess.STDOUT,
-                                       pass_fds=(lock.fileno(),))
+                                       pass_fds=(lock.fileno(),), start_new_session=detach)
             status("Minecraft abierto · " + profile)
+            if on_started:
+                try:
+                    return process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    on_started()
             return process.wait()
