@@ -1,11 +1,11 @@
 """Persist isolated instances and start Minecraft on Linux."""
 from contextlib import contextmanager, nullcontext
-import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import uuid
 
@@ -13,12 +13,19 @@ import requests
 
 import servidores
 
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
+
 VERSION = "1.21.4"
-ROOT = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "nova-launcher"
+DATA_HOME = (Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData/Local")
+             if os.name == "nt" else Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share"))
+ROOT = DATA_HOME / "nova-launcher"
 LOADERS = {"vanilla": "Vanilla", "fabric": "Fabric", "forge": "Forge",
            "neoforge": "NeoForge", "quilt": "Quilt"}
 DEFAULTS = {"version": VERSION, "loader": "vanilla", "loader_version": "", "java": ""}
-USER_AGENT = "NovaLauncher/0.9.9 (desktop Minecraft launcher)"
+USER_AGENT = "NovaLauncher/1.0.0 (desktop Minecraft launcher)"
 
 
 def save(path, data):
@@ -55,16 +62,53 @@ def create(name, memory, artwork, **settings):
 
 
 @contextmanager
-def instance_lock(folder):
-    with (folder / ".nova.lock").open("a") as lock:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise RuntimeError("La instancia está abierta o tiene una descarga en curso.") from None
+def file_lock(path, *, blocking=False):
+    with path.open("a+b") as lock:
+        if os.name == "nt":
+            lock.seek(0)
+            mode = msvcrt.LK_LOCK if blocking else msvcrt.LK_NBLCK
+            try:
+                msvcrt.locking(lock.fileno(), mode, 1)
+            except OSError as error:
+                raise RuntimeError("La carpeta está en uso por otra operación.") from error
+        else:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
+            except BlockingIOError:
+                raise RuntimeError("La instancia está abierta o tiene una descarga en curso.") from None
         yield lock
 
 
-def prepare(instance, status):
+def instance_lock(folder):
+    return file_lock(folder / ".nova.lock")
+
+
+def open_folder(path):
+    if os.name == "nt":
+        os.startfile(path)
+    else:
+        subprocess.Popen(["xdg-open", str(path)])
+
+
+def java_report(instance):
+    from minecraft_launcher_lib.runtime import get_executable_path
+
+    shared = ROOT / "minecraft"
+    version = instance["version"]
+    metadata = read(shared / "versions" / version / f"{version}.json", {})
+    java = metadata.get("javaVersion", {})
+    runtime = get_executable_path(java["component"], str(shared)) if java.get("component") else None
+    executable = instance.get("java") or runtime or shutil.which("java")
+    required = java.get("majorVersion")
+    if not executable:
+        return "Java se prepara al iniciar Minecraft.", required, None
+    result = subprocess.run([executable, "-version"], capture_output=True, text=True,
+                            errors="replace", timeout=8, check=True)
+    match = re.search(r'version\s+"(?:1\.)?(\d+)', result.stderr + result.stdout)
+    return str(executable), required, int(match[1]) if match else None
+
+
+def prepare(instance, status, *, repair=False, offline=False):
     from minecraft_launcher_lib import command, install, mod_loader
 
     version = instance["version"]
@@ -74,14 +118,15 @@ def prepare(instance, status):
     shared.mkdir(exist_ok=True)
     cache = shared / "nova-installations.json"
     key = json.dumps([version, loader_id, requested])
-    with (shared / ".install.lock").open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with file_lock(shared / ".install.lock", blocking=True):
         installed = read(cache, {})
         launch_id = installed.get(key)
         if loader_id == "vanilla" and (shared / f".ready-{version}").exists():
             launch_id = version
-        if launch_id and (shared / "versions" / launch_id / f"{launch_id}.json").is_file():
+        if not repair and launch_id and (shared / "versions" / launch_id / f"{launch_id}.json").is_file():
             return shared, launch_id
+        if offline:
+            raise ValueError("Esta instalación todavía necesita descargarse. Iniciá la instancia con conexión primero.")
         status(f"Descargando Minecraft {version}…")
 
         def install_status(message):
@@ -110,7 +155,7 @@ def prepare(instance, status):
         return shared, launch_id
 
 
-def launch(folder, profile, instance, status, session=None, *, on_started=None, detach=False, server=None, game=None, log_path=None, held_lock=None):
+def launch(folder, profile, instance, status, session=None, *, on_started=None, detach=False, server=None, game=None, log_path=None, held_lock=None, offline=False):
     from minecraft_launcher_lib import command
 
     if not session and not re.fullmatch(r"[A-Za-z0-9_]{3,16}", profile):
@@ -118,14 +163,14 @@ def launch(folder, profile, instance, status, session=None, *, on_started=None, 
     game = game or folder / "game"
     game.mkdir(exist_ok=True)
     with (nullcontext(held_lock) if held_lock else instance_lock(folder)) as lock:
-        shared, launch_id = prepare(instance, status)
+        shared, launch_id = prepare(instance, status, offline=True) if offline else prepare(instance, status)
         player_id = uuid.UUID(bytes=hashlib.md5(
             f"OfflinePlayer:{profile}".encode(), usedforsecurity=False
         ).digest(), version=3)
         options = {
             "username": profile, "uuid": player_id.hex, "token": "0",
             "gameDirectory": str(game), "launcherName": "Nova Launcher",
-            "launcherVersion": "0.9.9", "jvmArguments": [f"-Xmx{instance['memory']}G"],
+            "launcherVersion": "1.0.0", "jvmArguments": [f"-Xmx{instance['memory']}G"],
         }
         if (instance["version"] == "1.21.11" and instance["loader"] == "fabric"
                 and read(folder / "nova-loading.json", {}).get("logo")):
@@ -153,8 +198,10 @@ def launch(folder, profile, instance, status, session=None, *, on_started=None, 
             else:
                 args.extend(("--quickPlayMultiplayer", options["quickPlayMultiplayer"]))
         with (log_path or folder / "minecraft.log").open("w", encoding="utf-8") as log:
+            platform_options = ({} if os.name == "nt" else
+                                {"pass_fds": (lock.fileno(),), "start_new_session": detach})
             process = subprocess.Popen(args, cwd=game, stdout=log, stderr=subprocess.STDOUT,
-                                       pass_fds=(lock.fileno(),), start_new_session=detach)
+                                       **platform_options)
             status("Minecraft abierto · " + profile)
             if on_started:
                 try:

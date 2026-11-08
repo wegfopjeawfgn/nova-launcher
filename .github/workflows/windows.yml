@@ -1,0 +1,68 @@
+name: Probar instalador de Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [nova-1.0-validation]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          pacboy: >-
+            gtk4:p adwaita-icon-theme:p python-gobject:p python-cairo:p
+            python-requests:p python-pip:p
+      - name: Preparar GTK y Nova
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          bundle=packaging/windows/bundle
+          mkdir -p "$bundle"/{app,runtime}
+          cp -R /ucrt64/{bin,lib,share,etc} "$bundle/runtime/"
+          cp *.py nova.css nova-logo.svg referencia.png canal.json "$bundle/app/"
+          cp -R icons branding "$bundle/app/"
+          "$bundle/runtime/bin/python.exe" -m pip install --target "$bundle/app" -r requirements.txt
+          cd "$bundle/app"
+          ../runtime/bin/python.exe -c 'import nova, minecraft_launcher_lib; print(nova.actualizaciones.VERSION)'
+          ../runtime/bin/python.exe -c 'import actualizaciones; print(actualizaciones.VERSION)' > ../version.txt
+      - name: Compilar y probar instalación
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $version = (Get-Content packaging/windows/bundle/version.txt).Trim()
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) {
+            $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 7\ISCC.exe'
+          }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          & $iscc "/DNovaVersion=$version" "/O$PWD\dist" packaging/windows/nova.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $installer = Get-Item "dist/nova-launcher-$version-windows-x64-setup.exe"
+          $target = Join-Path $env:RUNNER_TEMP 'Nova Smoke Test'
+          $install = Start-Process $installer.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /DIR=`"$target`"" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { exit $install.ExitCode }
+          Push-Location "$target/app"
+          try {
+            & "../runtime/bin/python.exe" -c "import nova; from gi.repository import GLib; app=nova.Nova(); app.check_release=lambda:None; nova.motor.versions=lambda:[]; GLib.timeout_add(1500, app.quit); raise SystemExit(app.run([]))"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } finally {
+            Pop-Location
+          }
+          $digest = (Get-FileHash -Algorithm SHA256 $installer).Hash.ToLowerInvariant()
+          "$digest  $($installer.Name)" | Set-Content -Encoding ascii "$($installer.FullName).sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nova-windows-preview
+          path: dist/
+          if-no-files-found: error

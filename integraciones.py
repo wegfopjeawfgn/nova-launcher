@@ -1,5 +1,6 @@
 """Optional client integrations for an individual Nova instance."""
 import re
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 import threading
 
@@ -40,7 +41,7 @@ def equip(folder, instance, player, png):
             local = {**local, "skin": "LocalSkin/skins/{USERNAME}.png"}
         data["loadlist"] = [local, *(source for source in sources if source.get("name") != "LocalSkin")]
         with NamedTemporaryFile(dir=target.parent, delete=False) as file:
-            temporary = target.with_name(file.name.rsplit("/", 1)[-1])
+            temporary = Path(file.name)
             file.write(png)
         try:
             motor.save(config, data)

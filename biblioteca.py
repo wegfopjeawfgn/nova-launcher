@@ -362,6 +362,8 @@ def content_files(folder, category):
 
 def installed_view(app, folder, category=None):
     view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+    query = Gtk.SearchEntry(placeholder_text="Buscar contenido instalado")
+    view.append(query)
     scroll = Gtk.ScrolledWindow(vexpand=True, min_content_height=280, min_content_width=475)
     view.append(scroll)
     rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -380,8 +382,10 @@ def installed_view(app, folder, category=None):
             for file in content_files(folder, kind):
                 disabled = kind == "mod" and file.name.endswith(".disabled")
                 project = tracked.get((kind, file.name.removesuffix(".disabled") if disabled else file.name))
-                row = Gtk.Box(spacing=8, css_classes=["catalog-row"])
                 title = entries[project]["name"] if project else file.name
+                if query.get_text().strip().casefold() not in f"{title} {file.name}".casefold():
+                    continue
+                row = Gtk.Box(spacing=8, css_classes=["catalog-row"])
                 description = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, hexpand=True)
                 description.append(Gtk.Label(label=title, xalign=0, wrap=True, css_classes=["catalog-title"]))
                 description.append(Gtk.Label(label=f"{TYPES[kind]} · {file.name}", xalign=0,
@@ -405,7 +409,7 @@ def installed_view(app, folder, category=None):
                                               lambda path=file, key=project: remove(path, key)))
                 rows.append(row)
         if rows.get_first_child() is None:
-            rows.append(Gtk.Label(label="Todavía no hay contenido instalado.", xalign=0,
+            rows.append(Gtk.Label(label="Sin coincidencias." if query.get_text().strip() else "Todavía no hay contenido instalado.", xalign=0,
                                   css_classes=["catalog-row"]))
 
     def toggle(path):
@@ -471,6 +475,7 @@ def installed_view(app, folder, category=None):
         def finished(message, matches):
             available.clear()
             available.update(matches)
+            batch.set_sensitive(bool(matches))
             refresh()
             updates.set_sensitive(True)
             status.set_text(message)
@@ -493,10 +498,89 @@ def installed_view(app, folder, category=None):
 
         threading.Thread(target=worker, daemon=True).start()
 
+    def check_dependencies():
+        entries = motor.read(database, {})
+        active_files = {path.name for path in content_files(folder, "mod")
+                        if not path.name.endswith(".disabled")}
+        tracked = {project: entry for project, entry in entries.items()
+                   if entry["category"] == "mod" and entry["file"] in active_files}
+        if not tracked:
+            status.set_text("Agregá mods desde el catálogo para revisar sus dependencias.")
+            return
+        dependencies.set_sensitive(False)
+        status.set_text("Revisando dependencias de Modrinth…")
+
+        def report(message):
+            dependencies.set_sensitive(True)
+            status.set_text(message)
+
+        def worker():
+            missing = []
+            try:
+                detected = installed_projects(folder, "mod", set(tracked) | {""})
+                for entry in tracked.values():
+                    release = catalogo.api(f"/version/{entry['id']}")
+                    for dependency in release["dependencies"]:
+                        if dependency["dependency_type"] != "required":
+                            continue
+                        project, version = dependency.get("project_id"), dependency.get("version_id")
+                        if project and detected.get(project) == "Instalado":
+                            if not version or project not in tracked or tracked[project]["id"] == version:
+                                continue
+                        if project or version:
+                            missing.append(f"{entry['name']} → {dependency.get('file_name') or project or version}")
+            except (requests.RequestException, ValueError, KeyError) as error:
+                message = f"No se pudieron revisar las dependencias: {error}"
+            else:
+                message = ("Dependencias por revisar · " + ", ".join(dict.fromkeys(missing))
+                           if missing else "Las dependencias identificadas están instaladas.")
+            GLib.idle_add(report, message)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def review_batch():
+        entries = motor.read(database, {})
+        pending = [(entries[key]["name"], release) for key, release in available.items()
+                   if key in entries and entries[key]["id"] != release["id"]]
+        if not pending:
+            return
+        dialog = Gtk.Dialog(title="Revisar actualizaciones", transient_for=app.window, modal=True)
+        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Actualizar mods", Gtk.ResponseType.OK).add_css_class("primary")
+        box = dialog.get_content_area()
+        box.add_css_class("menu")
+        scroll = Gtk.ScrolledWindow(max_content_height=260, propagate_natural_height=True)
+        summary = Gtk.Label(label="\n".join(f"{name} → {release['version_number']}"
+                                               for name, release in pending), xalign=0, wrap=True)
+        scroll.set_child(summary)
+        box.append(scroll)
+
+        def apply():
+            for count, (name, release) in enumerate(pending):
+                try:
+                    catalogo.install_content(folder, app.instances[folder], "mod", release, update=True)
+                except Exception as error:
+                    raise ValueError(f"Se actualizaron {count} mods. Falló {name}: {error}") from error
+
+        def respond(_, response):
+            dialog.destroy()
+            if response == Gtk.ResponseType.OK:
+                change(apply, f"{len(pending)} mods actualizados. Podés revertirlos individualmente.")
+
+        dialog.connect("response", respond)
+        dialog.present()
+
     if category in (None, "mod"):
+        actions = Gtk.Box(spacing=8)
         updates = Browser.button("Buscar actualizaciones", check_updates)
-        updates.set_halign(Gtk.Align.START)
-        view.prepend(updates)
+        batch = Browser.button("Revisar y actualizar", review_batch)
+        batch.set_sensitive(False)
+        actions.append(updates)
+        actions.append(batch)
+        dependencies = Browser.button("Revisar dependencias", check_dependencies)
+        actions.append(dependencies)
+        view.insert_child_after(actions, query)
+    query.connect("search-changed", lambda _: refresh())
     refresh()
     return view, refresh
 

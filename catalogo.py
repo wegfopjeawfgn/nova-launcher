@@ -255,7 +255,35 @@ def curseforge_dependencies(manifest):
     return deps
 
 
-def curseforge_index(manifest, game, api_key, progress):
+class ManualPackFile(ValueError):
+    pass
+
+
+def cached_pack_file(target, digest, algorithm, retrieve):
+    expected_length = {"sha1": 40, "sha512": 128}[algorithm]
+    if not re.fullmatch(rf"[0-9a-f]{{{expected_length}}}", digest):
+        raise ValueError("El modpack contiene una suma de verificación inválida.")
+    cache = motor.ROOT / "pack-cache"
+    motor.ROOT.mkdir(parents=True, exist_ok=True)
+    with motor.file_lock(motor.ROOT / ".pack-cache.lock", blocking=True):
+        cache.mkdir(exist_ok=True)
+        stored = cache / f"{algorithm}-{digest}"
+        if stored.is_file():
+            with stored.open("rb") as source:
+                valid = hashlib.file_digest(source, algorithm).hexdigest() == digest
+            if not valid:
+                stored.unlink()
+        if not stored.exists():
+            with TemporaryDirectory(dir=cache) as temporary:
+                staged = Path(temporary) / "file"
+                retrieve(staged)
+                staged.rename(stored)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with stored.open("rb") as source, target.open("xb") as destination:
+            shutil.copyfileobj(source, destination)
+
+
+def curseforge_index(manifest, game, api_key, progress, manual_dir=None):
     deps = curseforge_dependencies(manifest)
     override = manifest.get("overrides", "overrides")
     prefix = pack_path(override).as_posix() + "/" if override else None
@@ -280,8 +308,6 @@ def curseforge_index(manifest, game, api_key, progress):
             entry = response.json()["data"]
             name = entry["fileName"]
             url = entry.get("downloadUrl")
-            if not url:
-                raise ValueError(f"Descarga manual requerida para {name} · proyecto {project}, archivo {file_id}.")
             if (pack_path(name).parts != (name,)
                     or entry["id"] != file_id or entry["modId"] != project):
                 raise ValueError("CurseForge devolvió un archivo inesperado.")
@@ -307,7 +333,31 @@ def curseforge_index(manifest, game, api_key, progress):
             if not re.fullmatch(r"[0-9a-fA-F]{40}", sha1) or not 0 < size <= 512 * 1024**2:
                 raise ValueError(f"No se puede verificar el archivo {file_id}.")
             progress(f"Descargando {number}/{len(files)} · {name}")
-            fetch_file(url, game / directory / name, sha1.lower(), algorithm="sha1", size=size)
+            digest = sha1.lower()
+
+            def retrieve(target):
+                if url:
+                    fetch_file(url, target, digest, algorithm="sha1", size=size)
+                    return
+                source = manual_dir / name if manual_dir else None
+                if not source or not source.is_file():
+                    raise ManualPackFile(f"Descarga manual requerida para {name} · proyecto {project}, archivo {file_id}.")
+                if source.stat().st_size != size:
+                    raise ManualPackFile(f"El tamaño de {name} no coincide con la publicación esperada.")
+                with source.open("rb") as stream, target.open("xb") as output:
+                    checksum = hashlib.sha1()
+                    remaining = size
+                    while remaining:
+                        data = stream.read(min(remaining, 256 * 1024))
+                        if not data:
+                            break
+                        remaining -= len(data)
+                        checksum.update(data)
+                        output.write(data)
+                    if remaining or stream.read(1) or checksum.hexdigest() != digest:
+                        raise ManualPackFile(f"El archivo {name} no coincide con la publicación esperada.")
+
+            cached_pack_file(game / directory / name, digest, "sha1", retrieve)
     return manifest["name"], deps, (prefix,) if prefix else ()
 
 
@@ -343,7 +393,7 @@ def pack_summary(path):
             motor.LOADERS[PACK_LOADERS[loader]] if loader else "Vanilla", needs_key)
 
 
-def import_pack(path, memory, api_key="", *, project=None, progress=lambda _: None):
+def import_pack(path, memory, api_key="", *, project=None, progress=lambda _: None, manual_dir=None):
     parent = motor.ROOT / "instances"
     parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path) as pack, TemporaryDirectory(dir=parent) as temporary:
@@ -353,7 +403,7 @@ def import_pack(path, memory, api_key="", *, project=None, progress=lambda _: No
         game.mkdir(parents=True)
         if manifest_name == "manifest.json":
             name, deps, prefixes = curseforge_index(
-                index, game, api_key or os.environ.get("CURSEFORGE_API_KEY", ""), progress)
+                index, game, api_key or os.environ.get("CURSEFORGE_API_KEY", ""), progress, manual_dir)
             modrinth_files = ()
         elif manifest_name == "nova-pack.json":
             if index["formatVersion"] != 1:
@@ -382,16 +432,20 @@ def import_pack(path, memory, api_key="", *, project=None, progress=lambda _: No
                 raise ValueError("El modpack incluye un archivo de un servidor no compatible.")
             if target.exists():
                 raise ValueError(f"El modpack repite la ruta {item['path']}.")
-            for url in mirrors:
-                try:
-                    fetch_file(url, target, item["hashes"]["sha512"])
-                except (requests.RequestException, ValueError) as error:
-                    target.unlink(missing_ok=True)
-                    last_error = error
-                else:
-                    break
-            else:
+            digest = item["hashes"]["sha512"].lower()
+
+            def retrieve(staged):
+                for url in mirrors:
+                    try:
+                        fetch_file(url, staged, digest)
+                    except (requests.RequestException, ValueError) as error:
+                        staged.unlink(missing_ok=True)
+                        last_error = error
+                    else:
+                        return
                 raise ValueError(f"No se pudo verificar {item['path']}: {last_error}") from last_error
+
+            cached_pack_file(target, digest, "sha512", retrieve)
         progress("Copiando los archivos incluidos…")
         extracted = 0
         for prefix in prefixes:
@@ -413,6 +467,7 @@ def import_pack(path, memory, api_key="", *, project=None, progress=lambda _: No
             settings["loader_version"] = ""
         if project:
             settings["modrinth_pack"] = project
+        progress("Guardando instancia…")
         motor.save(staged / "instance.json", settings)
         return staged.rename(parent / uuid.uuid4().hex)
 

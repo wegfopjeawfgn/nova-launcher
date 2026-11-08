@@ -18,8 +18,10 @@ PART_NAMES = ("Cabeza", "Torso", "Brazo derecho", "Brazo izquierdo", "Pierna der
 FACE_NAMES = ("Frente", "Costado izquierdo", "Espalda", "Costado derecho", "Arriba", "Abajo")
 
 
-def face(part, side):
+def face(part, side, slim=False):
     u, v, w, h, d, _, _ = PARTS[part]
+    if slim and part in (2, 3):
+        w = 3
     return ((u+d,v+d,w,h), (u+d+w,v+d,d,h), (u+2*d+w,v+d,w,h),
             (u,v+d,d,h), (u+d,v,w,d), (u+d+w,v,w,d))[side]
 PARTS = (
@@ -43,6 +45,8 @@ class Editor:
         self.seed()
         self.profile = app.microsoft[1]["name"] if app.microsoft_active else app.profile or "Borrador"
         self.library = motor.ROOT / "skins"
+        self.profile_settings = self.library / self.profile / "selection.json"
+        selection = motor.read(self.profile_settings, {})
         self.window = Gtk.Window(title="Editor de skins", transient_for=app.window,
                                  default_width=760, default_height=640)
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, css_classes=["menu"])
@@ -70,6 +74,12 @@ class Editor:
             control.connect("clicked", lambda _, run=action: run())
             tools.append(control)
         root.append(tools)
+        self.model = Gtk.ComboBoxText()
+        self.model.append("classic", "Modelo clásico")
+        self.model.append("slim", "Modelo delgado")
+        if not self.model.set_active_id(selection.get("model", "classic")):
+            self.model.set_active_id("classic")
+        root.append(self.model)
         selectors = Gtk.Box(spacing=8)
         self.part = Gtk.ComboBoxText()
         for name in (*PART_NAMES, "Mapa completo"):
@@ -117,7 +127,21 @@ class Editor:
         self.status = Gtk.Label(xalign=0, wrap=True, css_classes=["muted"])
         root.append(self.status)
         self.refresh_library()
+        selected = selection.get("file", "")
+        if selected and Path(selected).name == selected:
+            candidate = self.library / self.profile / selected
+            if candidate.is_file():
+                self.load(candidate, library=True)
+        self.model.connect("changed", self.change_model)
         self.window.present()
+
+    def change_model(self, _):
+        try:
+            motor.save(self.profile_settings, {"file": self.current.name if self.current else "",
+                                               "model": self.model.get_active_id()})
+        except OSError as error:
+            self.status.set_text(str(error))
+        self.select_face(None)
 
     def open_community(self, _):
         url = "https://www.planetminecraft.com/skins/"
@@ -227,6 +251,7 @@ class Editor:
                     error.set_text(self.status.get_text())
                     return
                 self.current = path
+                self.change_model(None)
                 self.refresh_library()
                 self.saved.set_active_id(str(path))
             dialog.destroy()
@@ -281,6 +306,13 @@ class Editor:
         except (GLib.Error, ValueError) as error:
             self.status.set_text(str(error))
             return
+        if library:
+            try:
+                motor.save(self.profile_settings, {"file": path.name, "model": self.model.get_active_id()})
+            except OSError as error:
+                self.status.set_text(str(error))
+                self.redraw()
+                return
         self.status.set_text(f"Editando · {path.name}")
         self.redraw()
 
@@ -336,7 +368,7 @@ class Editor:
 
     def region(self):
         index = self.part.get_active()
-        return face(index, self.side.get_active()) if index < len(PARTS) else (0, 0, SIZE, SIZE)
+        return face(index, self.side.get_active(), self.model.get_active_id() == "slim") if index < len(PARTS) else (0, 0, SIZE, SIZE)
 
     def begin_stroke(self, _, x, y):
         self.remember()
@@ -401,7 +433,13 @@ class Editor:
         context.translate(width / 2, 62)
         context.scale(8, 8)
         context.set_antialias(cairo.ANTIALIAS_NONE)
-        for u, v, w, h, depth, x, y in reversed(PARTS):
+        slim = self.model.get_active_id() == "slim"
+        for part in reversed(range(len(PARTS))):
+            u, v, w, h, depth, x, y = PARTS[part]
+            if slim and part in (2, 3):
+                w = 3
+                if part == 2:
+                    x += 1
             if self.angle >= 2:
                 x = -x - w
             front = (u + depth, u + depth + w, u + 2 * depth + w, u)[self.angle]
