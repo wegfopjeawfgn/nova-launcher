@@ -2,6 +2,8 @@ name: Probar instalador de Windows
 
 on:
   workflow_dispatch:
+  push:
+    branches: [nova-1.0-validation]
 
 permissions:
   contents: read
@@ -32,7 +34,7 @@ jobs:
           cp -R icons branding "$bundle/app/"
           "$bundle/runtime/bin/python.exe" -m pip install --target "$bundle/app" -r requirements.txt
           cd "$bundle/app"
-          ../runtime/bin/python.exe -c 'import nova, minecraft_launcher_lib; print(nova.actualizaciones.VERSION)'
+          ../runtime/bin/python.exe -c 'import nova, skins, minecraft_launcher_lib; print(nova.actualizaciones.VERSION)'
           ../runtime/bin/python.exe -c 'import actualizaciones; print(actualizaciones.VERSION)' > ../version.txt
       - name: Compilar y probar instalación
         shell: pwsh
@@ -69,13 +71,19 @@ jobs:
           name: nova-windows-preview
           path: dist/
           if-no-files-found: error
+      - name: Preparar el renderizador de la máquina de pruebas
+        shell: msys2 {0}
+        run: |
+          pacman -S --noconfirm --needed mingw-w64-ucrt-x86_64-mesa
+          test -f /ucrt64/bin/opengl32.dll
+          printf 'NOVA_TEST_MESA=%s\n' "$(cygpath -w /ucrt64/bin)" >> "$GITHUB_ENV"
       - name: Probar el primer inicio de Minecraft
         shell: pwsh
         run: |
           $target = Join-Path $env:RUNNER_TEMP 'Nova Smoke Test'
           $env:LOCALAPPDATA = Join-Path $env:RUNNER_TEMP 'Nova Game Test Data'
           New-Item -ItemType Directory -Force $env:LOCALAPPDATA | Out-Null
-          & "$target/runtime/bin/python.exe" packaging/windows/first_game.py $target "$PWD/dist/first-game.log"
+          & "$target/runtime/bin/python.exe" -u packaging/windows/first_game.py $target "$PWD/dist/first-game.log"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()

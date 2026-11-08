@@ -13,13 +13,16 @@ import integraciones
 import motor
 
 SIZE = 64
-CANVAS = 384
+CANVAS = 336
+OVERLAYS = ((32, 0), (16, 32), (40, 32), (48, 48), (0, 32), (0, 48))
 PART_NAMES = ("Cabeza", "Torso", "Brazo derecho", "Brazo izquierdo", "Pierna derecha", "Pierna izquierda")
 FACE_NAMES = ("Frente", "Costado izquierdo", "Espalda", "Costado derecho", "Arriba", "Abajo")
 
 
-def face(part, side, slim=False):
+def face(part, side, slim=False, overlay=False):
     u, v, w, h, d, _, _ = PARTS[part]
+    if overlay:
+        u, v = OVERLAYS[part]
     if slim and part in (2, 3):
         w = 3
     return ((u+d,v+d,w,h), (u+d+w,v+d,d,h), (u+2*d+w,v+d,w,h),
@@ -40,6 +43,7 @@ class Editor:
         self.angle = 0
         self.app = app
         self.history = []
+        self.future = []
         self.last_pixel = None
         self.current = None
         self.seed()
@@ -48,39 +52,36 @@ class Editor:
         self.profile_settings = self.library / self.profile / "selection.json"
         selection = motor.read(self.profile_settings, {})
         self.window = Gtk.Window(title="Editor de skins", transient_for=app.window,
-                                 default_width=760, default_height=640)
-        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, css_classes=["menu"])
-        self.window.set_child(root)
-        root.append(Gtk.Label(label=f"Skins · {self.profile}", xalign=0, css_classes=["subheading"]))
-        root.append(Gtk.Label(label="Elegí una parte y una cara. Hacé clic o arrastrá para pintar.",
-                              xalign=0, css_classes=["muted"]))
-        tools = Gtk.Box(spacing=8)
-        self.color = Gtk.ColorButton()
-        self.color.set_title("Color del pincel")
-        self.color.set_rgba(self.rgba("#bb94f5"))
-        tools.append(self.color)
-        for hex_color in ("#f3c5a6", "#382541", "#9975e9", "#465a91", "#ffffff"):
-            swatch = Gtk.Button(label="●")
-            swatch.get_child().set_markup(f'<span foreground="{hex_color}">●</span>')
-            swatch.set_tooltip_text(f"Usar color {hex_color}")
-            swatch.connect("clicked", lambda _, value=hex_color: self.pick_color(self.rgba(value)))
-            tools.append(swatch)
-        self.erase = Gtk.ToggleButton(label="Borrar píxel")
-        tools.append(self.erase)
-        for title, action in (("Deshacer", self.undo), ("Importar PNG", lambda: self.choose(False)),
-                              ("Exportar PNG", lambda: self.choose(True)),
-                              ("Girar modelo", self.rotate)):
-            control = Gtk.Button(label=title)
-            control.connect("clicked", lambda _, run=action: run())
-            tools.append(control)
-        root.append(tools)
-        self.model = Gtk.ComboBoxText()
-        self.model.append("classic", "Modelo clásico")
-        self.model.append("slim", "Modelo delgado")
-        if not self.model.set_active_id(selection.get("model", "classic")):
-            self.model.set_active_id("classic")
-        root.append(self.model)
-        selectors = Gtk.Box(spacing=8)
+                                 default_width=800, default_height=640)
+        scroll = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER)
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14, css_classes=["menu", "skin-editor"])
+        scroll.set_child(root)
+        self.window.set_child(scroll)
+
+        header = Gtk.Box(spacing=12)
+        title = Gtk.Label(label=f"Skins · {self.profile}", xalign=0, hexpand=True, css_classes=["subheading"])
+        header.append(title)
+        modes = Gtk.Box(css_classes=["linked"])
+        easy = Gtk.ToggleButton(label="Modo fácil")
+        advanced = Gtk.ToggleButton(label="Modo avanzado", group=easy)
+        modes.append(easy)
+        modes.append(advanced)
+        header.append(modes)
+        root.append(header)
+        self.hint = Gtk.Label(xalign=0, wrap=True, css_classes=["muted"])
+        root.append(self.hint)
+
+        commands = Gtk.Box(spacing=8, css_classes=["skin-toolbar"])
+        commands.append(self.control("Importar PNG", lambda: self.choose(False), primary=True))
+        commands.append(self.control("Exportar PNG", lambda: self.choose(True)))
+        commands.append(self.control("Comunidad", lambda: self.open_community(None)))
+        root.append(commands)
+
+        workspace = Gtk.Box(spacing=12)
+        root.append(workspace)
+        self.drawing = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, css_classes=["skin-panel"])
+        workspace.append(self.drawing)
+        selectors = Gtk.Box(spacing=6)
         self.part = Gtk.ComboBoxText()
         for name in (*PART_NAMES, "Mapa completo"):
             self.part.append_text(name)
@@ -91,41 +92,84 @@ class Editor:
         self.side.set_active(0)
         selectors.append(self.part)
         selectors.append(self.side)
-        root.append(selectors)
-        row = Gtk.Box(spacing=15)
-        root.append(row)
+        self.drawing.append(selectors)
+        self.layer = Gtk.ComboBoxText()
+        self.layer.append("base", "Capa base")
+        self.layer.append("overlay", "Capa exterior")
+        self.layer.set_active_id("base")
+        self.drawing.append(self.layer)
+
+        tools = Gtk.Box(spacing=6)
+        self.color = Gtk.ColorButton()
+        self.color.set_title("Color del pincel")
+        self.color.set_rgba(self.rgba("#bb94f5"))
+        tools.append(self.color)
+        self.erase = Gtk.ToggleButton(label="Borrador")
+        tools.append(self.erase)
+        self.eyedropper = Gtk.ToggleButton(label="Cuentagotas", group=self.erase)
+        tools.append(self.eyedropper)
+        self.drawing.append(tools)
         self.canvas = Gtk.DrawingArea(content_width=CANVAS, content_height=CANVAS,
-                                      halign=Gtk.Align.START, valign=Gtk.Align.START)
+                                      halign=Gtk.Align.CENTER, css_classes=["skin-canvas"])
         self.canvas.set_draw_func(self.draw_canvas)
-        row.append(self.canvas)
+        self.drawing.append(self.canvas)
         drag = Gtk.GestureDrag.new()
+        drag.set_button(Gdk.BUTTON_PRIMARY)
         drag.connect("drag-begin", self.begin_stroke)
         drag.connect("drag-update", self.paint_drag)
         self.canvas.add_controller(drag)
         self.part.connect("changed", self.select_face)
         self.side.connect("changed", self.select_face)
-        self.preview = Gtk.DrawingArea(content_width=240, content_height=400, hexpand=True)
+        self.layer.connect("changed", self.select_face)
+        history = Gtk.Box(spacing=6)
+        self.undo_button = self.control("Deshacer", self.undo)
+        self.redo_button = self.control("Rehacer", self.redo)
+        history.append(self.undo_button)
+        history.append(self.redo_button)
+        self.drawing.append(history)
+
+        preview_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, hexpand=True,
+                                css_classes=["skin-panel", "skin-preview"])
+        preview_panel.append(Gtk.Label(label="Vista previa", xalign=0, css_classes=["form-label"]))
+        self.model = Gtk.ComboBoxText()
+        self.model.append("classic", "Modelo clásico")
+        self.model.append("slim", "Modelo delgado")
+        if not self.model.set_active_id(selection.get("model", "classic")):
+            self.model.set_active_id("classic")
+        preview_panel.append(self.model)
+        self.preview = Gtk.DrawingArea(content_width=240, content_height=310, hexpand=True)
         self.preview.set_draw_func(self.draw_model)
-        row.append(self.preview)
-        library = Gtk.Box(spacing=8)
+        preview_panel.append(self.preview)
+        preview_panel.append(self.control("Girar modelo", self.rotate))
+        workspace.append(preview_panel)
+
+        library = Gtk.Box(spacing=8, css_classes=["skin-toolbar"])
         self.saved = Gtk.ComboBoxText(hexpand=True)
         self.saved.set_tooltip_text("Elegí una skin guardada")
-        open_saved = Gtk.Button(label="Abrir")
-        open_saved.connect("clicked", lambda _: self.select_saved(self.saved))
+        self.saved.update_property([Gtk.AccessibleProperty.LABEL], ["Biblioteca de skins"])
         library.append(self.saved)
-        library.append(open_saved)
-        save = Gtk.Button(label="Guardar en biblioteca", css_classes=["primary"])
-        save.connect("clicked", self.save_dialog)
-        library.append(save)
-        community = Gtk.Button(label="Comunidad")
-        community.connect("clicked", self.open_community)
-        library.append(community)
-        equip = Gtk.Button(label="Equipar en la instancia", css_classes=["primary"])
-        equip.connect("clicked", self.equip)
-        library.append(equip)
+        library.append(self.control("Abrir", lambda: self.select_saved(self.saved)))
+        library.append(self.control("Guardar skin", lambda: self.save_dialog(None)))
+        library.append(self.control("Equipar", lambda: self.equip(None), primary=True))
         root.append(library)
-        self.status = Gtk.Label(xalign=0, wrap=True, css_classes=["muted"])
+        self.status = Gtk.Label(xalign=0, wrap=True, css_classes=["muted", "status-line"])
         root.append(self.status)
+
+        def toggle_mode(*_):
+            visible = advanced.get_active()
+            self.drawing.set_visible(visible)
+            self.hint.set_text("Elegí una parte, una cara y una capa para dibujar." if visible else
+                               "Importá una skin o elegí una de tu biblioteca para probarla y equiparla.")
+
+        easy.set_active(True)
+        advanced.connect("toggled", toggle_mode)
+        toggle_mode()
+        keys = Gtk.ShortcutController(scope=Gtk.ShortcutScope.MANAGED)
+        for key, action in (("<Control>z", self.undo), ("<Control><Shift>z", self.redo)):
+            keys.add_shortcut(Gtk.Shortcut.new(Gtk.ShortcutTrigger.parse_string(key),
+                                               Gtk.CallbackAction.new(lambda *_, action=action: (action(), True)[1])))
+        self.window.add_controller(keys)
+        self.redraw()
         self.refresh_library()
         selected = selection.get("file", "")
         if selected and Path(selected).name == selected:
@@ -134,6 +178,12 @@ class Editor:
                 self.load(candidate, library=True)
         self.model.connect("changed", self.change_model)
         self.window.present()
+
+    @staticmethod
+    def control(title, action, *, primary=False):
+        control = Gtk.Button(label=title, css_classes=["primary"] if primary else [])
+        control.connect("clicked", lambda _: action())
+        return control
 
     def change_model(self, _):
         try:
@@ -265,6 +315,7 @@ class Editor:
                                         transient_for=self.window, action=action)
         filters = Gtk.FileFilter(name="Imagen PNG")
         filters.add_mime_type("image/png")
+        filters.add_pattern("*.[pP][nN][gG]")
         chooser.add_filter(filters)
         if export:
             chooser.set_current_name("skin.png")
@@ -333,6 +384,7 @@ class Editor:
     def pick_color(self, color):
         self.color.set_rgba(color)
         self.erase.set_active(False)
+        self.eyedropper.set_active(False)
 
     def seed(self):
         palette = ((226, 168, 132), (133, 91, 201), (161, 117, 219),
@@ -352,36 +404,64 @@ class Editor:
         self.history.append((bytes(self.pixels), self.current))
         if len(self.history) > 40:
             self.history.pop(0)
+        self.future.clear()
 
     def undo(self):
         if self.history:
+            self.future.append((bytes(self.pixels), self.current))
             pixels, self.current = self.history.pop()
             self.pixels[:] = pixels
             self.redraw()
             self.status.set_text("Cambio deshecho.")
 
+    def redo(self):
+        if self.future:
+            self.history.append((bytes(self.pixels), self.current))
+            pixels, self.current = self.future.pop()
+            self.pixels[:] = pixels
+            self.redraw()
+            self.status.set_text("Cambio rehecho.")
+
     def select_face(self, _):
         self.side.set_sensitive(self.part.get_active() < len(PARTS))
+        self.layer.set_sensitive(self.part.get_active() < len(PARTS))
         if self.side.get_active() < 4:
             self.angle = self.side.get_active()
         self.redraw()
 
     def region(self):
         index = self.part.get_active()
-        return face(index, self.side.get_active(), self.model.get_active_id() == "slim") if index < len(PARTS) else (0, 0, SIZE, SIZE)
+        if index >= len(PARTS):
+            return 0, 0, SIZE, SIZE
+        return face(index, self.side.get_active(), self.model.get_active_id() == "slim",
+                    self.layer.get_active_id() == "overlay")
+
+    def canvas_geometry(self, width, height, cols, rows):
+        zoom = max(1, min(width, height) // max(cols, rows))
+        return zoom, (width - cols * zoom) // 2, (height - rows * zoom) // 2
 
     def begin_stroke(self, _, x, y):
-        self.remember()
         self.last_pixel = None
-        self.paint(x, y)
+        self.paint(x, y, begin=True)
 
-    def paint(self, x, y):
+    def paint(self, x, y, *, begin=False):
         u, v, width, height = self.region()
-        zoom = CANVAS // max(width, height)
-        col, row = int(x // zoom), int(y // zoom)
+        zoom, left, top = self.canvas_geometry(self.canvas.get_width(), self.canvas.get_height(),
+                                               width, height)
+        col, row = int((x - left) // zoom), int((y - top) // zoom)
         if not (0 <= col < width and 0 <= row < height):
             self.last_pixel = None
             return
+        if self.eyedropper.get_active():
+            if begin:
+                index = ((v + row) * SIZE + u + col) * 4
+                red, green, blue, alpha = self.pixels[index:index + 4]
+                if alpha:
+                    self.pick_color(self.rgba(f"#{red:02x}{green:02x}{blue:02x}"))
+                    self.status.set_text("Color seleccionado.")
+            return
+        if begin or self.last_pixel is None:
+            self.remember()
         old_col, old_row = self.last_pixel or (col, row)
         steps = max(abs(col - old_col), abs(row - old_row), 1)
         color = self.color.get_rgba()
@@ -414,7 +494,8 @@ class Editor:
 
     def draw_canvas(self, _, context, width, height):
         u, v, cols, rows = self.region()
-        zoom = CANVAS // max(cols, rows)
+        zoom, left, top = self.canvas_geometry(width, height, cols, rows)
+        context.translate(left, top)
         context.scale(zoom, zoom)
         for y in range(rows):
             for x in range(cols):
@@ -430,8 +511,9 @@ class Editor:
                     context.stroke()
 
     def draw_model(self, _, context, width, height):
-        context.translate(width / 2, 62)
-        context.scale(8, 8)
+        scale = min(width / 27, height / 38)
+        context.translate(width / 2 - scale * 2, (height - 31 * scale) / 2)
+        context.scale(scale, scale)
         context.set_antialias(cairo.ANTIALIAS_NONE)
         slim = self.model.get_active_id() == "slim"
         for part in reversed(range(len(PARTS))):
@@ -446,14 +528,17 @@ class Editor:
             face_width = w if self.angle % 2 == 0 else depth
             side = (u + depth + w, u + 2 * depth + w, u, u + depth)[self.angle]
             side_width = depth if self.angle % 2 == 0 else w
+            overlay_u, overlay_v = OVERLAYS[part]
             context.save()
             context.translate(x, y)
             for col in range(face_width):
                 for row in range(h):
                     self.tile(context, col, row, front + col, v + depth + row, (0.39, 0.30, 0.54))
+                    self.tile(context, col, row, overlay_u + front - u + col, overlay_v + depth + row)
             context.translate(face_width, 0)
             context.transform(cairo.Matrix(0.47, -0.34, 0, 1, 0, 0))
             for col in range(side_width):
                 for row in range(h):
                     self.tile(context, col, row, side + col, v + depth + row, (0.25, 0.19, 0.37))
+                    self.tile(context, col, row, overlay_u + side - u + col, overlay_v + depth + row)
             context.restore()

@@ -201,3 +201,9 @@ button.version-button:not(.primary):hover { background: @nova_control; color: @n
 .account-switcher > button:hover { border-color: @nova_accent; }
 button.quiet-button { background: transparent; border-color: transparent; color: @nova_muted; }
 button.quiet-button:hover { background: @nova_control; color: @nova_text; }
+
+.skin-panel { background: @nova_surface; border: 1px solid @nova_border; border-radius: 12px; padding: 12px; }
+.skin-preview { background: #202127; }
+.skin-canvas { background: @nova_canvas; border-radius: 6px; }
+.skin-toolbar { border-top: 1px solid @nova_border; padding-top: 10px; }
+.skin-editor togglebutton:checked { background: #383243; color: @nova_text; border-color: #635773; }

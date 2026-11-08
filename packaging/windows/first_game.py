@@ -27,6 +27,9 @@ mesa = os.environ.get("NOVA_TEST_MESA")
 if mesa:
     mesa = Path(mesa)
     java_bin = Path(args[0]).parent
+    if not (mesa / "opengl32.dll").is_file() or not java_bin.is_dir():
+        raise RuntimeError(f"No se encontró el renderizador de prueba en {mesa} o Java en {java_bin}.")
+    print(f"Renderizador de software: {mesa}")
     for name in ("opengl32.dll", "libgallium_wgl.dll", "libglapi.dll"):
         driver = mesa / name
         if driver.is_file():
@@ -48,6 +51,7 @@ with log.open("wb") as output:
                 break
             time.sleep(2)
         else:
+            print(log.read_text(encoding="utf-8", errors="replace")[-4000:])
             raise RuntimeError(f"Minecraft no completó el arranque (código {process.poll()}).")
     finally:
         if process.poll() is None:
