@@ -62,7 +62,9 @@
         <p>Descargá el RPM y ejecutá este comando en la carpeta donde lo guardaste. Después abrí <strong>Nova Launcher</strong> desde el menú de aplicaciones.</p>
       </div>
       <div class="terminal">
-        <span>Terminal</span>
+        <span>Si el archivo está en Descargas</span>
+        <pre><code>sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-0.9.0-1.noarch.rpm"</code></pre>
+        <span>Si ya estás en la carpeta del archivo</span>
         <pre><code>sudo dnf install ./nova-launcher-0.9.0-1.noarch.rpm</code></pre>
         <p>RPM sin firma. El primer arranque de Minecraft descarga los archivos del juego.</p>
       </div>
