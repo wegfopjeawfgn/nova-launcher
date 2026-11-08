@@ -45,6 +45,7 @@ class Editor:
         self.history = []
         self.future = []
         self.last_pixel = None
+        self.sampling = False
         self.current = None
         self.seed()
         self.profile = app.microsoft[1]["name"] if app.microsoft_active else app.profile or "Borrador"
@@ -442,6 +443,7 @@ class Editor:
 
     def begin_stroke(self, _, x, y):
         self.last_pixel = None
+        self.sampling = self.eyedropper.get_active()
         self.paint(x, y, begin=True)
 
     def paint(self, x, y, *, begin=False):
@@ -452,7 +454,7 @@ class Editor:
         if not (0 <= col < width and 0 <= row < height):
             self.last_pixel = None
             return
-        if self.eyedropper.get_active():
+        if self.sampling:
             if begin:
                 index = ((v + row) * SIZE + u + col) * 4
                 red, green, blue, alpha = self.pixels[index:index + 4]
