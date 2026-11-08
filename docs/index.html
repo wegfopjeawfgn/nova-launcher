@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Nova Launcher para Fedora. Organizá tus instancias de Minecraft Java, mods y mundos desde una sola app.">
+  <meta name="description" content="Nova Launcher para Fedora y Windows. Organizá tus instancias de Minecraft Java, mods y mundos desde una sola app.">
   <meta name="theme-color" content="#141416">
   <link rel="icon" type="image/svg+xml" href="assets/nova.svg">
   <link rel="stylesheet" href="estilos.css">
-  <title>Nova Launcher — Minecraft Java en Fedora</title>
+  <title>Nova Launcher — Minecraft Java en Fedora y Windows</title>
 </head>
 <body>
   <a class="skip" href="#contenido">Ir al contenido</a>
@@ -23,21 +23,20 @@
   <main id="contenido">
     <section class="hero wrap" aria-labelledby="titulo">
       <div class="hero-copy">
-        <p class="version"><span></span> Fedora · Beta <b id="release-version">0.9.9</b></p>
-        <h1 id="titulo">Minecraft Java<br>en Fedora.</h1>
+        <p class="version"><span></span> Versión estable · <b id="release-version">1.0.0</b></p>
+        <h1 id="titulo">Tu biblioteca de<br>Minecraft Java.</h1>
         <p class="intro">Creá instancias separadas, instalá mods y guardá copias de tus mundos. Todo desde Nova Launcher.</p>
         <div class="actions">
-          <a class="primary" id="release-rpm" href="descargas/nova-launcher-0.9.9-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg> Descargar para Fedora</a>
+          <a class="primary" id="release-rpm" href="descargas/nova-launcher-1.0.0-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg> Descargar para Fedora</a>
           <a class="secondary" href="#instalacion">Cómo instalar</a>
         </div>
-        <p class="platform-note" id="windows-pending"><strong>Próximamente en Windows</strong></p>
-        <div class="windows-download" id="windows-download" hidden>
-          <a class="secondary" id="windows-installer">Descargar para Windows x64</a>
+        <div class="windows-download" id="windows-download">
+          <a class="secondary" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.0.0/nova-launcher-1.0.0-windows-x64-setup.exe">Descargar para Windows x64</a>
           <p class="download-meta">Abrí el instalador y buscá <strong>Nova Launcher</strong> en Inicio.
-            <a id="windows-checksum" hidden>SHA-256</a>
+            <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.0.0/nova-launcher-1.0.0-windows-x64-setup.exe.sha256">SHA-256</a>
           </p>
         </div>
-        <p class="download-meta">Paquete RPM <a id="release-checksum" href="descargas/nova-launcher-0.9.9-1.noarch.rpm.sha256" download>SHA-256</a></p>
+        <p class="download-meta">Paquete RPM <a id="release-checksum" href="descargas/nova-launcher-1.0.0-1.noarch.rpm.sha256" download>SHA-256</a></p>
       </div>
       <figure class="preview">
         <img src="assets/nova-100.webp" width="1206" height="786" alt="Biblioteca de Nova con buscador de instancias, filtros y acceso a servidores">
@@ -46,7 +45,7 @@
     </section>
     <section class="section install server-feature wrap" id="servidores" aria-labelledby="servidores-titulo">
       <div class="server-copy">
-        <p class="release-note">Novedad de Nova 0.9.8</p>
+        <p class="release-note">Servidores por instancia</p>
         <h2 id="servidores-titulo">Entrá directo a tu servidor</h2>
         <p>Elegí una instancia y abrí <strong>Servidores</strong>. Nova muestra los que guardaste en Minecraft y te permite sumar otros por dirección.</p>
         <p>Al pulsar <strong>Entrar</strong>, Nova inicia Minecraft con la versión y los mods de esa instancia e intenta conectarse al servidor elegido.</p>
@@ -84,10 +83,10 @@
       </div>
       <div class="terminal">
         <span>Si el archivo está en Descargas</span>
-        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-0.9.9-1.noarch.rpm"</code></pre>
+        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-1.0.0-1.noarch.rpm"</code></pre>
         <button type="button" data-copy-command="install-downloads" hidden>Copiar comando para Descargas</button>
         <span>Si ya estás en la carpeta del archivo</span>
-        <pre><code id="install-current">sudo dnf install ./nova-launcher-0.9.9-1.noarch.rpm</code></pre>
+        <pre><code id="install-current">sudo dnf install ./nova-launcher-1.0.0-1.noarch.rpm</code></pre>
         <button type="button" data-copy-command="install-current" hidden>Copiar comando para esta carpeta</button>
         <p id="copy-status" role="status"></p>
         <p>RPM sin firma. El primer arranque de Minecraft descarga los archivos del juego.</p>

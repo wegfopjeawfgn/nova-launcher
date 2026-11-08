@@ -30,7 +30,6 @@
       const link = document.getElementById("windows-checksum");
       link.href = assetUrl(windowsSum, tag);
       link.hidden = false;
-      document.getElementById("windows-pending").hidden = true;
       document.getElementById("windows-download").hidden = false;
     }
     const rpm = assets.find(({ name }) => {
