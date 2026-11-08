@@ -5,8 +5,8 @@ Launcher de terceros para Minecraft Java Edition en Fedora. Gestiona instancias,
 Descargá el RPM y el archivo SHA-256 desde **Releases**. En la carpeta de descarga, ejecutá:
 
 ```bash
-sha256sum -c nova-launcher-0.9.0-1.noarch.rpm.sha256
-sudo dnf install ./nova-launcher-0.9.0-1.noarch.rpm
+sha256sum -c nova-launcher-0.9.0-2.noarch.rpm.sha256
+sudo dnf install ./nova-launcher-0.9.0-2.noarch.rpm
 ```
 
 Después abrí **Nova Launcher** desde el menú de aplicaciones. El RPM de 0.9.0 todavía está sin firma.

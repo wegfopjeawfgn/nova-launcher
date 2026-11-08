@@ -1,6 +1,6 @@
 Name:           nova-launcher
 Version:        0.9.0
-Release:        1
+Release:        2
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        LicenseRef-Nova AND BSD-2-Clause
 BuildArch:      noarch
@@ -42,5 +42,8 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Sun Nov 08 2026 Nova Launcher <nova@localhost> - 0.9.0-2
+- Configure the public GitHub release channel by default.
+
 * Sun Nov 08 2026 Nova Launcher <nova@localhost> - 0.9.0-1
 - Add Fedora desktop package and GitHub release notifications.

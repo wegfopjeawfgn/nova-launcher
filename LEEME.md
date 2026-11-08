@@ -32,7 +32,7 @@ En **Mods → Instalados** podés activar y desactivar mods, y consultar actuali
 
 **Pantalla de carga Nova** habilita el logo y los colores al iniciar Minecraft 1.21.11 con Fabric. Para otras versiones compatibles con Dark Loading Screen, el botón aplica los colores.
 
-El RPM instala Nova en el menú de aplicaciones de Fedora e incluye la biblioteca del launcher. Para instalar desde la terminal, usá `sudo dnf install ./nova-launcher-0.9.0-1.noarch.rpm`. Después buscá **Nova Launcher** en el menú.
+El RPM instala Nova en el menú de aplicaciones de Fedora e incluye la biblioteca del launcher. Para instalar desde la terminal, usá `sudo dnf install ./nova-launcher-0.9.0-2.noarch.rpm`. Después buscá **Nova Launcher** en el menú.
 
 Para conectar GitHub Releases, escribí `usuario/repositorio` en **Ajustes → Actualizaciones**. Antes de compilar el RPM para tus usuarios, poné ese valor en `canal.json`. Usá etiquetas estables como `v0.9.0` y adjuntá el RPM y su SHA-256 a cada release. Nova revisa las versiones al abrirse y ofrece el enlace de descarga cuando encuentra una más nueva.
 
