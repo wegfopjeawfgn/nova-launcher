@@ -142,3 +142,42 @@ button.compact-instance.selected {
 .instance-cover { border-radius: 6px; }
 notebook > header { background: #202226; border-color: #34373e; }
 notebook > header tab:checked { color: #eeeef2; background: #303239; }
+
+/* Shared surfaces for the desktop library, dialogs and catalog. */
+@define-color nova_canvas #141517;
+@define-color nova_surface #1c1e22;
+@define-color nova_control #25272c;
+@define-color nova_border #373a42;
+@define-color nova_text #f0eff3;
+@define-color nova_muted #b5b7c2;
+@define-color nova_accent #c8bfdf;
+
+window.nova-main { background: @nova_canvas; color: @nova_text; }
+window.background:not(.nova-main), popover contents { background: @nova_surface; }
+headerbar, .titlebar { background: @nova_surface; border-bottom-color: @nova_border; }
+.brand { font-size: 16px; font-weight: 750; }
+.sidebar { background: #191a1d; padding: 14px 12px; }
+.nav-caption { color: @nova_muted; margin: 10px 9px 2px; }
+button.nav-active { background: #2c2936; border-color: #454051; color: @nova_text; }
+.main { padding: 24px 28px; }
+.heading { font-size: 31px; font-weight: 750; letter-spacing: -0.5px; }
+.subheading { font-size: 22px; font-weight: 700; }
+.muted, .card-meta { color: @nova_muted; }
+button.primary { background: @nova_accent; border-color: @nova_accent; }
+button.card { border-width: 1px; border-radius: 10px; }
+button.card.selected { border-color: @nova_accent; }
+.details { padding: 20px; background: @nova_surface; border-color: @nova_border; }
+.status-line { border-top: 1px solid @nova_border; padding: 10px 0 0; font-size: 12px; }
+.instance-toolbar { border-top: 1px solid @nova_border; padding-top: 12px; }
+.action-menu { padding: 6px; }
+.action-menu button { background: transparent; border-color: transparent; }
+.action-menu button:hover { background: @nova_control; }
+.action-menu button.danger:hover { background: #47273c; }
+.settings-heading { font-size: 17px; font-weight: 750; margin-top: 10px; }
+.preferences entry, .preferences spinbutton { background-color: @nova_control; }
+.catalog-row { background: @nova_surface; border-color: @nova_border; }
+.catalog-footer { background: @nova_control; }
+button:focus-visible, menubutton:focus-within, checkbutton:focus-visible {
+  outline: 2px solid @nova_accent;
+  outline-offset: -2px;
+}

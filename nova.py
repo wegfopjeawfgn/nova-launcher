@@ -140,11 +140,12 @@ class Nova(Gtk.Application):
         nav.append(self.nav_button("Instancias", "view-grid-symbolic",
                                    lambda: scroll.get_vadjustment().set_value(0), active=True))
         nav.append(self.nav_button("Nueva instancia", "list-add-symbolic", self.add_instance))
-        nav.append(label("MODRINTH", "nav-caption"))
+        nav.append(label("DESCUBRIR", "nav-caption"))
         nav.append(self.nav_button("Explorar", "system-search-symbolic", self.browse))
         nav.append(self.nav_button("Modpacks", "package-x-generic-symbolic", self.browse_packs))
         nav.append(self.nav_button("Importar pack", "document-open-symbolic",
                                    lambda: self.add_instance(import_only=True)))
+        nav.append(label("HERRAMIENTAS", "nav-caption"))
         nav.append(self.nav_button("Skins", "applications-graphics-symbolic", self.open_skins))
         nav.append(self.nav_button("Respaldos", "document-open-symbolic", self.show_backups))
         nav.append(Gtk.Box(vexpand=True))
@@ -158,10 +159,20 @@ class Nova(Gtk.Application):
         main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=17)
         main.add_css_class("main")
         scroll.set_child(main)
-        main.append(label("Mis instancias", "heading"))
-        new = button("+   Nueva instancia", self.add_instance, "primary")
-        new.set_halign(Gtk.Align.START)
-        main.append(new)
+        library_header = Gtk.Box(spacing=16)
+        title_group = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, hexpand=True)
+        title_group.append(label("Mis instancias", "heading"))
+        self.library_count = label("", "muted")
+        title_group.append(self.library_count)
+        library_header.append(title_group)
+        new = button("", self.add_instance, "primary")
+        new.set_child(Gtk.Box(spacing=8))
+        new.get_child().append(Gtk.Image.new_from_icon_name("list-add-symbolic"))
+        new.get_child().append(label("Nueva instancia"))
+        new.update_property([Gtk.AccessibleProperty.LABEL], ["Nueva instancia"])
+        new.set_valign(Gtk.Align.CENTER)
+        library_header.append(new)
+        main.append(library_header)
         self.cards = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=3,
                                  homogeneous=True, column_spacing=12, row_spacing=12)
         main.append(self.cards)
@@ -175,6 +186,7 @@ class Nova(Gtk.Application):
         main.append(self.details)
         self.status = label("Listo", "muted")
         self.status.set_wrap(True)
+        self.status.add_css_class("status-line")
         main.append(self.status)
         self.update_accounts()
         self.refresh()
@@ -687,13 +699,15 @@ class Nova(Gtk.Application):
 
     def global_settings(self):
         dialog = Gtk.Dialog(title="Ajustes de Nova", transient_for=self.window, modal=True,
-                            default_width=500)
+                            default_width=540, default_height=580)
         dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
         dialog.add_button("Guardar", Gtk.ResponseType.OK).add_css_class("primary")
-        box = dialog.get_content_area()
-        box.add_css_class("menu")
-        box.set_spacing(10)
-        box.append(label("Minecraft", "subheading"))
+        scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        dialog.get_content_area().append(scroll)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10,
+                      css_classes=["menu", "preferences"])
+        scroll.set_child(box)
+        box.append(label("Minecraft", "settings-heading"))
         box.append(label("Ejecutable de Java", "form-label"))
         java = Gtk.Entry(text=self.preferences["java"], placeholder_text="Java administrado por Nova")
         box.append(java)
@@ -704,7 +718,7 @@ class Nova(Gtk.Application):
         box.append(memory)
         box.append(label("Tamaño de ventana predeterminado", "form-label"))
         box.append(resolution)
-        box.append(label("Al iniciar Minecraft", "subheading"))
+        box.append(label("Al iniciar Minecraft", "settings-heading"))
         behavior = Gtk.ComboBoxText()
         behavior.append("keep", "Mantener Nova abierto")
         behavior.append("minimize", "Minimizar Nova hasta que se cierre Minecraft")
@@ -715,7 +729,7 @@ class Nova(Gtk.Application):
         hint = label("El registro de Minecraft se guarda aunque cierres Nova.", "muted")
         hint.set_wrap(True)
         box.append(hint)
-        box.append(label("Biblioteca y diagnóstico", "subheading"))
+        box.append(label("Biblioteca y diagnóstico", "settings-heading"))
         toggles = {}
         for key, title in (
             ("compact", "Usar lista compacta incluso con una o dos instancias"),
@@ -725,7 +739,7 @@ class Nova(Gtk.Application):
             control = Gtk.CheckButton(label=title, active=self.preferences[key])
             toggles[key] = control
             box.append(control)
-        box.append(label("Actualizaciones", "subheading"))
+        box.append(label("Actualizaciones", "settings-heading"))
         box.append(label("Repositorio público de GitHub", "form-label"))
         repo = Gtk.Entry(text=self.preferences.get("release_repo", self.release_repo),
                          placeholder_text="usuario/repositorio")
@@ -843,6 +857,8 @@ class Nova(Gtk.Application):
             config.parent: {**motor.DEFAULTS, **motor.read(config, {})}
             for config in sorted((motor.ROOT / "instances").glob("*/instance.json"))
         }
+        count = len(self.instances)
+        self.library_count.set_text("1 instancia" if count == 1 else f"{count} instancias")
         if self.selected not in self.instances:
             self.selected = next(iter(self.instances), None)
         if self.preferences["alphabetical"]:
@@ -858,7 +874,7 @@ class Nova(Gtk.Application):
             self.instance_rows.clear()
             self.expanded_folder = None
             self.library_layout = layout
-            self.cards.set_visible(not compact)
+            self.cards.set_visible(bool(self.instances) and not compact)
             self.details.set_visible(not compact)
             self.compact.set_visible(compact)
             if compact:
@@ -888,7 +904,7 @@ class Nova(Gtk.Application):
             card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             artwork = instance_art(instance)
             card.append(artwork)
-            title = label("◇  " + instance["name"], "card-label")
+            title = label(instance["name"], "card-label")
             title.set_ellipsize(Pango.EllipsizeMode.END)
             card.append(title)
             card.append(label(f"{instance['version']} · {motor.LOADERS[instance['loader']]}", "card-meta"))
@@ -965,8 +981,10 @@ class Nova(Gtk.Application):
         while child := details.get_first_child():
             details.remove(child)
         if self.selected is None:
-            details.append(label("Creá una instancia para empezar.", "subheading"))
-            details.append(label("Minecraft Java · Vanilla y loaders", "muted"))
+            details.append(label("Tu biblioteca está vacía", "subheading"))
+            hint = label("Creá una instancia de Minecraft Java o importá un modpack.", "muted")
+            hint.set_wrap(True)
+            details.append(hint)
             return
         instance = self.instances[self.selected]
         summary = Gtk.Box(spacing=16)
@@ -977,8 +995,15 @@ class Nova(Gtk.Application):
         row = Gtk.Box(spacing=10)
         name = label(instance["name"], "subheading")
         name.set_hexpand(True)
+        name.set_ellipsize(Pango.EllipsizeMode.END)
+        name.set_tooltip_text(instance["name"])
         row.append(name)
-        play = button("▶   Jugar", self.play, "primary")
+        play = button("", self.play, "primary")
+        play_content = Gtk.Box(spacing=8)
+        play_content.append(Gtk.Image.new_from_icon_name("media-playback-start-symbolic"))
+        play_content.append(label("Jugar"))
+        play.set_child(play_content)
+        play.update_property([Gtk.AccessibleProperty.LABEL], ["Jugar"])
         play.set_sensitive(not self.busy)
         row.append(play)
         info.append(row)
@@ -997,9 +1022,9 @@ class Nova(Gtk.Application):
         details.append(label("Contenido de la instancia", "feature-title"))
         shortcuts = Gtk.Box(spacing=10, homogeneous=True)
         for category, title in (
-            ("mod", "◇  Mods"),
-            ("shader", "✦  Shaders"),
-            ("resourcepack", "▦  Texturas"),
+            ("mod", "Mods"),
+            ("shader", "Shaders"),
+            ("resourcepack", "Texturas"),
         ):
             count = len(biblioteca.content_files(folder, category))
             detail = "1 instalado" if count == 1 else f"{count} instalados"
@@ -1009,32 +1034,40 @@ class Nova(Gtk.Application):
             shortcut.set_sensitive(not self.busy)
             shortcuts.append(shortcut)
         details.append(shortcuts)
-        actions = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, column_spacing=8,
-                              row_spacing=8, max_children_per_line=5,
-                              css_classes=["instance-actions"])
-        actions.append(button("Abrir carpeta", lambda: subprocess.Popen(["xdg-open", str(folder)])))
+        actions = Gtk.Box(spacing=8, css_classes=["instance-toolbar"])
         actions.append(button("Editar instancia", self.edit_settings))
-        actions.append(button("Duplicar", lambda: self.copy_instance(folder, "duplicate")))
-        actions.append(button("Crear respaldo", lambda: self.copy_instance(folder, "backup")))
-        actions.append(button("Contenido instalado", lambda: biblioteca.open_installed(self, folder)))
         actions.append(button("Ver registro", lambda: self.open_log(folder)))
-        remove = button("Eliminar instancia", lambda: self.remove_instance(folder, instance["name"]),
-                        "danger")
-        remove.set_sensitive(not self.busy)
-        actions.append(remove)
+        more = Gtk.MenuButton(label="Más acciones")
+        popover = Gtk.Popover()
+        menu = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, css_classes=["action-menu"])
+        popover.set_child(menu)
+        more.set_popover(popover)
+        actions.append(more)
         details.append(actions)
+
+        def add_action(title, action, style=None):
+            def activate():
+                popover.popdown()
+                action()
+            control = button(title, activate, style)
+            control.set_sensitive(not self.busy)
+            menu.append(control)
+
+        add_action("Abrir carpeta", lambda: subprocess.Popen(["xdg-open", str(folder)]))
+        add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))
+        add_action("Duplicar instancia", lambda: self.copy_instance(folder, "duplicate"))
+        add_action("Crear respaldo", lambda: self.copy_instance(folder, "backup"))
         if instance["loader"] in ("fabric", "quilt"):
             full_branding = instance["version"] == "1.21.11" and instance["loader"] == "fabric"
             title = "Pantalla de carga Nova" if full_branding else "Colores Nova en la carga"
-            theme = button(title, lambda: integraciones.run(
+            add_action(title, lambda: integraciones.run(
                 self, self.window, "Colores de carga",
                 lambda: integraciones.apply_colors(folder, instance),
                 "Pantalla Nova preparada para el próximo inicio." if full_branding else
                 "Colores aplicados. Se ven al iniciar Minecraft."
             ))
-            theme.set_sensitive(not self.busy)
-            theme.set_halign(Gtk.Align.START)
-            details.append(theme)
+        menu.append(Gtk.Separator())
+        add_action("Eliminar instancia", lambda: self.remove_instance(folder, instance["name"]), "danger")
 
     def remove_instance(self, folder, name):
         dialog = Gtk.Dialog(title="Eliminar instancia", transient_for=self.window, modal=True)
