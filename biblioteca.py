@@ -1,6 +1,7 @@
 """GTK windows for browsing and installing Modrinth content."""
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
+import hashlib
 from pathlib import Path
 import threading
 
@@ -74,6 +75,45 @@ def artwork(item):
     return frame
 
 
+@lru_cache(maxsize=2048)
+def content_hash(path, size, modified, changed):
+    with path.open("rb") as source:
+        return hashlib.file_digest(source, "sha512").hexdigest()
+
+
+def installed_projects(folder, category, project_ids):
+    files = {path.name: path for path in content_files(folder, category)}
+    projects = {}
+    for project, entry in motor.read(folder / "downloads.json", {}).items():
+        if entry["category"] != category:
+            continue
+        name = entry["file"]
+        if files.pop(name, None):
+            projects[project] = "Instalado"
+        elif category == "mod" and files.pop(name + ".disabled", None):
+            projects[project] = "Instalado · desactivado"
+    if project_ids <= projects.keys():
+        return projects
+    hashes = {}
+    for path in files.values():
+        try:
+            stat = path.stat()
+            digest = content_hash(path, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+        except OSError:
+            continue
+        disabled = category == "mod" and path.name.lower().endswith(".disabled")
+        hashes[digest] = hashes.get(digest, False) or not disabled
+    try:
+        for digest, version in catalogo.versions_by_hash(hashes).items():
+            project = version["project_id"]
+            state = "Instalado" if hashes[digest] else "Instalado · desactivado"
+            if projects.get(project) != "Instalado":
+                projects[project] = state
+    except (requests.RequestException, ValueError):
+        pass
+    return projects
+
+
 class Browser:
     def __init__(self, app, folder, instance, category=None):
         self.app = app
@@ -125,13 +165,20 @@ class Browser:
             stack.add_titled(downloads, "downloads", "Descargar")
             installed, refresh = installed_view(app, folder, category)
             stack.add_titled(installed, "installed", "Instalados")
-            stack.connect("notify::visible-child-name", lambda *_: refresh())
+            def changed(*_):
+                if stack.get_visible_child_name() == "installed":
+                    refresh()
+                else:
+                    self.search(self.results_offset)
+
+            stack.connect("notify::visible-child-name", changed)
             self.refresh_installed = refresh
             box.append(switcher)
             box.append(stack)
         else:
             self.refresh_installed = None
             box.append(downloads)
+        self.results_offset = 0
         self.dialog.present()
         self.search()
 
@@ -179,6 +226,9 @@ class Browser:
             self.results.remove(child)
 
     def search(self, offset=0):
+        if self.busy:
+            return
+        self.results_offset = offset
         category = self.category.get_active_id()
         query = self.query.get_text().strip()
         self.clear()
@@ -190,10 +240,21 @@ class Browser:
             return
         if category == "shader":
             self.status.set_text("Para activar shaders necesitás un mod compatible, como Iris.")
-        self.run("Buscando…", lambda: catalogo.search(query, category, self.instance, offset),
-                 lambda page: self.show_results(page, category, offset))
+        def task():
+            page = catalogo.search(query, category, self.instance, offset)
+            if category == "modpack":
+                installed = {instance["modrinth_pack"]: "Instalado"
+                             for instance in instances if instance.get("modrinth_pack")}
+            else:
+                installed = installed_projects(self.folder, category,
+                                               {item["project_id"] for item in page["hits"]})
+            return page, installed
 
-    def show_results(self, page, category, offset):
+        instances = list(self.app.instances.values())
+        self.run("Buscando…", task,
+                 lambda result: self.show_results(*result, category, offset))
+
+    def show_results(self, page, installed, category, offset):
         self.status.set_text(f"{page['total_hits']} resultados")
         if category == "shader":
             self.status.set_text(f"{page['total_hits']} resultados · Activá los shaders desde un mod compatible.")
@@ -208,12 +269,16 @@ class Browser:
             text.append(Gtk.Label(label=item["description"], xalign=0, wrap=True, css_classes=["muted"]))
             row.append(text)
             actions = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5, valign=Gtk.Align.CENTER)
-            if category != "modpack":
+            state = installed.get(item["project_id"])
+            if state:
+                actions.append(Gtk.Label(label=state, css_classes=["muted"]))
+            elif category != "modpack":
                 actions.append(self.button("↓ Instalar", lambda entry=item: self.pick(
                     entry, category, quick=True
                 ), primary=True))
-            actions.append(self.button("Elegir versión" if category == "modpack" else "Versiones",
-                                       lambda entry=item: self.pick(entry, category)))
+            if not state or category == "modpack":
+                actions.append(self.button("Elegir versión" if category == "modpack" else "Versiones",
+                                           lambda entry=item: self.pick(entry, category)))
             row.append(actions)
             self.results.append(row)
         navigation = Gtk.Box(spacing=8)
@@ -273,8 +338,7 @@ class Browser:
                 self.app.status.set_text("Instancia creada desde el modpack.")
                 self.dialog.destroy()
             else:
-                self.status.set_text("Instalado en la instancia seleccionada." if not folder
-                                     else "Instancia creada. Cerrá el catálogo para verla.")
+                self.search(self.results_offset)
 
         self.run("Descargando y verificando archivos…", task, finished)
 

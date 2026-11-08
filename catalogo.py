@@ -38,6 +38,20 @@ def search(query, category, instance, offset=0):
     return api("/search", query=query, facets=json.dumps(facets), limit=18, offset=offset)
 
 
+def versions_by_hash(hashes):
+    hashes = list(hashes)
+    matches = {}
+    for start in range(0, len(hashes), 100):
+        batch = hashes[start:start + 100]
+        response = requests.post(f"{API}/version_files", timeout=8,
+                                 json={"hashes": batch, "algorithm": "sha512"},
+                                 headers={"User-Agent": motor.USER_AGENT})
+        response.raise_for_status()
+        matches.update({digest: version for digest, version in response.json().items()
+                        if digest in batch})
+    return matches
+
+
 def releases(project, category, instance):
     params = {}
     if category != "modpack":
@@ -298,7 +312,7 @@ def validate_pack_dependencies(deps):
         raise ValueError("El modpack tiene una versión inválida.")
 
 
-def import_pack(path, memory, api_key=""):
+def import_pack(path, memory, api_key="", *, project=None):
     parent = motor.ROOT / "instances"
     parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path) as pack, TemporaryDirectory(dir=parent) as temporary:
@@ -366,10 +380,13 @@ def import_pack(path, memory, api_key=""):
                     "artwork": 1, "version": deps["minecraft"], "pack": True,
                     "loader": PACK_LOADERS[loader] if loader else "vanilla",
                     "loader_version": deps[loader] if loader else ""}
+        if project:
+            settings["modrinth_pack"] = project
         motor.save(staged / "instance.json", settings)
         return staged.rename(parent / uuid.uuid4().hex)
 
 
 def install_pack(version, memory):
     with TemporaryDirectory() as temporary:
-        return import_pack(download(version, Path(temporary), ".mrpack"), memory)
+        return import_pack(download(version, Path(temporary), ".mrpack"), memory,
+                           project=version["project_id"])

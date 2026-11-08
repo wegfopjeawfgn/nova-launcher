@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        0.9.4
+Version:        0.9.5
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        LicenseRef-Nova AND BSD-2-Clause
@@ -42,6 +42,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Sun Nov 08 2026 Nova Launcher <nova@localhost> - 0.9.5-1
+- Mark installed mods, shaders, resource packs and tracked modpacks in Modrinth.
+
 * Sun Nov 08 2026 Nova Launcher <nova@localhost> - 0.9.4-1
 - Separate Modrinth and CurseForge import actions and file filters.
 
