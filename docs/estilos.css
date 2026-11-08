@@ -92,3 +92,5 @@ article svg { color: var(--accent); }
 .windows-download { margin-top: 1rem; }
 .windows-download > a { display: inline-block; padding: .65rem .85rem; border-radius: 8px; font-weight: 650; }
 .release-intro { margin-top: .8rem; line-height: 1.6; }
+
+.skin-screenshot { max-width: 550px; }
