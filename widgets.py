@@ -60,6 +60,14 @@ def hero_art(instance, height=260):
     return frame
 
 
+def size_text(size):
+    """Human size such as 1,8 GB or 640 KB."""
+    for unit, divisor in (("GB", 1024**3), ("MB", 1024**2), ("KB", 1024)):
+        if size >= divisor:
+            return f"{size / divisor:.1f} {unit}".replace(".", ",")
+    return f"{size} B"
+
+
 def motion_enabled():
     return Gtk.Settings.get_default().get_property("gtk-enable-animations")
 

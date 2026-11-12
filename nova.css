@@ -310,3 +310,6 @@ button.me-gear:hover { background: @nova_control; color: @nova_text; }
 .page { padding: 18px 26px 10px; }
 .page-header { padding-bottom: 8px; }
 .page .menu { padding: 8px 0; }
+
+.state-warning { background: rgba(230, 200, 138, 0.1); color: #e6c88a; border-color: rgba(230, 200, 138, 0.3); }
+.state-info { background: @nova_control; color: @nova_muted; }
