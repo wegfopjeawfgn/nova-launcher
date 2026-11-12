@@ -18,9 +18,11 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 import actualizaciones
+import atajos
 import biblioteca
 import integraciones
 import consola
+import historial
 import catalogo
 import motor
 import respaldos
@@ -92,7 +94,10 @@ def feature_button(title, detail, action):
 
 class Nova(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id="io.nova.launcher")
+        super().__init__(application_id="io.nova.launcher",
+                         flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+        self.add_main_option("jugar", 0, GLib.OptionFlags.NONE, GLib.OptionArg.STRING,
+                             "Iniciar una instancia por su identificador", "ID")
         self.window = None
         self.selected = None
         self.busy = False
@@ -102,10 +107,33 @@ class Nova(Gtk.Application):
         self.download_progress = "Sin descargas recientes."
         self.cancel_download = None
         self.download_view = None
+        self.history = historial.History(motor.ROOT / "downloads-history.json")
+        self.retries = {}
+        self.history_view = None
         self.launch_stage = ""
         self.versions = []
         self.microsoft = None
         self.microsoft_active = False
+
+    def do_command_line(self, command_line):
+        options = command_line.get_options_dict().end().unpack()
+        self.activate()
+        target = options.get("jugar")
+        if target:
+            GLib.timeout_add(600, self.play_from_shortcut, target)
+        return 0
+
+    def play_from_shortcut(self, instance_id):
+        folder = motor.ROOT / "instances" / instance_id
+        if not atajos.valid_instance_id(instance_id) or folder not in getattr(self, "instances", {}):
+            self.status.set_text("El atajo apunta a una instancia que ya no existe.")
+        elif self.busy or self.parallel:
+            self.status.set_text("Nova está ocupada. Esperá a que termine la operación actual.")
+        else:
+            self.selected = folder
+            self.refresh()
+            self.play()
+        return False
 
     def do_activate(self):
         if self.window:
@@ -143,6 +171,8 @@ class Nova(Gtk.Application):
             self.selected = motor.ROOT / "instances" / last
         self.profile = accounts["active"]
         self.profiles = accounts["profiles"]
+        import credenciales
+        self.microsoft = credenciales.load_session()
         titlebar = Gtk.HeaderBar(decoration_layout=":minimize,maximize,close")
         titlebar.add_css_class("nova-titlebar")
         titlebar.set_title_widget(Gtk.Label())
@@ -276,6 +306,14 @@ class Nova(Gtk.Application):
         dialog.destroy()
         self.copy_instance(folder, "restore")
 
+    def create_shortcut(self, folder, name):
+        try:
+            atajos.create(folder, name)
+        except (OSError, RuntimeError, ValueError) as error:
+            self.status.set_text(f"No se pudo crear el atajo: {error}")
+        else:
+            self.status.set_text(f"Atajo creado · buscá «{name} · Nova» en el menú de aplicaciones.")
+
     def copy_instance(self, folder, mode):
         def task():
             result = respaldos.copy_instance(folder, mode)
@@ -329,6 +367,8 @@ class Nova(Gtk.Application):
         self.busy = True
         cancel = threading.Event()
         self.cancel_download = cancel
+        entry = self.history.start("update", f"Actualización {tag}")
+        self.retries[entry] = lambda: self.download_update(url, path, tag)
         self.set_download_progress("Descargando actualización…")
         self.refresh()
 
@@ -340,6 +380,7 @@ class Nova(Gtk.Application):
         def finish(error):
             self.cancel_download = None
             message = error or "Actualización lista para instalar."
+            self.record(entry, error, cancel, message)
             self.set_download_progress(message)
             self.finished(message)
             if not error:
@@ -537,6 +578,8 @@ class Nova(Gtk.Application):
 
     def use_microsoft(self, client_id, session):
         self.microsoft = (client_id, session)
+        import credenciales
+        credenciales.save_session(client_id, session)
         self.select_microsoft()
         self.status.set_text(f"Cuenta Microsoft conectada · {session['name']}")
 
@@ -549,6 +592,8 @@ class Nova(Gtk.Application):
         self.accounts.popdown()
         self.microsoft = None
         self.microsoft_active = False
+        import credenciales
+        credenciales.clear_session()
         self.update_accounts()
 
     def form(self, title, field, value, submit, memory=None):
@@ -786,6 +831,9 @@ class Nova(Gtk.Application):
         memory = game_field("Memoria máxima (GB)", Gtk.SpinButton.new_with_range(1, 32, 1))
         memory.set_value(values["memory"])
         java = game_field("Ruta de Java para esta instancia (opcional)", Gtk.Entry(text=values["java"]))
+        jvm_args = game_field("Argumentos extra de Java (opcional)",
+                              Gtk.Entry(text=values.get("jvm_args", ""),
+                                        placeholder_text="-XX:+UseG1GC -Xms1G"))
         fixed = folder and (values.get("pack") or (folder / "game" / "saves").exists()
                             or (folder / "game" / "mods").exists())
         if fixed:
@@ -860,8 +908,11 @@ class Nova(Gtk.Application):
                            for value in (version, build) if value) or not version:
                         raise ValueError("Elegí una versión válida.")
                     java_path = self.java_path(java.get_text())
+                    extra_args = jvm_args.get_text().strip()
+                    motor.parse_jvm_args(extra_args)
                     settings = {"version": version, "loader": loader.get_active_id(),
                                 "loader_version": build, "java": java_path, "cover": cover,
+                                "jvm_args": extra_args,
                                 "notes": notes.get_text().strip(),
                                 "resolution": resolution.get_active_id()}
                     if pending:
@@ -1072,12 +1123,15 @@ class Nova(Gtk.Application):
         self.busy = True
         cancel = threading.Event()
         self.cancel_download = cancel
+        entry = self.history.start("import", f"Importar {Path(path).name}")
+        self.retries[entry] = lambda: self.import_local(path, api_key, manual_dir)
         self.set_download_progress("Importando modpack…")
         self.refresh()
         memory = self.preferences["memory"]
 
         def finish(folder, message, manual=False):
             self.cancel_download = None
+            self.record(entry, None if folder else message, cancel, message)
             self.set_download_progress(message)
             if folder:
                 self.selected = folder
@@ -1368,6 +1422,8 @@ class Nova(Gtk.Application):
         add_action("Abrir carpeta", lambda: motor.open_folder(folder))
         add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))
         add_action("Duplicar instancia", lambda: self.copy_instance(folder, "duplicate"))
+        if os.name != "nt":
+            add_action("Crear atajo en el menú", lambda: self.create_shortcut(folder, instance["name"]))
         add_action("Crear respaldo", lambda: self.copy_instance(folder, "backup"))
         add_action("Mundos", lambda: self.show_worlds(folder))
         add_action("Jugar sin conexión", lambda: self.play(offline=True))
@@ -1587,6 +1643,7 @@ class Nova(Gtk.Application):
                 except (GLib.Error, OSError, RuntimeError) as error:
                     self.status.set_text(f"No se pudo eliminar la instancia: {error}")
                 else:
+                    atajos.remove(folder)
                     self.status.set_text(f"«{name}» se movió a la Papelera.")
                     self.refresh()
             dialog.destroy()
@@ -1754,6 +1811,14 @@ class Nova(Gtk.Application):
         dialog.set_child(box)
         dialog.present()
 
+    def record(self, entry, error, cancel, message):
+        state = "ok" if not error else "cancelled" if cancel.is_set() else "error"
+        self.history.finish(entry, state, message)
+        if state == "ok":
+            self.retries.pop(entry, None)
+        if self.history_view:
+            self.history_view()
+
     def set_download_progress(self, message):
         self.download_progress = message
         self.status.set_text(message)
@@ -1780,8 +1845,43 @@ class Nova(Gtk.Application):
         control.set_sensitive(self.cancel_download is not None)
         box.append(control)
         self.download_view = text, control
+        box.append(label("Historial reciente", "subheading"))
+        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        scroller = Gtk.ScrolledWindow(min_content_height=170, vexpand=True,
+                                      hscrollbar_policy=Gtk.PolicyType.NEVER)
+        scroller.set_child(rows)
+        box.append(scroller)
+
+        def retry(entry_id):
+            action = self.retries.get(entry_id)
+            if action and not self.busy and not self.cancel_download:
+                action()
+
+        def render():
+            while (child := rows.get_first_child()):
+                rows.remove(child)
+            entries = self.history.recent()
+            if not entries:
+                rows.append(label("Todavía no hay descargas ni importaciones.", "muted"))
+            for item in entries:
+                line = Gtk.Box(spacing=8)
+                info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
+                info.append(label(f"{item['title']} · {historial.STATES.get(item['state'], item['state'])}"))
+                detail = label(f"{item['time'].replace('T', ' ')}  {item['message']}".strip(), "muted")
+                detail.set_wrap(True)
+                detail.set_max_width_chars(48)
+                info.append(detail)
+                line.append(info)
+                if item["state"] in {"error", "cancelled"} and item["id"] in self.retries:
+                    line.append(button("Reintentar", lambda i=item["id"]: retry(i)))
+                rows.append(line)
+
+        render()
+        self.history_view = render
+        box.append(button("Limpiar historial", lambda: (self.history.clear_finished(), render()), "quiet-button"))
 
         def closed(*_):
+            self.history_view = None
             if self.download_view and self.download_view[0] is text:
                 self.download_view = None
             return False
@@ -2065,6 +2165,8 @@ class Nova(Gtk.Application):
     def store_session(self, previous, session):
         if self.microsoft is previous:
             self.microsoft = (previous[0], session)
+            import credenciales
+            credenciales.save_session(previous[0], session)
 
     def finished(self, message):
         self.busy = False

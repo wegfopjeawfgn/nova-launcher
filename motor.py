@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import subprocess
 import uuid
@@ -12,6 +13,7 @@ import uuid
 import requests
 
 import servidores
+from nova_version import NOVA_VERSION
 
 if os.name == "nt":
     import msvcrt
@@ -24,21 +26,74 @@ DATA_HOME = (Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData/Local
 ROOT = DATA_HOME / "nova-launcher"
 LOADERS = {"vanilla": "Vanilla", "fabric": "Fabric", "forge": "Forge",
            "neoforge": "NeoForge", "quilt": "Quilt"}
-DEFAULTS = {"version": VERSION, "loader": "vanilla", "loader_version": "", "java": ""}
-USER_AGENT = "NovaLauncher/1.0.0 (desktop Minecraft launcher)"
+DEFAULTS = {"version": VERSION, "loader": "vanilla", "loader_version": "", "java": "", "jvm_args": ""}
+USER_AGENT = f"NovaLauncher/{NOVA_VERSION} (desktop Minecraft launcher)"
 
 
 def save(path, data):
+    """Write JSON atomically and keep the previous good copy as ``.bak``."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-    temporary.replace(path)
+    temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+    try:
+        with temporary.open("w", encoding="utf-8") as output:
+            output.write(json.dumps(data, ensure_ascii=False))
+            output.flush()
+            os.fsync(output.fileno())
+        if path.is_file():
+            try:
+                shutil.copy2(path, path.with_name(path.name + ".bak"))
+            except OSError:
+                pass
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def read(path, default):
+    """Read JSON, falling back to the backup (or ``default``) if the file is damaged."""
     if not path.exists():
         return default
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        backup = path.with_name(path.name + ".bak")
+        try:
+            path.replace(path.with_name(path.name + ".corrupt"))
+        except OSError:
+            pass
+        try:
+            data = json.loads(backup.read_text(encoding="utf-8"))
+        except (OSError, ValueError, UnicodeDecodeError):
+            return default
+        try:
+            shutil.copy2(backup, path)
+        except OSError:
+            pass
+        return data
+
+
+def parse_jvm_args(text):
+    """Split user JVM arguments, accepting only flags that start with ``-``."""
+    try:
+        pieces = shlex.split(text or "")
+    except ValueError as error:
+        raise ValueError("Los argumentos de Java tienen comillas sin cerrar.") from error
+    if any(not piece.startswith("-") for piece in pieces):
+        raise ValueError("Cada argumento de Java debe empezar con un guion, por ejemplo -XX:+UseG1GC.")
+    if any(piece.startswith(("-Xmx", "-javaagent")) for piece in pieces):
+        raise ValueError("La memoria se ajusta en RAM asignada. Los agentes de Java no se permiten aquí.")
+    return pieces
+
+
+def rotate_log(path, keep=3):
+    """Keep the previous ``keep`` Minecraft logs instead of overwriting them."""
+    if not path.is_file():
+        return
+    for number in range(keep, 1, -1):
+        older = path.with_name(f"{path.name}.{number - 1}")
+        if older.is_file():
+            older.replace(path.with_name(f"{path.name}.{number}"))
+    path.replace(path.with_name(path.name + ".1"))
 
 
 def versions():
@@ -170,8 +225,9 @@ def launch(folder, profile, instance, status, session=None, *, on_started=None, 
         options = {
             "username": profile, "uuid": player_id.hex, "token": "0",
             "gameDirectory": str(game), "launcherName": "Nova Launcher",
-            "launcherVersion": "1.0.0", "jvmArguments": [f"-Xmx{instance['memory']}G"],
+            "launcherVersion": NOVA_VERSION, "jvmArguments": [f"-Xmx{instance['memory']}G"],
         }
+        options["jvmArguments"].extend(parse_jvm_args(instance.get("jvm_args", "")))
         if (instance["version"] == "1.21.11" and instance["loader"] == "fabric"
                 and read(folder / "nova-loading.json", {}).get("logo")):
             logo_agent = Path(__file__).resolve().parent / "branding" / "nova-loading.jar"
@@ -197,7 +253,9 @@ def launch(folder, profile, instance, status, session=None, *, on_started=None, 
                     args.extend(("--port", port))
             else:
                 args.extend(("--quickPlayMultiplayer", options["quickPlayMultiplayer"]))
-        with (log_path or folder / "minecraft.log").open("w", encoding="utf-8") as log:
+        log_file = log_path or folder / "minecraft.log"
+        rotate_log(log_file)
+        with log_file.open("w", encoding="utf-8") as log:
             platform_options = ({} if os.name == "nt" else
                                 {"pass_fds": (lock.fileno(),), "start_new_session": detach})
             process = subprocess.Popen(args, cwd=game, stdout=log, stderr=subprocess.STDOUT,

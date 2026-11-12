@@ -1,0 +1,26 @@
+name: Pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    container: fedora:45
+    steps:
+      - name: Instalar dependencias
+        run: dnf -y install git python3 python3-requests python3-gobject gtk4 desktop-file-utils
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Compilar y probar
+        run: |
+          set -euo pipefail
+          python3 -m py_compile *.py packaging/windows/first_game.py
+          desktop-file-validate io.nova.launcher.desktop
+          python3 -m unittest discover -s tests -t . -v

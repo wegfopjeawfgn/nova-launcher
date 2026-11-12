@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 
 import requests
 
-VERSION = "1.0.0"
+from nova_version import NOVA_VERSION as VERSION
 REPO = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_.-]{1,100}")
 
 

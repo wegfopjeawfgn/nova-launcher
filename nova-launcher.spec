@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        1.0.0
+Version:        1.1.0
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        LicenseRef-Nova AND BSD-2-Clause
@@ -42,6 +42,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Wed Nov 11 2026 Nova Launcher <nova@localhost> - 1.1.0-1
+- Harden data files, persist Microsoft login, add JVM arguments, download history and per-instance menu shortcuts.
+
 * Sun Nov 08 2026 Nova Launcher <nova@localhost> - 1.0.0-1
 - Add pack recovery, world tools, Prism import and platform support.
 
