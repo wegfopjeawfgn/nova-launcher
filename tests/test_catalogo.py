@@ -128,6 +128,15 @@ class FetchFileTests(TempRootCase):
         self.assertEqual(target.read_bytes(), data)
         with self.assertRaises(ValueError):
             self.fetch([b"x"], "0" * 128, "bad.bin")
+        self.assertFalse((self.folder / "out" / "bad.bin").exists())
+
+    def test_existing_file_survives_a_failed_download(self):
+        target = self.folder / "out" / "keep.bin"
+        target.parent.mkdir()
+        target.write_bytes(b"good")
+        with self.assertRaises(FileExistsError):
+            self.fetch([b"x"], "0" * 128, "keep.bin")
+        self.assertEqual(target.read_bytes(), b"good")
 
     def test_curseforge_host_and_size(self):
         target = self.folder / "cf.bin"

@@ -892,7 +892,7 @@ class Nova(
         add_action("Abrir carpeta", lambda: motor.open_folder(folder))
         add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))
         add_action("Duplicar instancia", lambda: self.copy_instance(folder, "duplicate"))
-        if os.name != "nt":
+        if os.name != "nt" and not Path("/.flatpak-info").exists():  # a sandbox cannot export launchers
             add_action("Crear atajo en el menú", lambda: self.create_shortcut(folder, instance["name"]))
         add_action("Crear respaldo", lambda: self.copy_instance(folder, "backup"))
         add_action("Mundos", lambda: self.show_worlds(folder))

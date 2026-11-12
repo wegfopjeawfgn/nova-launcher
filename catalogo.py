@@ -79,32 +79,39 @@ def fetch_file(url, target, expected, *, algorithm="sha512", size=None):
     digest = hashlib.new(algorithm)
     received = 0
     target.parent.mkdir(parents=True, exist_ok=True)
-    for _ in range(4):
-        if size is not None:
-            parsed = urlsplit(url)
-            if parsed.scheme != "https" or parsed.netloc not in CURSEFORGE_CDN:
-                raise ValueError("Servidor de descarga de CurseForge no compatible.")
-        with requests.get(url, timeout=45, stream=True,
-                          headers={"User-Agent": motor.USER_AGENT},
-                          allow_redirects=size is None) as response:
-            if size is not None and response.is_redirect:
-                url = urljoin(url, response.headers["Location"])
-                continue
-            response.raise_for_status()
-            if size is not None and response.status_code != 200:
-                raise ValueError("Respuesta de descarga inesperada.")
-            with target.open("xb") as file:
-                for chunk in response.iter_content(1024 * 256):
-                    received += len(chunk)
-                    if size is not None and received > size:
-                        raise ValueError("La descarga excede el tamaño anunciado.")
-                    file.write(chunk)
-                    digest.update(chunk)
-            break
-    else:
-        raise ValueError("Demasiadas redirecciones al descargar desde CurseForge.")
-    if digest.hexdigest() != expected or (size is not None and received != size):
-        raise ValueError(f"No coincide la suma de verificación de {target.name}.")
+    created = False
+    try:
+        for _ in range(4):
+            if size is not None:
+                parsed = urlsplit(url)
+                if parsed.scheme != "https" or parsed.netloc not in CURSEFORGE_CDN:
+                    raise ValueError("Servidor de descarga de CurseForge no compatible.")
+            with requests.get(url, timeout=45, stream=True,
+                              headers={"User-Agent": motor.USER_AGENT},
+                              allow_redirects=size is None) as response:
+                if size is not None and response.is_redirect:
+                    url = urljoin(url, response.headers["Location"])
+                    continue
+                response.raise_for_status()
+                if size is not None and response.status_code != 200:
+                    raise ValueError("Respuesta de descarga inesperada.")
+                with target.open("xb") as file:
+                    created = True
+                    for chunk in response.iter_content(1024 * 256):
+                        received += len(chunk)
+                        if size is not None and received > size:
+                            raise ValueError("La descarga excede el tamaño anunciado.")
+                        file.write(chunk)
+                        digest.update(chunk)
+                break
+        else:
+            raise ValueError("Demasiadas redirecciones al descargar desde CurseForge.")
+        if digest.hexdigest() != expected or (size is not None and received != size):
+            raise ValueError(f"No coincide la suma de verificación de {target.name}.")
+    except BaseException:
+        if created:  # never leave a partial or unverified file next to good ones
+            target.unlink(missing_ok=True)
+        raise
 
 
 def install_content(folder, instance, category, version, *, update=False, progress=lambda _: None):

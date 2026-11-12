@@ -20,3 +20,7 @@ El inicio de sesión con Microsoft requiere un ID de aplicación aprobado para M
 Nova es un launcher de terceros, sin afiliación ni aprobación de Mojang o Microsoft.
 
 La web está en `docs/`. En GitHub Pages, seleccioná **Deploy from a branch**, rama `main` y carpeta `/docs`. La página consulta la última release estable de GitHub y actualiza la descarga, el SHA-256 y los comandos de instalación. Si GitHub no está disponible, ofrece el RPM 1.1.0 incluido con la web.
+
+## Flatpak (experimental)
+
+`packaging/flatpak/io.nova.launcher.yml` describe el paquete Flatpak y el workflow **Compilar Flatpak** lo construye desde GitHub Actions. Todavía no se probó una instalación real.
