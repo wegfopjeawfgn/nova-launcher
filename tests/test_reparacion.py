@@ -85,6 +85,20 @@ class RepairTests(unittest.TestCase):
         self.assertEqual([(f["id"], f["action"]) for f in found], [("settings", "reset_settings")])
         self.assertIn("RAM", found[0]["meaning"])
 
+    def test_minimum_memory_above_the_maximum_is_repaired(self):
+        self.install()
+        found = self.diagnose({"memory": 4, "memory_min": 8})
+        self.assertEqual([(f["id"], f["action"]) for f in found], [("settings", "reset_settings")])
+        config = self.folder / "instance.json"
+        config.write_text(json.dumps({**GOOD, "memory": 4, "memory_min": 8}))
+        changes = reparacion.apply("reset_settings", self.folder)
+        self.assertEqual(len(changes), 1)
+        self.assertEqual(json.loads(config.read_text())["memory_min"], 0)
+
+    def test_valid_minimum_is_fine(self):
+        self.install()
+        self.assertEqual(self.ids({"memory": 4, "memory_min": 2}), [])
+
     def test_invalid_loader_cannot_be_auto_repaired(self):
         self.install()
         found = self.diagnose({"loader": "magic"})

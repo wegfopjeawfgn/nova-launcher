@@ -11,7 +11,8 @@ from gi.repository import GLib, Gtk, Pango
 import errores
 import motor
 import respaldos
-from widgets import label, button, feature_button, size_text
+from progreso import size_text
+from widgets import label, button
 
 
 class RespaldosMixin:

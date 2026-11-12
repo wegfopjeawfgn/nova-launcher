@@ -119,6 +119,7 @@ class ActualizarMixin:
                 self.check_release(manual)
                 return
             self.available_release = release
+            self.update_home()
             self.release_note.set_text(f"Actualizar a {release[0]}" if release else "Al día")
             if release:
                 self.release_card.add_css_class("update")

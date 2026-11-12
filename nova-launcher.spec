@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        1.5.1
+Version:        1.5.2
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        LicenseRef-Nova AND BSD-2-Clause
@@ -43,6 +43,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Thu Nov 12 2026 Nova Launcher <nova@localhost> - 1.5.2-1
+- Add the home strip, installed Java picker, minimum memory and pyflakes in CI.
+
 * Thu Nov 12 2026 Nova Launcher <nova@localhost> - 1.5.1-1
 - Group the instance actions menu and make it scrollable.
 

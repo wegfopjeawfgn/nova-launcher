@@ -39,6 +39,7 @@ class DescargasMixin:
 
     def show_queue(self):
         self.queue_label.set_text(f"En cola: {len(self.queue)}" if self.queue else "")
+        self.update_home()
 
     def run_queue(self):
         if self.busy or self.cancel_download or not self.queue:

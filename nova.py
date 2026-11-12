@@ -23,12 +23,14 @@ import integraciones
 import motor
 import estadisticas
 import i18n
+import inicio
 import respaldos
 import tiempo
 from widgets import resolution_field, instance_art, hero_art, enter, label, button, feature_button, HERE
 from vistas_cuentas import CuentasMixin
 from vistas_paginas import PaginasMixin
 from vistas_salud import SaludMixin
+from vistas_java import java_picker
 from vistas_perfiles import PerfilesMixin
 from vistas_curseforge import CurseForgeMixin
 from vistas_estadisticas import EstadisticasMixin
@@ -232,6 +234,25 @@ class Nova(
         library_header.append(self.header_button("Nueva instancia", "list-add-symbolic",
                                                  self.add_instance, "primary"))
         main.append(library_header)
+        self.home_cards = {}
+        home = Gtk.Box(spacing=12, homogeneous=True, css_classes=["home-strip"])
+        for key, action in (("last", lambda: self.select(self.last_played) if self.last_played else None),
+                            ("downloads", self.show_downloads),
+                            ("account", lambda: self.accounts.popup()),
+                            ("nova", self.release_details)):
+            card = Gtk.Button(css_classes=["home-card"])
+            inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            title = label("", "home-title")
+            text = label("", "home-text")
+            text.set_ellipsize(Pango.EllipsizeMode.END)
+            inner.append(title)
+            inner.append(text)
+            card.set_child(inner)
+            card.connect("clicked", lambda _, run=action: run())
+            home.append(card)
+            self.home_cards[key] = (card, title, text)
+        self.last_played = None
+        main.append(home)
         self.details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         main.append(self.details)
         self.library_filter = Gtk.ComboBoxText()
@@ -301,6 +322,29 @@ class Nova(
 
 
 
+
+    def update_home(self):
+        if not getattr(self, "home_cards", None):
+            return
+        names = {folder.name: data["name"] for folder, data in self.instances.items()}
+        recent = self.library.get("recent", {})
+        account = (("microsoft", self.microsoft[1]["name"]) if self.microsoft_active and self.microsoft
+                   else ("offline", self.profile) if self.profile else None)
+        release = getattr(self, "available_release", None)
+        cards = inicio.summary(recent=recent, names=names, now=time.time(),
+                               downloading=self.cancel_download is not None, queued=len(self.queue),
+                               account=account, update=release[0] if release else None)
+        self.last_played = None
+        for item in cards:
+            card, title, text = self.home_cards[item["key"]]
+            title.set_text(i18n.tr(item["title"]))
+            text.set_text(item["text"])
+            card.update_property([Gtk.AccessibleProperty.LABEL], [f"{item['title']}: {item['text']}"])
+        stamped = [(when, key) for key, when in recent.items()
+                   if key in names and isinstance(when, (int, float)) and not isinstance(when, bool)]
+        if stamped:
+            newest = max(stamped)[1]
+            self.last_played = next((f for f in self.instances if f.name == newest), None)
 
     def apply_theme(self):
         light = self.preferences.get("theme") == "light"
@@ -520,10 +564,13 @@ class Nova(
         loader.connect("changed", loader_changed)
         memory = game_field("Memoria máxima (GB)", Gtk.SpinButton.new_with_range(1, 32, 1))
         memory.set_value(values["memory"])
+        memory_min = game_field("Memoria mínima (GB · 0 = automática)", Gtk.SpinButton.new_with_range(0, 32, 1))
+        memory_min.set_value(values.get("memory_min", 0))
         java = game_field("Ruta de Java para esta instancia (opcional)", Gtk.Entry(text=values["java"]))
+        general.append(java_picker(java, lambda: versions.get_child().get_text().strip()))
         jvm_args = game_field("Argumentos extra de Java (opcional)",
                               Gtk.Entry(text=values.get("jvm_args", ""),
-                                        placeholder_text="-XX:+UseG1GC -Xms1G"))
+                                        placeholder_text="-XX:+UseG1GC"))
         fixed = folder and (values.get("pack") or (folder / "game" / "saves").exists()
                             or (folder / "game" / "mods").exists())
         if fixed:
@@ -608,6 +655,10 @@ class Nova(
                     if pending:
                         self.store_cover(cover, pending)
                     ram = memory.get_value_as_int()
+                    ram_min = memory_min.get_value_as_int()
+                    if ram_min > ram:
+                        raise ValueError("La memoria mínima no puede superar la máxima.")
+                    settings["memory_min"] = ram_min
                     if folder:
                         with motor.instance_lock(folder):
                             motor.save(folder / "instance.json", {
@@ -663,6 +714,7 @@ class Nova(
         box.append(label("Ejecutable de Java", "form-label"))
         java = Gtk.Entry(text=self.preferences["java"], placeholder_text="Java administrado por Nova")
         box.append(java)
+        box.append(java_picker(java, lambda: motor.VERSION))
         memory = Gtk.SpinButton.new_with_range(2, 32, 1)
         memory.set_value(self.preferences["memory"])
         resolution = resolution_field(self.preferences["resolution"], "Elegido por Minecraft")
@@ -825,6 +877,7 @@ class Nova(
                 else:
                     tile.remove_css_class("selected")
             self.render_details(self.details)
+        self.update_home()
 
     def render_cards(self):
         for index, (folder, instance) in enumerate(self.visible_instances.items()):
