@@ -23,25 +23,32 @@ def numeric_version(tag):
     return tuple(int(piece or 0) for piece in match.groups()) if match else None
 
 
-def check(repo):
+def newest(releases, beta):
+    candidates = [(numeric_version(r.get("tag_name", "")), r) for r in releases
+                  if not r.get("draft") and (beta or not r.get("prerelease"))
+                  and numeric_version(r.get("tag_name", ""))]
+    return max(candidates, key=lambda item: item[0], default=(None, None))
+
+
+def check(repo, beta=False):
     repo = repository(repo)
     if not repo:
         raise ValueError("Configurá tu repositorio público de GitHub en Ajustes.")
     response = requests.get(
-        f"https://api.github.com/repos/{repo}/releases/latest",
+        f"https://api.github.com/repos/{repo}/releases",
         headers={"Accept": "application/vnd.github+json", "User-Agent": f"NovaLauncher/{VERSION}"},
+        params={"per_page": 20},
         timeout=12,
     )
     if response.status_code == 404:
-        raise ValueError("GitHub no encontró una versión estable pública para este repositorio.")
+        raise ValueError("GitHub no encontró versiones públicas para este repositorio.")
     response.raise_for_status()
-    release = response.json()
-    tag = release["tag_name"]
-    remote = numeric_version(tag)
-    if remote is None:
-        raise ValueError("La versión de GitHub debe usar una etiqueta como v0.9.1.")
-    if release.get("draft") or release.get("prerelease") or remote <= numeric_version(VERSION):
+    remote, release = newest(response.json(), beta)
+    if release is None:
+        raise ValueError("No hay versiones con una etiqueta como v0.9.1.")
+    if remote <= numeric_version(VERSION):
         return None
+    tag = release["tag_name"]
     page = f"https://github.com/{repo}/releases/tag/{tag}"
     prefix = f"https://github.com/{repo}/releases/download/{tag}/"
     suffix = "-windows-x64-setup.exe" if os.name == "nt" else ".noarch.rpm"

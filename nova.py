@@ -1,98 +1,46 @@
 """Nova Launcher desktop window for GTK 4."""
-from functools import lru_cache
 import hashlib
 import os
 from pathlib import Path
 import re
-import shlex
-import shutil
-from tempfile import TemporaryDirectory
-import time
 import sys
 import threading
+import time
 
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
+from gi.repository import GLib, Gdk, GdkPixbuf, Gio, Gtk, Pango
 
 import actualizaciones
 import atajos
 import biblioteca
-import integraciones
 import consola
 import historial
-import catalogo
+import integraciones
 import motor
 import respaldos
-import servidores
-
-HERE = Path(__file__).resolve().parent
-RESOLUTIONS = ("854x480", "1280x720", "1600x900", "1920x1080", "2560x1440")
-
-
-def resolution_field(value, automatic):
-    combo = Gtk.ComboBoxText()
-    combo.append("default", automatic)
-    for size in RESOLUTIONS:
-        combo.append(size, size.replace("x", " × "))
-    combo.set_active_id(value if value in RESOLUTIONS else "default")
-    return combo
+from widgets import resolution_field, instance_art, label, button, feature_button, HERE
+from vistas_cuentas import CuentasMixin
+from vistas_importar import ImportarMixin
+from vistas_servidores import ServidoresMixin
+from vistas_descargas import DescargasMixin
+from vistas_sesiones import SesionesMixin
+from vistas_actualizar import ActualizarMixin
+from vistas_respaldos import RespaldosMixin
 
 
-@lru_cache(maxsize=24)
-def cover_texture(path, width, height):
-    pixels = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), width, height, True)
-    return Gdk.Texture.new_for_pixbuf(pixels)
-
-
-def instance_art(instance, width=-1, height=145):
-    frame = Gtk.Overlay(width_request=width, height_request=height)
-    background = Gtk.Box(css_classes=[f"art{instance['artwork']}"])
-    frame.set_child(background)
-    picture = Gtk.Picture(can_shrink=True, content_fit=Gtk.ContentFit.COVER,
-                          css_classes=["instance-cover"])
-    frame.add_overlay(picture)
-    cover = instance.get("cover", "")
-    if re.fullmatch(r"[a-f0-9]{64}\.png", cover):
-        path = motor.ROOT / "covers" / cover
-        if path.is_file():
-            try:
-                picture.set_paintable(cover_texture(path, width * 2 if width > 0 else 768, height * 2))
-            except GLib.Error:
-                pass
-    return frame
-
-
-def label(value, style=None):
-    widget = Gtk.Label(label=value, xalign=0)
-    if style:
-        widget.add_css_class(style)
-    return widget
-
-
-def button(value, action, style=None):
-    widget = Gtk.Button(label=value)
-    widget.connect("clicked", lambda _: action())
-    if style:
-        widget.add_css_class(style)
-    return widget
-
-
-def feature_button(title, detail, action):
-    tile = button("", action, "feature")
-    content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-    content.append(label(title, "feature-title"))
-    description = label(detail, "muted")
-    description.set_wrap(True)
-    content.append(description)
-    tile.set_child(content)
-    tile.update_property([Gtk.AccessibleProperty.LABEL], [title])
-    return tile
-
-
-class Nova(Gtk.Application):
+class Nova(
+    CuentasMixin,
+    ImportarMixin,
+    ServidoresMixin,
+    DescargasMixin,
+    SesionesMixin,
+    ActualizarMixin,
+    RespaldosMixin,
+    Gtk.Application,
+):
     def __init__(self):
         super().__init__(application_id="io.nova.launcher",
                          flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
@@ -274,37 +222,7 @@ class Nova(Gtk.Application):
         if self.preferences.get("release_repo", self.release_repo):
             self.check_release()
 
-    def show_backups(self):
-        dialog = Gtk.Window(title="Respaldos", transient_for=self.window, modal=True,
-                            default_width=540, default_height=350)
-        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, css_classes=["menu"])
-        content.append(label("Respaldos de instancias", "subheading"))
-        hint = label("Restaurar crea una instancia separada con los mundos, mods y ajustes del respaldo.", "muted")
-        hint.set_wrap(True)
-        content.append(hint)
-        scroller = Gtk.ScrolledWindow(vexpand=True)
-        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
-        scroller.set_child(rows)
-        content.append(scroller)
-        paths = sorted((motor.ROOT / "backups").glob("*/backup.json"),
-                       key=lambda path: path.stat().st_mtime, reverse=True)
-        for path in paths:
-            info = motor.read(path, {})
-            instance = motor.read(path.parent / "instance.json", {})
-            if not instance.get("name"):
-                continue
-            when = info.get("created", "")[:16].replace("T", " ")
-            rows.append(feature_button(instance["name"], f"{when} · Restaurar como instancia nueva",
-                        lambda folder=path.parent: self.restore_backup(dialog, folder)))
-        if rows.get_first_child() is None:
-            rows.append(label("Todavía no tenés respaldos. Creá uno desde el panel de una instancia.", "muted"))
-            rows.get_first_child().set_wrap(True)
-        dialog.set_child(content)
-        dialog.present()
 
-    def restore_backup(self, dialog, folder):
-        dialog.destroy()
-        self.copy_instance(folder, "restore")
 
     def create_shortcut(self, folder, name):
         try:
@@ -327,130 +245,9 @@ class Nova(Gtk.Application):
         }[mode]
         integraciones.run(self, self.window, title, task, message)
 
-    def release_details(self):
-        dialog = Gtk.Window(title="Versiones de Nova", transient_for=self.window, modal=True,
-                            default_width=440)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, css_classes=["menu"])
-        box.append(label(f"Versión instalada · Nova {actualizaciones.VERSION}", "subheading"))
-        notice = label("Launcher de terceros para Minecraft Java Edition. Sin afiliación con Mojang o Microsoft.",
-                       "muted")
-        notice.set_wrap(True)
-        box.append(notice)
-        release = getattr(self, "available_release", None)
-        if release:
-            tag, rpm, page, notes = release
-            box.append(label(f"Nueva versión disponible · {tag}", "form-label"))
-            if rpm:
-                def save_update():
-                    dialog.destroy()
-                    self.save_file("Guardar actualización de Nova", rpm.rsplit("/", 1)[-1],
-                                   lambda path: self.download_update(rpm, path, tag))
 
-                box.append(button("Descargar instalador de Windows" if os.name == "nt" else
-                                  "Descargar RPM para Fedora", save_update, "primary"))
-            if notes:
-                changelog = Gtk.TextView(editable=False, cursor_visible=False,
-                                         wrap_mode=Gtk.WrapMode.WORD_CHAR)
-                changelog.get_buffer().set_text(notes)
-                scroll = Gtk.ScrolledWindow(min_content_height=120, max_content_height=220,
-                                            propagate_natural_height=True)
-                scroll.set_child(changelog)
-                box.append(scroll)
-            box.append(Gtk.LinkButton(uri=page, label="Ver cambios en GitHub"))
-        box.append(button("Buscar actualizaciones", lambda: (dialog.destroy(), self.check_release(manual=True))))
-        dialog.set_child(box)
-        dialog.present()
 
-    def download_update(self, url, path, tag):
-        if self.busy or self.cancel_download:
-            return
-        self.busy = True
-        cancel = threading.Event()
-        self.cancel_download = cancel
-        entry = self.history.start("update", f"Actualización {tag}")
-        self.retries[entry] = lambda: self.download_update(url, path, tag)
-        self.set_download_progress("Descargando actualización…")
-        self.refresh()
 
-        def progress(message):
-            if cancel.is_set():
-                raise InterruptedError("Descarga cancelada.")
-            GLib.idle_add(self.set_download_progress, message)
-
-        def finish(error):
-            self.cancel_download = None
-            message = error or "Actualización lista para instalar."
-            self.record(entry, error, cancel, message)
-            self.set_download_progress(message)
-            self.finished(message)
-            if not error:
-                self.update_ready(path, tag)
-
-        def worker():
-            try:
-                actualizaciones.download(url, path, progress=progress)
-            except Exception as error:
-                GLib.idle_add(finish, f"No se descargó la actualización: {error}")
-            else:
-                GLib.idle_add(finish, None)
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def update_ready(self, path, tag):
-        dialog = Gtk.Window(title="Actualización de Nova", transient_for=self.window, modal=True,
-                            default_width=460)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
-        box.append(label(f"{tag} · Lista para instalar", "subheading"))
-        box.append(label(f"Versión instalada · {actualizaciones.VERSION}", "muted"))
-        box.append(label("Ejecutá el instalador y volvé a abrir Nova." if os.name == "nt" else
-                         "Instalá el RPM y volvé a abrir Nova.", "muted"))
-        box.append(button("Abrir carpeta", lambda: motor.open_folder(path.parent)))
-
-        def copy_command():
-            dialog.get_clipboard().set(f"sudo dnf install {shlex.quote(str(path.absolute()))}")
-            copy.set_label("Comando copiado")
-
-        if os.name != "nt":
-            copy = button("Copiar comando de instalación", copy_command, "primary")
-            box.append(copy)
-        dialog.set_child(box)
-        dialog.present()
-
-    def check_release(self, manual=False):
-        if self.checking_release:
-            return
-        repo = self.preferences.get("release_repo", self.release_repo)
-        self.checking_release = True
-        if manual:
-            self.status.set_text("Consultando GitHub…")
-
-        def finish(release, error):
-            self.checking_release = False
-            if repo != self.preferences.get("release_repo", self.release_repo):
-                self.check_release(manual)
-                return
-            self.available_release = release
-            self.release_button.set_label(f"Actualizar a {release[0]}" if release
-                                          else f"Nova {actualizaciones.VERSION}")
-            if release:
-                self.release_button.add_css_class("primary")
-                if manual:
-                    self.status.set_text(f"Nueva versión de Nova · {release[0]}")
-                    self.release_details()
-            else:
-                self.release_button.remove_css_class("primary")
-                if manual:
-                    self.status.set_text(error or "Ya tenés la última versión.")
-
-        def worker():
-            try:
-                release = actualizaciones.check(repo)
-            except Exception as error:
-                GLib.idle_add(finish, None, str(error))
-            else:
-                GLib.idle_add(finish, release, None)
-
-        threading.Thread(target=worker, daemon=True).start()
 
     @staticmethod
     def nav_button(title, icon, action, active=False):
@@ -467,134 +264,15 @@ class Nova(Gtk.Application):
             control.add_css_class("nav-active")
         return control
 
-    def browse_packs(self):
-        if not self.busy:
-            biblioteca.Browser(self, None, None, "modpack")
 
-    def load_versions(self):
-        try:
-            entries = motor.versions()
-        except (OSError, ValueError):
-            return
-        GLib.idle_add(setattr, self, "versions", entries)
 
-    def update_accounts(self):
-        name = self.microsoft[1]["name"] if self.microsoft_active else self.profile
-        account = Gtk.Box(spacing=8)
-        account.append(Gtk.Image.new_from_icon_name("avatar-default-symbolic"))
-        account.append(label(name or "Cuentas"))
-        account.append(Gtk.Image.new_from_icon_name("pan-down-symbolic"))
-        self.accounts.set_child(account)
-        self.accounts.update_property([Gtk.AccessibleProperty.LABEL],
-                                      [f"Cuentas · {name}" if name else "Cuentas"])
-        popover = Gtk.Popover()
-        options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        options.add_css_class("menu")
-        options.append(label("Cuentas", "subheading"))
-        if name:
-            options.append(button("Ver mi perfil", self.show_profile))
-        if self.profiles:
-            profiles = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-            scroll = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER,
-                                        max_content_height=230, propagate_natural_height=True,
-                                        propagate_natural_width=True)
-            scroll.set_child(profiles)
-            options.append(scroll)
-            for profile in self.profiles:
-                style = "primary" if profile == self.profile and not self.microsoft_active else None
-                row = Gtk.Box(spacing=6)
-                select = button(f"{profile} · Offline", lambda name=profile: self.select_profile(name), style)
-                select.set_hexpand(True)
-                row.append(select)
-                remove = button("Quitar", lambda name=profile: self.confirm_remove_profile(name), "quiet-button")
-                remove.update_property([Gtk.AccessibleProperty.LABEL], [f"Quitar perfil {profile}"])
-                row.append(remove)
-                profiles.append(row)
-        if self.microsoft:
-            options.append(button(f"{self.microsoft[1]['name']}    ·    Microsoft", self.select_microsoft,
-                                  "primary" if self.microsoft_active else None))
-            options.append(button("Quitar cuenta Microsoft", self.disconnect_microsoft, "quiet-button"))
-        else:
-            options.append(button("+  Conectar Microsoft", self.connect_microsoft))
-        options.append(button("+  Agregar cuenta offline", self.edit_profile))
-        popover.set_child(options)
-        self.accounts.set_popover(popover)
 
-    def confirm_remove_profile(self, profile):
-        self.accounts.popdown()
-        dialog = Gtk.Dialog(title="Quitar perfil offline", transient_for=self.window, modal=True)
-        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Quitar perfil", Gtk.ResponseType.OK).add_css_class("danger")
-        dialog.set_default_response(Gtk.ResponseType.CANCEL)
-        box = dialog.get_content_area()
-        box.add_css_class("menu")
-        message = label(f"¿Querés quitar «{profile}» de la lista de cuentas de Nova?")
-        message.set_wrap(True)
-        box.append(message)
 
-        def respond(_, response):
-            if response == Gtk.ResponseType.OK:
-                try:
-                    remaining = [name for name in self.profiles if name != profile]
-                    active = self.profile if self.profile in remaining else next(iter(remaining), "")
-                    motor.save(motor.ROOT / "accounts.json", {"active": active, "profiles": remaining})
-                except OSError as error:
-                    message.set_text(f"No se pudo quitar el perfil: {error}")
-                    return
-                self.profiles = remaining
-                self.profile = active
-                self.update_accounts()
-                self.status.set_text(f"Perfil offline «{profile}» quitado.")
-            dialog.destroy()
 
-        dialog.connect("response", respond)
-        dialog.present()
 
-    def show_profile(self):
-        self.accounts.popdown()
-        online = self.microsoft_active
-        name = self.microsoft[1]["name"] if online else self.profile
-        dialog = Gtk.Window(title="Mi perfil", transient_for=self.window, modal=True,
-                            default_width=420)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, css_classes=["menu"])
-        box.append(label(name, "subheading"))
-        box.append(label("Microsoft · Sesión activa" if online else "Perfil offline · Guardado en este equipo",
-                         "muted"))
-        count = sum(1 for _ in (motor.ROOT / "skins" / name).glob("*.png"))
-        box.append(label(f"{count} skins guardadas · {len(self.profiles)} perfiles offline"))
-        box.append(button("Copiar nombre", lambda: dialog.get_clipboard().set(name)))
-        box.append(button("Abrir mis skins", lambda: (dialog.destroy(), self.open_skins())))
-        box.append(button("Cambiar de cuenta", lambda: (dialog.destroy(), self.accounts.popup())))
-        dialog.set_child(box)
-        dialog.present()
 
-    def open_skins(self):
-        from skins import Editor
-        Editor(self)
 
-    def connect_microsoft(self):
-        import cuentas
-        cuentas.connect(self)
 
-    def use_microsoft(self, client_id, session):
-        self.microsoft = (client_id, session)
-        import credenciales
-        credenciales.save_session(client_id, session)
-        self.select_microsoft()
-        self.status.set_text(f"Cuenta Microsoft conectada · {session['name']}")
-
-    def select_microsoft(self):
-        self.accounts.popdown()
-        self.microsoft_active = True
-        self.update_accounts()
-
-    def disconnect_microsoft(self):
-        self.accounts.popdown()
-        self.microsoft = None
-        self.microsoft_active = False
-        import credenciales
-        credenciales.clear_session()
-        self.update_accounts()
 
     def form(self, title, field, value, submit, memory=None):
         dialog = Gtk.Dialog(title=title, transient_for=self.window, modal=True)
@@ -640,32 +318,8 @@ class Nova(Gtk.Application):
         dialog.connect("response", respond)
         dialog.present()
 
-    def edit_profile(self, after_save=None):
-        self.accounts.popdown()
 
-        def submit(name, _):
-            if not re.fullmatch(r"[A-Za-z0-9_]{3,16}", name):
-                raise ValueError("Usá entre 3 y 16 letras, números o guiones bajos.")
-            profiles = self.profiles if name in self.profiles else [*self.profiles, name]
-            self.save_accounts(name, profiles)
-            if after_save:
-                GLib.idle_add(after_save)
 
-        self.form("Cuenta offline", "Nombre de jugador", "", submit)
-
-    def save_accounts(self, name, profiles):
-        motor.save(motor.ROOT / "accounts.json", {"active": name, "profiles": profiles})
-        self.profile = name
-        self.microsoft_active = False
-        self.profiles = profiles
-        self.update_accounts()
-
-    def select_profile(self, name):
-        self.accounts.popdown()
-        try:
-            self.save_accounts(name, self.profiles)
-        except OSError as exc:
-            self.status.set_text(str(exc))
 
     def add_instance(self, *, import_only=False):
         title = "Importar modpack" if import_only else "Nueva instancia"
@@ -697,50 +351,6 @@ class Nova(Gtk.Application):
         chooser.set_child(content)
         chooser.present()
 
-    def choose_prism(self):
-        if self.busy:
-            return
-        picker = Gtk.FileChooserNative(title="Elegir carpeta de la instancia de Prism",
-                                       transient_for=self.window,
-                                       action=Gtk.FileChooserAction.SELECT_FOLDER)
-
-        def selected(_, response):
-            file = picker.get_file() if response == Gtk.ResponseType.ACCEPT else None
-            path = file.get_path() if file else None
-            picker.destroy()
-            if not path:
-                return
-            source = Path(path)
-            try:
-                name, version, loader, _, game = respaldos.prism_details(source)
-                worlds = sum(1 for _ in (game / "saves").glob("*/level.dat"))
-            except (OSError, KeyError, TypeError, ValueError) as error:
-                self.status.set_text(f"No se pudo leer la instancia de Prism: {error}")
-                return
-            dialog = Gtk.Dialog(title="Revisar instancia de Prism", transient_for=self.window, modal=True)
-            dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
-            dialog.add_button("Importar", Gtk.ResponseType.OK).add_css_class("primary")
-            box = dialog.get_content_area()
-            box.add_css_class("menu")
-            box.append(label(name, "subheading"))
-            box.append(label(f"Minecraft {version} · {motor.LOADERS[loader]} · {worlds} mundos", "muted"))
-
-            def confirm(_, response):
-                dialog.destroy()
-                if response != Gtk.ResponseType.OK:
-                    return
-
-                def task():
-                    folder = respaldos.import_prism(source, self.preferences["memory"])
-                    GLib.idle_add(setattr, self, "selected", folder)
-
-                self.background_file("Copiando instancia de Prism…", task, "Instancia importada.")
-
-            dialog.connect("response", confirm)
-            dialog.present()
-
-        picker.connect("response", selected)
-        picker.show()
 
     def edit_settings(self):
         if self.selected:
@@ -1031,163 +641,10 @@ class Nova(Gtk.Application):
         dialog.connect("response", respond)
         dialog.present()
 
-    def browse(self):
-        if not self.busy:
-            biblioteca.Browser(self, self.selected, self.instances.get(self.selected))
 
-    def import_pack(self, extension):
-        if self.busy:
-            return
-        format_name = "Modrinth" if extension == "mrpack" else "Nova o CurseForge"
-        picker = Gtk.FileChooserNative(title=f"Importar {format_name} (.{extension})",
-                                       transient_for=self.window, action=Gtk.FileChooserAction.OPEN)
-        file_filter = Gtk.FileFilter(name=f"{format_name} (*.{extension})")
-        pattern = "".join(f"[{letter}{letter.upper()}]" for letter in extension)
-        file_filter.add_pattern(f"*.{pattern}")
-        picker.add_filter(file_filter)
-        all_files = Gtk.FileFilter(name="Todos los archivos")
-        all_files.add_pattern("*")
-        picker.add_filter(all_files)
-        picker.set_filter(file_filter)
 
-        def selected(dialog, response):
-            if response == Gtk.ResponseType.ACCEPT:
-                path = dialog.get_file().get_path()
-                if path:
-                    dialog.destroy()
-                    if Path(path).suffix.lower() != f".{extension}":
-                        self.status.set_text(f"Elegí un archivo .{extension} para importar desde {format_name}.")
-                    else:
-                        self.preview_pack(path)
-                    return
-            dialog.destroy()
 
-        picker.connect("response", selected)
-        picker.show()
 
-    def preview_pack(self, path):
-        try:
-            name, version, loader, needs_key = catalogo.pack_summary(path)
-        except (OSError, ValueError, KeyError, TypeError, catalogo.zipfile.BadZipFile) as exc:
-            self.status.set_text(f"No se pudo leer el modpack: {exc}")
-            return
-        dialog = Gtk.Dialog(title="Revisar modpack", transient_for=self.window, modal=True)
-        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Continuar", Gtk.ResponseType.OK).add_css_class("primary")
-        box = dialog.get_content_area()
-        box.add_css_class("menu")
-        title = label(name[:100], "subheading")
-        title.set_wrap(True)
-        box.append(title)
-        box.append(label(f"Minecraft {version} · {loader}", "muted"))
-
-        def respond(_, response):
-            dialog.destroy()
-            if response == Gtk.ResponseType.OK:
-                if needs_key and not os.environ.get("CURSEFORGE_API_KEY"):
-                    self.import_curseforge(path)
-                else:
-                    self.import_local(path)
-
-        dialog.connect("response", respond)
-        dialog.present()
-
-    def import_curseforge(self, path):
-        dialog = Gtk.Dialog(title="Importar ZIP de CurseForge", transient_for=self.window,
-                            modal=True, default_width=440)
-        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Importar", Gtk.ResponseType.OK).add_css_class("primary")
-        box = dialog.get_content_area()
-        box.add_css_class("menu")
-        box.set_spacing(10)
-        hint = label("Si el ZIP referencia archivos externos, ingresá tu clave de API de CurseForge. "
-                     "Si ya incluye todo el contenido, dejá el campo vacío.", "muted")
-        hint.set_wrap(True)
-        box.append(hint)
-        entry = Gtk.PasswordEntry(placeholder_text="Clave de API de CurseForge")
-        box.append(entry)
-        entry.connect("activate", lambda _: dialog.response(Gtk.ResponseType.OK))
-
-        def respond(_, response):
-            key = entry.get_text().strip()
-            dialog.destroy()
-            if response == Gtk.ResponseType.OK:
-                self.import_local(path, key)
-
-        dialog.connect("response", respond)
-        dialog.present()
-
-    def import_local(self, path, api_key="", manual_dir=None):
-        if self.busy:
-            return
-        self.busy = True
-        cancel = threading.Event()
-        self.cancel_download = cancel
-        entry = self.history.start("import", f"Importar {Path(path).name}")
-        self.retries[entry] = lambda: self.import_local(path, api_key, manual_dir)
-        self.set_download_progress("Importando modpack…")
-        self.refresh()
-        memory = self.preferences["memory"]
-
-        def finish(folder, message, manual=False):
-            self.cancel_download = None
-            self.record(entry, None if folder else message, cancel, message)
-            self.set_download_progress(message)
-            if folder:
-                self.selected = folder
-            self.finished(message)
-            if not folder and not cancel.is_set():
-                dialog = Gtk.Dialog(title="Importación interrumpida", transient_for=self.window, modal=True)
-                dialog.add_button("Cerrar", Gtk.ResponseType.CANCEL)
-                dialog.add_button("Reintentar", Gtk.ResponseType.OK)
-                if manual:
-                    dialog.add_button("Elegir carpeta con archivos", Gtk.ResponseType.APPLY)
-                box = dialog.get_content_area()
-                box.add_css_class("menu")
-                error = label(message, "form-error")
-                error.set_wrap(True)
-                error.set_max_width_chars(60)
-                box.append(error)
-
-                def respond(_, response):
-                    dialog.destroy()
-                    if response == Gtk.ResponseType.OK:
-                        self.import_local(path, api_key, manual_dir)
-                    elif response == Gtk.ResponseType.APPLY:
-                        picker = Gtk.FileChooserNative(title="Elegir carpeta con los archivos de CurseForge",
-                                                       transient_for=self.window,
-                                                       action=Gtk.FileChooserAction.SELECT_FOLDER)
-
-                        def selected(_, response):
-                            file = picker.get_file() if response == Gtk.ResponseType.ACCEPT else None
-                            directory = file.get_path() if file else None
-                            picker.destroy()
-                            if directory:
-                                self.import_local(path, api_key, Path(directory))
-
-                        picker.connect("response", selected)
-                        picker.show()
-
-                dialog.connect("response", respond)
-                dialog.present()
-
-        def progress(message):
-            if cancel.is_set():
-                raise InterruptedError("Importación cancelada.")
-            GLib.idle_add(self.set_download_progress, message)
-
-        def worker():
-            try:
-                folder = catalogo.import_pack(path, memory, api_key, manual_dir=manual_dir, progress=progress)
-            except InterruptedError:
-                GLib.idle_add(finish, None, "Importación cancelada. Los archivos verificados se conservaron.")
-            except Exception as exc:
-                GLib.idle_add(finish, None, f"No se pudo importar: {exc}",
-                              isinstance(exc, catalogo.ManualPackFile))
-            else:
-                GLib.idle_add(finish, folder, "Modpack importado.")
-
-        threading.Thread(target=worker, daemon=True).start()
 
     def refresh(self):
         self.instances = {
@@ -1479,146 +936,9 @@ class Nova(Gtk.Application):
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def export_instance(self, folder):
-        dialog = Gtk.Dialog(title="Exportar instancia", transient_for=self.window, modal=True)
-        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
-        dialog.add_button("Guardar archivo", Gtk.ResponseType.OK).add_css_class("primary")
-        box = dialog.get_content_area()
-        box.add_css_class("menu")
-        format_choice = Gtk.ComboBoxText()
-        format_choice.append("zip", "ZIP · Configuración y mundos opcionales")
-        format_choice.append("mrpack", "Modrinth (.mrpack) · Con referencias de descarga")
-        format_choice.set_active_id("zip")
-        box.append(format_choice)
-        info = label("El .mrpack incluye referencias para los archivos activos que coinciden "
-                     "con Modrinth. Los archivos sin coincidencia se omiten.", "muted")
-        info.set_wrap(True)
-        info.set_max_width_chars(48)
-        box.append(info)
-        worlds = Gtk.CheckButton(label="Incluir mis mundos")
-        box.append(worlds)
 
-        def respond(_, response):
-            extension = format_choice.get_active_id()
-            include_worlds = worlds.get_active()
-            dialog.destroy()
-            if response == Gtk.ResponseType.OK:
-                self.save_file("Exportar instancia", f"instancia-nova.{extension}", lambda path:
-                               self.background_file("Exportando instancia…",
-                                   lambda: respaldos.export_instance(folder, path, include_worlds),
-                                   f"Instancia exportada en {path}."))
 
-        dialog.connect("response", respond)
-        dialog.present()
 
-    def show_java(self, folder, instance):
-        dialog = Gtk.Window(title="Java y memoria", transient_for=self.window, modal=True, default_width=500)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
-        box.append(label("Java y memoria", "subheading"))
-        box.append(label(f"RAM asignada · {instance['memory']} GB", "form-label"))
-        status = label("Comprobando Java…", "muted")
-        status.set_wrap(True)
-        status.set_selectable(True)
-        box.append(status)
-
-        def reset():
-            try:
-                with motor.instance_lock(folder):
-                    settings = motor.read(folder / "instance.json", {})
-                    settings.update(java="", memory=self.preferences["memory"])
-                    motor.save(folder / "instance.json", settings)
-            except (OSError, RuntimeError) as error:
-                status.set_text(str(error))
-                return
-            dialog.destroy()
-            self.refresh()
-            self.status.set_text("La instancia usa el Java y la memoria predeterminados de Nova.")
-
-        box.append(button("Usar valores predeterminados de Nova", reset))
-        dialog.set_child(box)
-        dialog.present()
-        settings = {**instance, "java": instance["java"] or self.preferences["java"]}
-
-        def worker():
-            try:
-                executable, required, found = motor.java_report(settings)
-                lines = [executable]
-                if required:
-                    lines.append(f"Minecraft requiere Java {required}.")
-                if found:
-                    lines.append(f"Java detectado · {found}")
-                if found and required and found < required:
-                    lines.append("Este Java es demasiado antiguo para la instancia.")
-            except Exception as error:
-                lines = [f"No se pudo comprobar Java: {error}"]
-            GLib.idle_add(status.set_text, "\n".join(lines))
-
-        threading.Thread(target=worker, daemon=True).start()
-
-    def repair_instance(self, folder, instance):
-        settings = {**instance, "java": instance["java"] or self.preferences["java"]}
-
-        def task():
-            with motor.instance_lock(folder):
-                motor.prepare(settings, lambda message: GLib.idle_add(self.status.set_text, message), repair=True)
-
-        self.background_file("Verificando la instalación…", task, "Instalación revisada.")
-
-    def show_worlds(self, folder):
-        dialog = Gtk.Window(title="Mundos", transient_for=self.window, modal=True,
-                            default_width=520, default_height=400)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
-        box.append(label(f"Mundos de {self.instances[folder]['name']}", "subheading"))
-        scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
-        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        scroll.set_child(rows)
-        box.append(scroll)
-        status = label("", "muted")
-        status.set_wrap(True)
-        box.append(status)
-
-        def render():
-            while child := rows.get_first_child():
-                rows.remove(child)
-            for backup in (False, True):
-                paths = respaldos.worlds(folder, backups=backup)
-                if not paths:
-                    continue
-                rows.append(label("Respaldos" if backup else "Mundos guardados", "form-label"))
-                for path in paths:
-                    row = Gtk.Box(spacing=8, css_classes=["catalog-row"])
-                    title = label(path.name)
-                    title.set_ellipsize(Pango.EllipsizeMode.END)
-                    title.set_hexpand(True)
-                    row.append(title)
-                    row.append(button("Restaurar copia" if backup else "Respaldar",
-                                      lambda path=path, restore=backup: copy_world(path, restore)))
-                    rows.append(row)
-            if not rows.get_first_child():
-                rows.append(label("Todavía no hay mundos guardados.", "muted"))
-
-        def copy_world(path, restore):
-            rows.set_sensitive(False)
-            status.set_text("Copiando mundo…")
-
-            def finish(message):
-                status.set_text(message)
-                render()
-                rows.set_sensitive(True)
-
-            def worker():
-                try:
-                    target = respaldos.copy_world(folder, path, restore=restore)
-                except (OSError, ValueError, RuntimeError) as error:
-                    GLib.idle_add(finish, f"No se pudo copiar el mundo: {error}")
-                else:
-                    GLib.idle_add(finish, f"Copia guardada como «{target.name}».")
-
-            threading.Thread(target=worker, daemon=True).start()
-
-        render()
-        dialog.set_child(box)
-        dialog.present()
 
     def remove_instance(self, folder, name):
         if self.parallel:
@@ -1665,395 +985,13 @@ class Nova(Gtk.Application):
         else:
             self.refresh()
 
-    def open_servers(self, folder=None):
-        folder = folder or self.selected
-        if folder is None:
-            self.status.set_text("Elegí una instancia para ver sus servidores.")
-            return
-        if self.busy:
-            return
-        dialog = Gtk.Window(title="Servidores", transient_for=self.window, modal=True,
-                            default_width=560, default_height=410)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
-        box.append(label(self.instances[folder]["name"], "subheading"))
-        box.append(label("Servidores de esta instancia", "muted"))
-        scroll = Gtk.ScrolledWindow(vexpand=True)
-        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        scroll.set_child(rows)
-        box.append(scroll)
-        address = Gtk.Entry(placeholder_text="ejemplo.net:25565", hexpand=True)
-        address.update_property([Gtk.AccessibleProperty.LABEL], ["Dirección del servidor"])
-        name = Gtk.Entry(placeholder_text="Nombre opcional", hexpand=True)
-        name.update_property([Gtk.AccessibleProperty.LABEL], ["Nombre del servidor"])
-        form = Gtk.Box(spacing=8)
-        form.append(name)
-        form.append(address)
-        form.append(button("Guardar", lambda: add_server()))
-        box.append(form)
-        feedback = label("", "muted")
-        feedback.set_wrap(True)
-        box.append(feedback)
-        path = folder / "nova-servers.json"
-        preferences_path = folder / "server-preferences.json"
-        editing = None
 
-        def join(target):
-            try:
-                servidores.address_parts(target)
-            except ValueError as error:
-                feedback.set_text(str(error))
-                return
-            dialog.destroy()
-            self.select(folder)
-            self.play(target)
 
-        def populate():
-            while child := rows.get_first_child():
-                rows.remove(child)
-            try:
-                saved = servidores.saved_servers(folder / "game" / "servers.dat")
-            except (OSError, ValueError, EOFError) as error:
-                saved = []
-                feedback.set_text(f"No se pudo leer la lista de Minecraft: {error}")
-            extra = motor.read(path, {})
-            preferences = motor.read(preferences_path, {})
-            hidden = set(preferences.get("hidden", []))
-            favorites = set(preferences.get("favorites", []))
-            servers = {target.casefold(): (title, target) for title, target in saved}
-            servers.update({target.casefold(): (title, target) for target, title in extra.items()})
-            for title, target in sorted(servers.values(),
-                                        key=lambda entry: (entry[1].casefold() not in favorites,
-                                                           entry[0].casefold())):
-                key = target.casefold()
-                if key in hidden:
-                    continue
-                row = Gtk.Box(spacing=8, css_classes=["catalog-row"])
-                info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, hexpand=True)
-                for value, style in ((title, "form-label"), (target, "muted")):
-                    text = label(value, style)
-                    text.set_ellipsize(Pango.EllipsizeMode.END)
-                    info.append(text)
-                row.append(info)
-                menu = Gtk.MenuButton(icon_name="view-more-symbolic", tooltip_text="Acciones del servidor")
-                popover = Gtk.Popover()
-                options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, css_classes=["action-menu"])
-                popover.set_child(options)
-                menu.set_popover(popover)
-                options.append(button("Editar", lambda title=title, target=target, popover=popover:
-                                      (popover.popdown(), edit_server(title, target))))
-                options.append(button("Quitar de favoritos" if key in favorites else "Marcar como favorito",
-                                      lambda key=key, popover=popover:
-                                      (popover.popdown(), change_preference("favorites", key))))
-                options.append(button("Quitar de Nova", lambda key=key, popover=popover:
-                                      (popover.popdown(), change_preference("hidden", key))))
-                row.append(menu)
-                row.append(button("Entrar", lambda target=target: join(target), "primary"))
-                rows.append(row)
-            if not rows.get_first_child():
-                rows.append(label("Agregá un servidor para entrar desde Nova.", "muted"))
 
-        def edit_server(title, target):
-            nonlocal editing
-            editing = target.casefold()
-            name.set_text(title)
-            address.set_text(target)
-            address.grab_focus()
-            feedback.set_text("Editá los datos y presioná Guardar.")
 
-        def change_preference(field, key):
-            try:
-                with motor.instance_lock(folder):
-                    preferences = motor.read(preferences_path, {})
-                    values = set(preferences.get(field, []))
-                    values.symmetric_difference_update({key})
-                    preferences[field] = sorted(values)
-                    motor.save(preferences_path, preferences)
-            except (OSError, RuntimeError) as error:
-                feedback.set_text(str(error))
-                return
-            populate()
 
-        def add_server():
-            nonlocal editing
-            target = address.get_text().strip()
-            try:
-                servidores.address_parts(target)
-                with motor.instance_lock(folder):
-                    extra = motor.read(path, {})
-                    key = target.casefold()
-                    extra = {address: title for address, title in extra.items()
-                             if address.casefold() not in {key, editing}}
-                    extra[target] = name.get_text().strip()[:80] or target
-                    preferences = motor.read(preferences_path, {})
-                    hidden = set(preferences.get("hidden", []))
-                    hidden.discard(key)
-                    if editing and editing != key:
-                        hidden.add(editing)
-                        favorites = set(preferences.get("favorites", []))
-                        if editing in favorites:
-                            favorites.remove(editing)
-                            favorites.add(key)
-                            preferences["favorites"] = sorted(favorites)
-                    preferences["hidden"] = sorted(hidden)
-                    motor.save(path, extra)
-                    motor.save(preferences_path, preferences)
-            except (OSError, ValueError, RuntimeError) as error:
-                feedback.set_text(str(error))
-                return
-            editing = None
-            address.set_text("")
-            name.set_text("")
-            feedback.set_text("Servidor guardado en Nova.")
-            populate()
 
-        address.connect("activate", lambda _: add_server())
-        populate()
-        dialog.set_child(box)
-        dialog.present()
 
-    def record(self, entry, error, cancel, message):
-        state = "ok" if not error else "cancelled" if cancel.is_set() else "error"
-        self.history.finish(entry, state, message)
-        if state == "ok":
-            self.retries.pop(entry, None)
-        if self.history_view:
-            self.history_view()
-
-    def set_download_progress(self, message):
-        self.download_progress = message
-        self.status.set_text(message)
-        if self.download_view:
-            text, cancel = self.download_view
-            text.set_text(message)
-            cancel.set_sensitive(self.cancel_download is not None)
-
-    def show_downloads(self):
-        dialog = Gtk.Window(title="Descargas", transient_for=self.window, modal=False, default_width=440)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
-        box.append(label("Centro de descargas", "subheading"))
-        text = label(self.download_progress, "muted")
-        text.set_wrap(True)
-        box.append(text)
-
-        def cancel_current():
-            if self.cancel_download:
-                self.cancel_download.set()
-                text.set_text("Cancelando al terminar el archivo actual…")
-                control.set_sensitive(False)
-
-        control = button("Cancelar descarga", cancel_current)
-        control.set_sensitive(self.cancel_download is not None)
-        box.append(control)
-        self.download_view = text, control
-        box.append(label("Historial reciente", "subheading"))
-        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        scroller = Gtk.ScrolledWindow(min_content_height=170, vexpand=True,
-                                      hscrollbar_policy=Gtk.PolicyType.NEVER)
-        scroller.set_child(rows)
-        box.append(scroller)
-
-        def retry(entry_id):
-            action = self.retries.get(entry_id)
-            if action and not self.busy and not self.cancel_download:
-                action()
-
-        def render():
-            while (child := rows.get_first_child()):
-                rows.remove(child)
-            entries = self.history.recent()
-            if not entries:
-                rows.append(label("Todavía no hay descargas ni importaciones.", "muted"))
-            for item in entries:
-                line = Gtk.Box(spacing=8)
-                info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
-                info.append(label(f"{item['title']} · {historial.STATES.get(item['state'], item['state'])}"))
-                detail = label(f"{item['time'].replace('T', ' ')}  {item['message']}".strip(), "muted")
-                detail.set_wrap(True)
-                detail.set_max_width_chars(48)
-                info.append(detail)
-                line.append(info)
-                if item["state"] in {"error", "cancelled"} and item["id"] in self.retries:
-                    line.append(button("Reintentar", lambda i=item["id"]: retry(i)))
-                rows.append(line)
-
-        render()
-        self.history_view = render
-        box.append(button("Limpiar historial", lambda: (self.history.clear_finished(), render()), "quiet-button"))
-
-        def closed(*_):
-            self.history_view = None
-            if self.download_view and self.download_view[0] is text:
-                self.download_view = None
-            return False
-
-        dialog.connect("close-request", closed)
-        dialog.set_child(box)
-        dialog.present()
-
-    def show_storage(self):
-        dialog = Gtk.Window(title="Almacenamiento", transient_for=self.window, modal=True, default_width=460)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
-        box.append(label("Almacenamiento de Nova", "subheading"))
-        usage = label("Calculando…", "muted")
-        usage.set_wrap(True)
-        box.append(usage)
-        cache = motor.ROOT / "pack-cache"
-
-        def calculate():
-            lines = []
-            for name, directory in (("Instancias", "instances"), ("Respaldos", "backups"),
-                                    ("Minecraft y Java", "minecraft"), ("Caché de modpacks", "pack-cache")):
-                total = 0
-                for root, _, files in os.walk(motor.ROOT / directory, followlinks=False):
-                    for name_in_dir in files:
-                        path = Path(root) / name_in_dir
-                        try:
-                            if not path.is_symlink():
-                                total += path.stat().st_size
-                        except OSError:
-                            continue
-                lines.append(f"{name} · {total / 1024**2:,.1f} MiB")
-            GLib.idle_add(usage.set_text, "\n".join(lines))
-
-        def clear():
-            dialog.destroy()
-
-            def task():
-                with motor.file_lock(motor.ROOT / ".pack-cache.lock", blocking=True):
-                    if cache.exists():
-                        Gio.File.new_for_path(str(cache)).trash(None)
-
-            self.background_file("Moviendo caché a la Papelera…", task, "Caché de modpacks limpiada.")
-
-        remove = button("Mover la caché de modpacks a la Papelera", clear, "danger")
-        remove.set_sensitive(cache.is_dir() and not self.busy)
-        box.append(remove)
-        dialog.set_child(box)
-        dialog.present()
-        threading.Thread(target=calculate, daemon=True).start()
-
-    def show_sessions(self):
-        dialog = Gtk.Window(title="Sesiones de juego", transient_for=self.window, modal=True,
-                            default_width=500)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
-        box.append(label("Sesiones de juego", "subheading"))
-        sessions = []
-        if self.running:
-            folder, player, server = self.running
-            sessions.append((folder, player, server, folder, "Sesión principal"))
-        if self.second_session:
-            folder, player, isolated = self.second_session
-            sessions.append((folder, player, None, isolated, "Segunda sesión"))
-        for folder, player, server, storage, title in sessions:
-            box.append(label(f"{self.instances[folder]['name']} · {player}", "form-label"))
-            box.append(label(f"{title} · {server or 'Sin servidor seleccionado'}", "muted"))
-            actions = Gtk.Box(spacing=8)
-            actions.append(button("Ver registro", lambda path=storage: self.open_log(path)))
-            actions.append(button("Abrir mundos", lambda path=storage: motor.open_folder(path / "game")))
-            box.append(actions)
-        if not sessions:
-            box.append(label("No hay sesiones activas abiertas desde esta ventana.", "muted"))
-        dialog.set_child(box)
-        dialog.present()
-
-    def play_parallel(self, folder):
-        if self.parallel or (self.busy and (not self.running or self.running[0] != folder)):
-            return
-        dialog = Gtk.Dialog(title="Jugar con otra cuenta", transient_for=self.window, modal=True)
-        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
-        play = dialog.add_button("Jugar", Gtk.ResponseType.OK)
-        play.add_css_class("primary")
-        box = dialog.get_content_area()
-        box.add_css_class("menu")
-        hint = label("La segunda cuenta offline usa los mods y ajustes de la instancia. "
-                     "Sus mundos se guardan por separado.", "muted")
-        hint.set_wrap(True)
-        hint.set_max_width_chars(52)
-        box.append(hint)
-        profile = Gtk.ComboBoxText()
-        active = {self.profile.casefold()}
-        if self.running:
-            active.add(self.running[1].casefold())
-        if self.microsoft_active and self.microsoft:
-            active.add(self.microsoft[1].get("name", "").casefold())
-        for player in self.profiles:
-            if player.casefold() not in active:
-                profile.append_text(player)
-        profile.set_active(0)
-        play.set_sensitive(profile.get_active() >= 0)
-        if profile.get_active() < 0:
-            box.append(label("Creá otro perfil offline en el menú de cuentas.", "muted"))
-        box.append(profile)
-
-        def respond(_, response):
-            player = profile.get_active_text()
-            dialog.destroy()
-            if response == Gtk.ResponseType.OK and player:
-                self.start_parallel(folder, player)
-
-        dialog.connect("response", respond)
-        dialog.present()
-
-    def start_parallel(self, folder, player):
-        if (self.parallel or folder not in self.instances
-                or not re.fullmatch(r"[A-Za-z0-9_]{3,16}", player)):
-            return
-        self.parallel = True
-        self.failure_log.set_visible(False)
-        self.status.set_text(f"Preparando la segunda sesión · {player}…")
-        self.refresh()
-        instance = dict(self.instances[folder])
-        instance["java"] = instance["java"] or self.preferences["java"]
-        if instance.get("resolution", "default") == "default":
-            instance["resolution"] = self.preferences["resolution"]
-        isolated = folder / "sessions" / player.casefold()
-        log_path = isolated / "minecraft.log"
-        self.second_session = folder, player, isolated
-
-        def finish(message, failed):
-            self.parallel = False
-            self.second_session = None
-            self.status.set_text(message)
-            self.refresh()
-            if failed:
-                self.failure_log.set_visible(True)
-                self.failed_log = log_path
-
-        def worker():
-            try:
-                isolated.mkdir(parents=True, exist_ok=True)
-                with motor.instance_lock(isolated) as lock, TemporaryDirectory(dir=isolated) as temporary:
-                    game = isolated / "game"
-                    game.mkdir(exist_ok=True)
-                    source = folder / "game"
-                    for name in ("mods", "config", "defaultconfigs", "resourcepacks", "shaderpacks",
-                                 "scripts", "kubejs"):
-                        item = source / name
-                        staged = Path(temporary) / name
-                        target = game / name
-                        if item.is_dir() and not item.is_symlink():
-                            shutil.copytree(item, staged, ignore=lambda directory, names: [
-                                child for child in names if (Path(directory) / child).is_symlink()])
-                        if target.is_dir() and not target.is_symlink():
-                            shutil.rmtree(target)
-                        else:
-                            target.unlink(missing_ok=True)
-                        if staged.exists():
-                            staged.rename(target)
-                    for name in ("options.txt", "servers.dat"):
-                        item = source / name
-                        target = game / name
-                        if item.is_file() and not item.is_symlink() and not target.exists():
-                            shutil.copy2(item, target)
-                    result = motor.launch(folder, player, instance,
-                                          lambda text: GLib.idle_add(self.status.set_text, text),
-                                          game=game, log_path=log_path, held_lock=lock)
-                message = f"Sesión de {player} cerrada" + (f" · código {result}" if result else ".")
-                GLib.idle_add(finish, message, result != 0)
-            except Exception as error:
-                GLib.idle_add(finish, f"No se pudo abrir la segunda sesión: {error}", True)
-
-        threading.Thread(target=worker, daemon=True).start()
 
     def save_library(self):
         try:
