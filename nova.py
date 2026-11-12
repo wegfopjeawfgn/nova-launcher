@@ -800,6 +800,7 @@ class Nova(
             if self.instances:
                 details.append(label("No hay instancias para este filtro.", "subheading"))
                 return
+            details.add_css_class("empty-state")
             details.append(label("Tu biblioteca está vacía", "subheading"))
             hint = label("Creá una instancia de Minecraft Java o importá un modpack.", "muted")
             hint.set_wrap(True)
@@ -822,6 +823,7 @@ class Nova(
         name.set_tooltip_text(instance["name"])
         row.append(name)
         play = button("", self.play, "primary")
+        play.add_css_class("play-button")
         play_content = Gtk.Box(spacing=8)
         play_content.append(Gtk.Image.new_from_icon_name("media-playback-start-symbolic"))
         self.play_label = label(self.launch_stage or "Jugar")
@@ -832,11 +834,13 @@ class Nova(
         row.append(play)
         info.append(row)
         info.append(label("Minecraft Java", "muted"))
-        info.append(label(
-            f"{instance['version']}  ·  {motor.LOADERS[instance['loader']]} {instance['loader_version']}"
-            f"  ·  {instance['memory']} GB",
-            "muted",
-        ))
+        chips = Gtk.Box(spacing=6)
+        loader_name = motor.LOADERS[instance["loader"]]
+        for text, accent in ((instance["version"], True),
+                             (f"{loader_name} {instance['loader_version']}".strip(), False),
+                             (f"{instance['memory']} GB", False)):
+            chips.append(Gtk.Label(label=text, css_classes=["chip", "chip-accent"] if accent else ["chip"]))
+        info.append(chips)
         details.append(summary)
         if instance.get("notes"):
             note = label(instance["notes"], "muted")
