@@ -143,6 +143,8 @@ class Nova(Gtk.Application):
             self.selected = motor.ROOT / "instances" / last
         self.profile = accounts["active"]
         self.profiles = accounts["profiles"]
+        import credenciales
+        self.microsoft = credenciales.load_session()
         titlebar = Gtk.HeaderBar(decoration_layout=":minimize,maximize,close")
         titlebar.add_css_class("nova-titlebar")
         titlebar.set_title_widget(Gtk.Label())
@@ -537,6 +539,8 @@ class Nova(Gtk.Application):
 
     def use_microsoft(self, client_id, session):
         self.microsoft = (client_id, session)
+        import credenciales
+        credenciales.save_session(client_id, session)
         self.select_microsoft()
         self.status.set_text(f"Cuenta Microsoft conectada · {session['name']}")
 
@@ -549,6 +553,8 @@ class Nova(Gtk.Application):
         self.accounts.popdown()
         self.microsoft = None
         self.microsoft_active = False
+        import credenciales
+        credenciales.clear_session()
         self.update_accounts()
 
     def form(self, title, field, value, submit, memory=None):
@@ -786,6 +792,9 @@ class Nova(Gtk.Application):
         memory = game_field("Memoria máxima (GB)", Gtk.SpinButton.new_with_range(1, 32, 1))
         memory.set_value(values["memory"])
         java = game_field("Ruta de Java para esta instancia (opcional)", Gtk.Entry(text=values["java"]))
+        jvm_args = game_field("Argumentos extra de Java (opcional)",
+                              Gtk.Entry(text=values.get("jvm_args", ""),
+                                        placeholder_text="-XX:+UseG1GC -Xms1G"))
         fixed = folder and (values.get("pack") or (folder / "game" / "saves").exists()
                             or (folder / "game" / "mods").exists())
         if fixed:
@@ -860,8 +869,11 @@ class Nova(Gtk.Application):
                            for value in (version, build) if value) or not version:
                         raise ValueError("Elegí una versión válida.")
                     java_path = self.java_path(java.get_text())
+                    extra_args = jvm_args.get_text().strip()
+                    motor.parse_jvm_args(extra_args)
                     settings = {"version": version, "loader": loader.get_active_id(),
                                 "loader_version": build, "java": java_path, "cover": cover,
+                                "jvm_args": extra_args,
                                 "notes": notes.get_text().strip(),
                                 "resolution": resolution.get_active_id()}
                     if pending:
@@ -2065,6 +2077,8 @@ class Nova(Gtk.Application):
     def store_session(self, previous, session):
         if self.microsoft is previous:
             self.microsoft = (previous[0], session)
+            import credenciales
+            credenciales.save_session(previous[0], session)
 
     def finished(self, message):
         self.busy = False

@@ -1,21 +1,51 @@
 """Show the current Minecraft log and recognize common startup errors."""
 import re
 
-from gi.repository import Gdk, GLib, Gtk
+import gi
+
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+
+
+PATTERNS = (
+    ("UnsupportedClassVersionError",
+     "Esta versión necesita un Java más reciente. Revisá la ruta en Editar instancia."),
+    ("OutOfMemoryError", "Java se quedó sin memoria. Revisá la RAM asignada en Editar instancia."),
+    ("Could not reserve enough space",
+     "Java no pudo reservar tanta memoria. Bajá la RAM asignada en Editar instancia."),
+    ("Invalid maximum heap size", "La memoria asignada no es válida. Revisá la RAM en Editar instancia."),
+    ("Unrecognized option", "Un argumento de Java no existe en esta versión. Revisá los argumentos extra."),
+    ("GLFW error", "Falló la ventana gráfica. Actualizá los drivers de video o probá otra versión de Java."),
+    ("Failed to create the window", "No se pudo crear la ventana de OpenGL. Revisá los drivers de video."),
+    ("Address already in use", "Un puerto ya está en uso. Cerrá otras instancias de Minecraft."),
+    ("UnsatisfiedLinkError", "Falta una biblioteca nativa. Usá Reparar en la instancia."),
+    ("MixinApplyError", "Falló un mod al cargar. Buscá el primer error del registro y probá desactivar el mod indicado."),
+    ("MixinTransformerError", "Falló un mod al cargar. Buscá el primer error del registro y probá desactivar el mod indicado."),
+)
+DEPENDENCY = re.compile(r"requires .* (missing|not installed)|missing mandatory dependencies|"
+                        r"incompatible mods found|mod resolution encountered", re.I)
 
 
 def diagnose(text):
-    if "UnsupportedClassVersionError" in text:
-        return "Esta versión necesita un Java más reciente. Revisá la ruta en Editar instancia."
-    if "OutOfMemoryError" in text:
-        return "Java se quedó sin memoria. Revisá la RAM asignada en Editar instancia."
-    for line in text.splitlines():
-        if re.search(r"requires .* (missing|not installed)|missing mandatory dependencies|"
-                     r"incompatible mods found|mod resolution encountered", line, re.I):
-            return "Revisá las dependencias y versiones en Mods → Instalados. "
-    if "MixinApplyError" in text or "MixinTransformerError" in text:
-        return "Falló un mod al cargar. Buscá el primer error del registro y probá desactivar el mod indicado."
+    for marker, advice in PATTERNS[:2]:
+        if marker in text:
+            return advice
+    if DEPENDENCY.search(text):
+        return "Revisá las dependencias y versiones en Mods → Instalados."
+    for marker, advice in PATTERNS[2:]:
+        if marker in text:
+            return advice
     return ""
+
+
+def report(text, lines=80):
+    """Build a shareable report: platform, Nova version, the hint and the log tail."""
+    import platform
+    from nova_version import NOVA_VERSION
+    tail = "\n".join((text or "").splitlines()[-lines:])
+    return (f"Nova Launcher {NOVA_VERSION} · {platform.system()} {platform.release()} · "
+            f"Python {platform.python_version()}\n"
+            f"Diagnóstico: {diagnose(text or '') or 'sin causa identificada'}\n\n{tail}")
 
 
 def read_log(path):
@@ -34,7 +64,7 @@ def open_console(parent, path):
     copy = Gtk.Button(label="Copiar diagnóstico", halign=Gtk.Align.START)
     copy.connect("clicked", lambda _: (
         Gdk.Display.get_default().get_clipboard().set(
-            diagnose(previous or "") or "Nova no identificó la causa en el registro de Minecraft."),
+            report(previous)),
         copy.set_label("Diagnóstico copiado"),
     ))
     box.append(copy)
