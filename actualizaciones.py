@@ -59,6 +59,30 @@ def check(repo, beta=False):
     return tag, rpm, page, (release.get("body") or "")[:4000]
 
 
+def recent_releases(repo, limit=3):
+    """Latest published releases (no drafts) as {tag, name, date, body, url}, for the news page."""
+    repo = repository(repo)
+    if not repo:
+        raise ValueError("Configurá tu repositorio público de GitHub en Ajustes.")
+    response = requests.get(
+        f"https://api.github.com/repos/{repo}/releases",
+        headers={"Accept": "application/vnd.github+json", "User-Agent": f"NovaLauncher/{VERSION}"},
+        params={"per_page": max(1, min(limit, 10))},
+        timeout=12,
+    )
+    response.raise_for_status()
+    found = []
+    for item in response.json():
+        if not isinstance(item, dict) or item.get("draft") or not isinstance(item.get("tag_name"), str):
+            continue
+        tag = item["tag_name"]
+        found.append({"tag": tag, "name": str(item.get("name") or tag)[:80],
+                      "date": str(item.get("published_at") or "")[:10],
+                      "body": str(item.get("body") or "")[:1500],
+                      "url": f"https://github.com/{repo}/releases/tag/{tag}"})
+    return found[:limit]
+
+
 def download(url, destination, *, progress=lambda _: None):
     if not seguridad.safe_update_url(url):
         raise ValueError("La actualización debe descargarse desde una release de GitHub por HTTPS.")

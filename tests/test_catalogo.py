@@ -138,6 +138,64 @@ class FetchFileTests(TempRootCase):
             self.fetch([b"x"], "0" * 128, "keep.bin")
         self.assertEqual(target.read_bytes(), b"good")
 
+    def test_progress_reports_bytes_speed_and_total(self):
+        data = b"x" * 1000
+        calls = []
+        response = fake_response([data[:500], data[500:]], headers={"Content-Length": "1000"})
+        target = self.folder / "p.bin"
+        with mock.patch.object(catalogo.requests, "get", return_value=response):
+            catalogo.fetch_file("https://cdn.modrinth.com/f", target, hashlib.sha512(data).hexdigest(),
+                                progress=lambda *args: calls.append(args))
+        self.assertEqual(calls[-1][:2], (1000, 1000))
+        self.assertFalse(target.with_name("p.bin.part").exists())
+
+    def test_cut_connection_keeps_the_part_and_resumes_with_a_range(self):
+        data = b"abcdefghij"
+        target = self.folder / "r.bin"
+        first = fake_response([])
+        first.iter_content.side_effect = catalogo.requests.ConnectionError("cut")
+        first_chunks = fake_response([data[:4]])
+        # a stream that yields 4 bytes and then fails
+        def broken(_size):
+            yield data[:4]
+            raise catalogo.requests.ConnectionError("cut")
+        stream = fake_response([])
+        stream.iter_content.side_effect = broken
+        rest = fake_response([data[4:]], status=206, headers={"Content-Range": "bytes 4-9/10"})
+        with mock.patch.object(catalogo.requests, "get", side_effect=[stream, rest]) as get, \
+                mock.patch.object(catalogo.time, "sleep"):
+            catalogo.fetch_file("https://cdn.modrinth.com/f", target, hashlib.sha512(data).hexdigest())
+        self.assertEqual(target.read_bytes(), data)
+        self.assertEqual(get.call_args_list[1].kwargs["headers"]["Range"], "bytes=4-")
+
+    def test_server_that_ignores_range_restarts_from_zero(self):
+        data = b"0123456789"
+        target = self.folder / "i.bin"
+        part = target.with_name("i.bin.part")
+        part.write_bytes(b"junk")
+        with mock.patch.object(catalogo.requests, "get", return_value=fake_response([data])):
+            catalogo.fetch_file("https://cdn.modrinth.com/f", target, hashlib.sha512(data).hexdigest())
+        self.assertEqual(target.read_bytes(), data)
+
+    def test_range_not_satisfiable_discards_the_part(self):
+        data = b"hello"
+        target = self.folder / "s.bin"
+        target.with_name("s.bin.part").write_bytes(b"toolongpartial")
+        replies = [fake_response([], status=416), fake_response([data])]
+        with mock.patch.object(catalogo.requests, "get", side_effect=replies):
+            catalogo.fetch_file("https://cdn.modrinth.com/f", target, hashlib.sha512(data).hexdigest())
+        self.assertEqual(target.read_bytes(), data)
+
+    def test_resumed_file_with_wrong_checksum_is_discarded(self):
+        target = self.folder / "w.bin"
+        target.with_name("w.bin.part").write_bytes(b"abcd")
+        rest = fake_response([b"efgh"], status=206, headers={"Content-Range": "bytes 4-7/8"})
+        with mock.patch.object(catalogo.requests, "get", return_value=rest):
+            with self.assertRaises(ValueError):
+                catalogo.fetch_file("https://cdn.modrinth.com/f", target, "0" * 128)
+        self.assertFalse(target.exists())
+        self.assertFalse(target.with_name("w.bin.part").exists())
+
     def test_curseforge_host_and_size(self):
         target = self.folder / "cf.bin"
         with self.assertRaises(ValueError):
@@ -171,7 +229,7 @@ class DownloadTests(TempRootCase):
         with mock.patch.object(catalogo, "fetch_file") as fetch:
             target = catalogo.download(self.version(), self.folder / "d", ".jar")
         self.assertEqual(target, self.folder / "d" / "a.jar")
-        fetch.assert_called_once_with("https://cdn.modrinth.com/a.jar", target, "ab")
+        fetch.assert_called_once_with("https://cdn.modrinth.com/a.jar", target, "ab", progress=None)
 
     def test_download_rejects_bad_input(self):
         for bad in (self.version(filename="../a.jar"), self.version(filename="x/a.jar"),
@@ -278,7 +336,7 @@ class ImportPackTests(TempRootCase):
              "downloads": ["https://cdn.modrinth.com/s.jar"]}]
         urls = []
 
-        def fetch(url, staged, expected):
+        def fetch(url, staged, expected, **kwargs):
             urls.append(url)
             staged.write_bytes(data)
 
@@ -305,7 +363,7 @@ class ImportPackTests(TempRootCase):
         }
         for label, files in cases.items():
             with self.subTest(label=label), mock.patch.object(
-                    catalogo, "fetch_file", side_effect=lambda u, s, e: s.write_bytes(b"x")):
+                    catalogo, "fetch_file", side_effect=lambda u, s, e, **kw: s.write_bytes(b"x")):
                 with self.assertRaises(ValueError):
                     catalogo.import_pack(self.mrpack(files), 2048)
             self.assertEqual(list((motor.ROOT / "instances").iterdir()), [])

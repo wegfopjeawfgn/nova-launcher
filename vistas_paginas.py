@@ -4,6 +4,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk
 
+import i18n
 from widgets import button, label
 
 NAV_ALIASES = {"Sesiones de juego": "Sesiones", "Editor de skins": "Skins", "Explorar Modrinth": "Explorar",
@@ -68,6 +69,7 @@ class PaginasMixin:
         return True
 
     def mark_nav(self, title):
+        title = i18n.tr(title)
         button_ = self.nav_box.get_first_child()
         while button_:
             if isinstance(button_, Gtk.Button):
