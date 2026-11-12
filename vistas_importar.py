@@ -9,6 +9,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import GLib, Gtk
 
+import errores
 import biblioteca
 import catalogo
 import motor
@@ -160,13 +161,14 @@ class ImportarMixin:
         dialog.present()
 
     def import_local(self, path, api_key="", manual_dir=None):
-        if self.busy:
-            return
+        self.submit("import", f"Importar {Path(path).name}",
+                    lambda entry: self.run_import(entry, path, api_key, manual_dir),
+                    lambda: self.import_local(path, api_key, manual_dir))
+
+    def run_import(self, entry, path, api_key, manual_dir):
         self.busy = True
         cancel = threading.Event()
         self.cancel_download = cancel
-        entry = self.history.start("import", f"Importar {Path(path).name}")
-        self.retries[entry] = lambda: self.import_local(path, api_key, manual_dir)
         self.set_download_progress("Importando modpack…")
         self.refresh()
         memory = self.preferences["memory"]
@@ -224,6 +226,7 @@ class ImportarMixin:
             except InterruptedError:
                 GLib.idle_add(finish, None, "Importación cancelada. Los archivos verificados se conservaron.")
             except Exception as exc:
+                errores.record(exc, "vistas_importar.worker")
                 GLib.idle_add(finish, None, f"No se pudo importar: {exc}",
                               isinstance(exc, catalogo.ManualPackFile))
             else:

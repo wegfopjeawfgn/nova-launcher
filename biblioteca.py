@@ -8,6 +8,7 @@ import threading
 import requests
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk
 
+import errores
 import catalogo
 import motor
 
@@ -220,6 +221,7 @@ class Browser:
             try:
                 result = task()
             except Exception as error:
+                errores.record(error, "biblioteca.worker")
                 GLib.idle_add(finish, None, str(error))
             else:
                 GLib.idle_add(finish, result, None)
@@ -491,6 +493,7 @@ def installed_view(app, folder, category=None):
             try:
                 task()
             except Exception as error:
+                errores.record(error, "biblioteca.worker")
                 GLib.idle_add(finish, str(error))
             else:
                 GLib.idle_add(finish, None)
@@ -597,6 +600,7 @@ def installed_view(app, folder, category=None):
                 try:
                     catalogo.install_content(folder, app.instances[folder], "mod", release, update=True)
                 except Exception as error:
+                    errores.record(error, "biblioteca.apply")
                     raise ValueError(f"Se actualizaron {count} mods. Falló {name}: {error}") from error
 
         def respond(_, response):

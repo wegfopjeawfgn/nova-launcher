@@ -11,6 +11,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import GLib, Gtk
 
+import errores
 import motor
 from widgets import label, button
 
@@ -135,6 +136,7 @@ class SesionesMixin:
                 message = f"Sesión de {player} cerrada" + (f" · código {result}" if result else ".")
                 GLib.idle_add(finish, message, result != 0)
             except Exception as error:
+                errores.record(error, "vistas_sesiones.worker")
                 GLib.idle_add(finish, f"No se pudo abrir la segunda sesión: {error}", True)
 
         threading.Thread(target=worker, daemon=True).start()

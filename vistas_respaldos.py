@@ -115,7 +115,7 @@ class RespaldosMixin:
                     lines.append(f"Java detectado · {found}")
                 if found and required and found < required:
                     lines.append("Este Java es demasiado antiguo para la instancia.")
-            except Exception as error:
+            except (OSError, ValueError, KeyError, motor.subprocess.SubprocessError) as error:
                 lines = [f"No se pudo comprobar Java: {error}"]
             GLib.idle_add(status.set_text, "\n".join(lines))
 

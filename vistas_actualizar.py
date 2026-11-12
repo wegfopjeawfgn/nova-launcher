@@ -50,13 +50,14 @@ class ActualizarMixin:
         dialog.present()
 
     def download_update(self, url, path, tag):
-        if self.busy or self.cancel_download:
-            return
+        self.submit("update", f"Actualización {tag}",
+                    lambda entry: self.run_update_download(entry, url, path, tag),
+                    lambda: self.download_update(url, path, tag))
+
+    def run_update_download(self, entry, url, path, tag):
         self.busy = True
         cancel = threading.Event()
         self.cancel_download = cancel
-        entry = self.history.start("update", f"Actualización {tag}")
-        self.retries[entry] = lambda: self.download_update(url, path, tag)
         self.set_download_progress("Descargando actualización…")
         self.refresh()
 
@@ -77,7 +78,7 @@ class ActualizarMixin:
         def worker():
             try:
                 actualizaciones.download(url, path, progress=progress)
-            except Exception as error:
+            except (OSError, ValueError, KeyError, actualizaciones.requests.RequestException) as error:
                 GLib.idle_add(finish, f"No se descargó la actualización: {error}")
             else:
                 GLib.idle_add(finish, None)
@@ -132,8 +133,8 @@ class ActualizarMixin:
 
         def worker():
             try:
-                release = actualizaciones.check(repo)
-            except Exception as error:
+                release = actualizaciones.check(repo, self.preferences.get("beta", False))
+            except (OSError, ValueError, KeyError, actualizaciones.requests.RequestException) as error:
                 GLib.idle_add(finish, None, str(error))
             else:
                 GLib.idle_add(finish, release, None)

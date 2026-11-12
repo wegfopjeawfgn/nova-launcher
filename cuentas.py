@@ -6,6 +6,8 @@ import uuid
 from gi.repository import Gio, GLib
 from minecraft_launcher_lib import microsoft_account as microsoft
 
+import errores
+
 REDIRECT = "http://localhost:8765"
 PAGE = ("<!doctype html><meta charset=utf-8><title>Nova Launcher</title>"
         "<body style='font-family:sans-serif;background:#10121a;color:#eee;text-align:center;padding-top:20vh'>"
@@ -89,6 +91,7 @@ def connect(app):
                 if not session.get("id") or not session.get("name"):
                     raise ValueError("Perfil no disponible")
             except Exception as error:
+                errores.record(error, "cuentas.worker")
                 GLib.idle_add(app.status.set_text,
                               "No se pudo iniciar sesión (" + type(error).__name__ + "). "
                               "Revisá que el ID tenga acceso a Minecraft Java.")
@@ -107,5 +110,6 @@ def connect(app):
 def refresh(client_id, session):
     try:
         return microsoft.complete_refresh(client_id, None, REDIRECT, session["refresh_token"])
-    except Exception:
+    except Exception as error:
+        errores.record(error, "cuentas.refresh")
         raise RuntimeError("La sesión de Microsoft venció. Volvé a conectarla desde Cuentas.") from None

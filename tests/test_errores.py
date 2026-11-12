@@ -22,6 +22,14 @@ class ErrorLogTests(unittest.TestCase):
         self.assertIn("ValueError", text)
         self.assertNotIn(str(Path.home()), text)
 
+    def test_report_hides_tokens(self):
+        with tempfile.TemporaryDirectory() as folder, mock.patch.object(motor, "ROOT", Path(folder)):
+            try:
+                raise ValueError("token " + "a" * 50)
+            except ValueError as error:
+                errores.record(error, "prueba")
+            self.assertNotIn("a" * 50, errores.report())
+
     def test_report_without_log(self):
         with tempfile.TemporaryDirectory() as folder, mock.patch.object(motor, "ROOT", Path(folder)):
             self.assertIn("Sin errores registrados.", errores.report())

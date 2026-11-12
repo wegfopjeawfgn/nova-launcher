@@ -13,6 +13,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import GLib, Gdk, GdkPixbuf, Gio, Gtk, Pango
 
+import errores
 import actualizaciones
 import atajos
 import biblioteca
@@ -57,6 +58,7 @@ class Nova(
         self.download_view = None
         self.history = historial.History(motor.ROOT / "downloads-history.json")
         self.retries = {}
+        self.queue = []
         self.history_view = None
         self.launch_stage = ""
         self.versions = []
@@ -106,7 +108,7 @@ class Nova(
         accounts = motor.read(motor.ROOT / "accounts.json", {"active": "", "profiles": []})
         self.preferences = {
             "memory": 4, "java": "", "resolution": "default", "console": False,
-            "compact": False, "alphabetical": False, "launch_behavior": "keep",
+            "compact": False, "alphabetical": False, "launch_behavior": "keep", "beta": False,
             **motor.read(motor.ROOT / "settings.json", {}),
         }
         self.release_repo = actualizaciones.repository(
@@ -422,6 +424,7 @@ class Nova(
                     from minecraft_launcher_lib.mod_loader import get_mod_loader
                     available = get_mod_loader(loader_id).get_loader_versions(version, False)
                 except Exception as exc:
+                    errores.record(exc, "nova.worker")
                     GLib.idle_add(finish, [], f"No se pudieron consultar las versiones: {exc}")
                 else:
                     message = "Abrí la lista para elegir una versión." if available else "Sin builds compatibles."
@@ -608,6 +611,7 @@ class Nova(
             ("compact", "Usar lista compacta incluso con una o dos instancias"),
             ("alphabetical", "Ordenar instancias por nombre"),
             ("console", "Abrir la consola al iniciar Minecraft"),
+            ("beta", "Recibir también versiones beta de Nova"),
         ):
             control = Gtk.CheckButton(label=title, active=self.preferences[key])
             toggles[key] = control
@@ -617,6 +621,11 @@ class Nova(
         repo = Gtk.Entry(text=self.preferences.get("release_repo", self.release_repo),
                          placeholder_text="usuario/repositorio")
         box.append(repo)
+        box.append(label("Ayuda", "settings-heading"))
+        box.append(button("Copiar reporte de errores", lambda: (
+            dialog.get_clipboard().set(errores.report()),
+            self.status.set_text("Reporte copiado. Pegalo en la página de reportes de GitHub."))))
+        box.append(button("Abrir página de reportes", lambda: Gio.AppInfo.launch_default_for_uri(errores.ISSUES_URL, None)))
         error = label("", "form-error")
         error.set_wrap(True)
         box.append(error)
@@ -930,6 +939,7 @@ class Nova(
             try:
                 task()
             except Exception as exc:
+                errores.record(exc, "nova.worker")
                 GLib.idle_add(self.finished, f"No se pudo completar: {exc}")
             else:
                 GLib.idle_add(saved)
@@ -1094,6 +1104,7 @@ class Nova(
                     message = (f"Minecraft terminó con código {result}. "
                                f"{diagnosis or 'Abrí Ver registro para ver los detalles.'}")
             except Exception as exc:
+                errores.record(exc, "nova.worker")
                 failed = True
                 message = f"Error al iniciar Minecraft: {exc}"
             GLib.idle_add(finish, message, failed)
@@ -1110,6 +1121,7 @@ class Nova(
         self.busy = False
         self.status.set_text(message)
         self.refresh()
+        GLib.idle_add(self.run_queue)
 
 
 if __name__ == "__main__":

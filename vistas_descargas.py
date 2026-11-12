@@ -23,6 +23,33 @@ class DescargasMixin:
         if self.history_view:
             self.history_view()
 
+    def submit(self, kind, title, start, retry):
+        """Start a download job now, or queue it behind the one in progress."""
+        waiting = bool(self.busy or self.cancel_download)
+        entry = self.history.start(kind, title, "queued" if waiting else "running")
+        self.retries[entry] = retry
+        if not waiting:
+            start(entry)
+            return
+        self.queue.append((entry, start))
+        self.status.set_text(f"En cola ({len(self.queue)}) · {title}")
+        if self.history_view:
+            self.history_view()
+
+    def run_queue(self):
+        if self.busy or self.cancel_download or not self.queue:
+            return False
+        entry, start = self.queue.pop(0)
+        self.history.finish(entry, "running", "")
+        start(entry)
+        return False
+
+    def unqueue(self, entry_id):
+        self.queue = [item for item in self.queue if item[0] != entry_id]
+        self.history.finish(entry_id, "cancelled", "Quitada de la cola.")
+        if self.history_view:
+            self.history_view()
+
     def set_download_progress(self, message):
         self.download_progress = message
         self.status.set_text(message)
@@ -58,7 +85,7 @@ class DescargasMixin:
 
         def retry(entry_id):
             action = self.retries.get(entry_id)
-            if action and not self.busy and not self.cancel_download:
+            if action:
                 action()
 
         def render():
@@ -76,7 +103,9 @@ class DescargasMixin:
                 detail.set_max_width_chars(48)
                 info.append(detail)
                 line.append(info)
-                if item["state"] in {"error", "cancelled"} and item["id"] in self.retries:
+                if item["state"] == "queued":
+                    line.append(button("Quitar", lambda i=item["id"]: self.unqueue(i)))
+                elif item["state"] in {"error", "cancelled"} and item["id"] in self.retries:
                     line.append(button("Reintentar", lambda i=item["id"]: retry(i)))
                 rows.append(line)
 

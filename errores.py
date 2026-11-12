@@ -1,4 +1,5 @@
 import platform
+import re
 import traceback
 from datetime import datetime
 
@@ -31,6 +32,7 @@ def report(lines=60):
     except OSError:
         tail = []
     home = str(motor.Path.home())
-    body = "\n".join(tail).replace(home, "~") or "Sin errores registrados."
+    body = re.sub(r"[\w.~-]{40,}", "<oculto>", "\n".join(tail).replace(home, "~"))  # tokens, hashes
+    body = body or "Sin errores registrados."
     return (f"Nova {NOVA_VERSION} · {platform.system()} {platform.release()} · "
             f"Python {platform.python_version()}\n\n{body}")
