@@ -22,7 +22,8 @@ import historial
 import integraciones
 import motor
 import respaldos
-from widgets import resolution_field, instance_art, label, button, feature_button, HERE
+import tiempo
+from widgets import resolution_field, instance_art, hero_art, enter, label, button, feature_button, HERE
 from vistas_cuentas import CuentasMixin
 from vistas_importar import ImportarMixin
 from vistas_servidores import ServidoresMixin
@@ -125,7 +126,9 @@ class Nova(
         self.microsoft = credenciales.load_session()
         titlebar = Gtk.HeaderBar(decoration_layout=":minimize,maximize,close")
         titlebar.add_css_class("nova-titlebar")
-        titlebar.set_title_widget(Gtk.Label())
+        self.library_query = Gtk.SearchEntry(placeholder_text="Buscar instancias", width_chars=34,
+                                             max_width_chars=34, css_classes=["top-search"])
+        titlebar.set_title_widget(self.library_query)
         identity = Gtk.Box(spacing=8)
         logo = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(HERE / "nova-logo.svg"), 24, 24, True)
         identity.append(Gtk.Image.new_from_pixbuf(logo))
@@ -134,8 +137,10 @@ class Nova(
         self.accounts = Gtk.MenuButton(css_classes=["account-switcher"])
         titlebar.pack_end(self.accounts)
         self.window.set_titlebar(titlebar)
-        shell = Gtk.Box()
-        self.window.set_child(shell)
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.window.set_child(outer)
+        shell = Gtk.Box(vexpand=True)
+        outer.append(shell)
         sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, css_classes=["sidebar"])
         nav_scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER,
                                         propagate_natural_width=True)
@@ -167,53 +172,51 @@ class Nova(
         scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         shell.append(scroll)
-        main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=17)
+        main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
         main.add_css_class("main")
         scroll.set_child(main)
-        library_header = Gtk.Box(spacing=16)
+        library_header = Gtk.Box(spacing=10)
         title_group = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, hexpand=True)
         title_group.append(label("Mis instancias", "heading"))
         self.library_count = label("", "muted")
         title_group.append(self.library_count)
         library_header.append(title_group)
-        new = button("", self.add_instance, "primary")
-        new.set_child(Gtk.Box(spacing=8))
-        new.get_child().append(Gtk.Image.new_from_icon_name("list-add-symbolic"))
-        new.get_child().append(label("Nueva instancia"))
-        new.update_property([Gtk.AccessibleProperty.LABEL], ["Nueva instancia"])
-        new.set_valign(Gtk.Align.CENTER)
-        library_header.append(new)
+        library_header.append(self.header_button("Importar", "document-open-symbolic",
+                                                 lambda: self.add_instance(import_only=True)))
+        library_header.append(self.header_button("Nueva instancia", "list-add-symbolic",
+                                                 self.add_instance, "primary"))
         main.append(library_header)
-        library_controls = Gtk.Box(spacing=8)
-        self.library_query = Gtk.SearchEntry(hexpand=True, placeholder_text="Buscar instancias")
+        self.details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        main.append(self.details)
         self.library_filter = Gtk.ComboBoxText()
         for key, title in (("all", "Todas"), ("favorites", "Favoritas"), ("recent", "Jugadas recientemente")):
             self.library_filter.append(key, title)
         self.library_filter.set_active_id("all")
-        library_controls.append(self.library_query)
-        library_controls.append(self.library_filter)
-        main.append(library_controls)
-        self.cards = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=3,
-                                 homogeneous=True, column_spacing=12, row_spacing=12)
+        section = Gtk.Box(spacing=10)
+        section.append(label("Tus instancias", "section-title"))
+        section.append(Gtk.Box(hexpand=True))
+        section.append(self.library_filter)
+        main.append(section)
+        self.cards = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=4,
+                                 min_children_per_line=2, homogeneous=True, column_spacing=14, row_spacing=14)
         main.append(self.cards)
         self.compact = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
         main.append(self.compact)
         self.instance_rows = {}
         self.expanded_folder = None
         self.library_layout = None
-        self.details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
-        self.details.add_css_class("details")
-        main.append(self.details)
         self.status = label("Listo", "muted")
         self.status.set_wrap(True)
-        self.status.add_css_class("status-line")
-        status_row = Gtk.Box(spacing=8)
         self.status.set_hexpand(True)
-        status_row.append(self.status)
-        self.failure_log = button("Ver registro", lambda: consola.open_console(self.window, self.failed_log))
+        statusbar = Gtk.Box(spacing=10, css_classes=["statusbar"])
+        statusbar.append(self.status)
+        self.queue_label = label("", "muted")
+        statusbar.append(self.queue_label)
+        self.failure_log = button("Ver registro", lambda: consola.open_console(self.window, self.failed_log),
+                                  "quiet-button")
         self.failure_log.set_visible(False)
-        status_row.append(self.failure_log)
-        main.append(status_row)
+        statusbar.append(self.failure_log)
+        outer.append(statusbar)
         self.library_query.connect("search-changed", lambda _: self.refresh())
         self.library_filter.connect("changed", lambda _: self.refresh())
         self.update_accounts()
@@ -250,6 +253,17 @@ class Nova(
 
 
 
+
+    @staticmethod
+    def header_button(title, icon, action, style=None):
+        content = Gtk.Box(spacing=8)
+        content.append(Gtk.Image.new_from_icon_name(icon))
+        content.append(label(title))
+        control = button("", action, style)
+        control.set_child(content)
+        control.set_valign(Gtk.Align.CENTER)
+        control.update_property([Gtk.AccessibleProperty.LABEL], [title])
+        return control
 
     @staticmethod
     def nav_button(title, icon, action, active=False):
@@ -607,15 +621,22 @@ class Nova(
         box.append(hint)
         box.append(label("Biblioteca y diagnóstico", "settings-heading"))
         toggles = {}
-        for key, title in (
-            ("compact", "Usar lista compacta incluso con una o dos instancias"),
-            ("alphabetical", "Ordenar instancias por nombre"),
-            ("console", "Abrir la consola al iniciar Minecraft"),
-            ("beta", "Recibir también versiones beta de Nova"),
+        for key, title, hint in (
+            ("compact", "Lista compacta", "Usarla incluso con pocas instancias."),
+            ("alphabetical", "Ordenar por nombre", "Si no, se muestran en el orden de creación."),
+            ("console", "Abrir la consola al iniciar", "Útil para depurar mods."),
+            ("beta", "Versiones beta de Nova", "Pruebas anticipadas, pueden tener errores."),
         ):
-            control = Gtk.CheckButton(label=title, active=self.preferences[key])
+            control = Gtk.Switch(active=self.preferences[key], valign=Gtk.Align.CENTER)
+            control.update_property([Gtk.AccessibleProperty.LABEL], [title])
             toggles[key] = control
-            box.append(control)
+            row = Gtk.Box(spacing=12, css_classes=["opt-row"])
+            text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
+            text.append(label(title, "form-label"))
+            text.append(label(hint, "opt-hint"))
+            row.append(text)
+            row.append(control)
+            box.append(row)
         box.append(label("Actualizaciones", "settings-heading"))
         box.append(label("Repositorio público de GitHub", "form-label"))
         repo = Gtk.Entry(text=self.preferences.get("release_repo", self.release_repo),
@@ -674,11 +695,13 @@ class Nova(
             visible = dict(sorted(visible.items(), key=lambda item: item[1]["name"].casefold()))
         self.visible_instances = visible
         count = len(visible)
-        self.library_count.set_text("1 instancia" if count == 1 else f"{count} instancias")
+        played = tiempo.total(self.library)
+        self.library_count.set_text(("1 instancia" if count == 1 else f"{count} instancias")
+                                    + (f" · {tiempo.short(played)} jugadas" if played else ""))
         if self.selected not in visible:
             self.selected = next((folder for folder in visible
                                   if folder.name == self.library.get("selected")), next(iter(visible), None))
-        compact = bool(self.visible_instances) and (len(self.visible_instances) > 2 or self.preferences["compact"])
+        compact = bool(self.visible_instances) and (len(self.visible_instances) > 12 or self.preferences["compact"])
         layout = (compact, tuple((folder, instance["name"], instance["version"], instance["loader"],
                                   instance["artwork"], instance.get("cover"))
                                  for folder, instance in self.visible_instances.items()))
@@ -715,19 +738,32 @@ class Nova(
             self.render_details(self.details)
 
     def render_cards(self):
-        for folder, instance in self.visible_instances.items():
+        for index, (folder, instance) in enumerate(self.visible_instances.items()):
             card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            artwork = instance_art(instance)
+            artwork = instance_art(instance, -1, 104)
             card.append(artwork)
             title = label(instance["name"], "card-label")
             title.set_ellipsize(Pango.EllipsizeMode.END)
             card.append(title)
-            card.append(label(f"{instance['version']} · {motor.LOADERS[instance['loader']]}", "card-meta"))
+            played = tiempo.of(self.library, folder.name)
+            meta = f"{instance['version']} · {motor.LOADERS[instance['loader']]}"
+            card.append(label(meta + (f" · {tiempo.short(played)}" if played else ""), "card-meta"))
             tile = button("", lambda selected=folder: self.select(selected), "card")
             tile.set_child(card)
+            tile.update_property([Gtk.AccessibleProperty.LABEL], [instance["name"]])
             if folder == self.selected:
                 tile.add_css_class("selected")
+            enter(tile, index * 45)  # stagger: decorative, never blocks clicks
             self.cards.append(tile)
+        create = button("", self.add_instance, "card-new")
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, halign=Gtk.Align.CENTER,
+                          valign=Gtk.Align.CENTER)
+        content.append(Gtk.Image.new_from_icon_name("list-add-symbolic"))
+        content.append(label("Nueva instancia"))
+        create.set_child(content)
+        create.update_property([Gtk.AccessibleProperty.LABEL], ["Nueva instancia"])
+        enter(create, len(self.visible_instances) * 45)
+        self.cards.append(create)
 
     def add_compact_instance(self, folder, instance):
         row = Gtk.Box(spacing=10)
@@ -811,19 +847,34 @@ class Nova(
             details.append(actions)
             return
         instance = self.instances[self.selected]
-        summary = Gtk.Box(spacing=16)
-        artwork = instance_art(instance, 120, 104)
-        summary.append(artwork)
-        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, hexpand=True)
-        summary.append(info)
-        row = Gtk.Box(spacing=10)
-        name = label(instance["name"], "subheading")
-        name.set_hexpand(True)
+        folder = self.selected
+        hero = Gtk.Overlay(css_classes=["hero"])
+        hero.set_overflow(Gtk.Overflow.HIDDEN)
+        hero.set_child(hero_art(instance))
+        hero.add_overlay(Gtk.Box(css_classes=["hero-shade"]))
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, valign=Gtk.Align.END,
+                          halign=Gtk.Align.START, css_classes=["hero-content"])
+        hero.add_overlay(content)
+        if folder.name in self.library.get("favorites", []):
+            content.append(Gtk.Label(label="★ Favorita", halign=Gtk.Align.START, css_classes=["chip", "chip-accent"]))
+        name = label(instance["name"], "hero-title")
         name.set_ellipsize(Pango.EllipsizeMode.END)
         name.set_tooltip_text(instance["name"])
-        row.append(name)
+        content.append(name)
+        chips = Gtk.Box(spacing=6)
+        loader_name = motor.LOADERS[instance["loader"]]
+        played = tiempo.of(self.library, folder.name)
+        for text, accent in ((instance["version"], True),
+                             (f"{loader_name} {instance['loader_version']}".strip(), False),
+                             (f"{instance['memory']} GB", False),
+                             (f"⏱ {tiempo.short(played)}", False)):
+            chips.append(Gtk.Label(label=text, css_classes=["chip", "chip-accent"] if accent else ["chip"]))
+        content.append(chips)
+        actions = Gtk.Box(spacing=8, css_classes=["hero-actions"])
         play = button("", self.play, "primary")
         play.add_css_class("play-button")
+        if self.launch_stage:
+            play.add_css_class("launching")
         play_content = Gtk.Box(spacing=8)
         play_content.append(Gtk.Image.new_from_icon_name("media-playback-start-symbolic"))
         self.play_label = label(self.launch_stage or "Jugar")
@@ -831,48 +882,36 @@ class Nova(
         play.set_child(play_content)
         play.update_property([Gtk.AccessibleProperty.LABEL], ["Jugar"])
         play.set_sensitive(not self.busy and not self.parallel)
-        row.append(play)
-        info.append(row)
-        info.append(label("Minecraft Java", "muted"))
-        chips = Gtk.Box(spacing=6)
-        loader_name = motor.LOADERS[instance["loader"]]
-        for text, accent in ((instance["version"], True),
-                             (f"{loader_name} {instance['loader_version']}".strip(), False),
-                             (f"{instance['memory']} GB", False)):
-            chips.append(Gtk.Label(label=text, css_classes=["chip", "chip-accent"] if accent else ["chip"]))
-        info.append(chips)
-        details.append(summary)
-        if instance.get("notes"):
-            note = label(instance["notes"], "muted")
-            note.set_wrap(True)
-            details.append(note)
-        folder = self.selected
-        details.append(label("Contenido de la instancia", "feature-title"))
-        shortcuts = Gtk.Box(spacing=10, homogeneous=True)
-        for category, title in (
-            ("mod", "Mods"),
-            ("shader", "Shaders"),
-            ("resourcepack", "Texturas"),
-        ):
-            count = len(biblioteca.content_files(folder, category))
-            detail = "1 instalado" if count == 1 else f"{count} instalados"
-            shortcut = feature_button(title, detail, lambda kind=category: biblioteca.Browser(
-                self, folder, instance, kind
-            ))
-            shortcut.set_sensitive(not self.busy)
-            shortcuts.append(shortcut)
-        details.append(shortcuts)
-        actions = Gtk.Box(spacing=8, css_classes=["instance-toolbar"])
-        actions.append(button("Editar instancia", self.edit_settings))
-        actions.append(button("Ver registro", lambda: self.open_log(folder)))
+        actions.append(play)
+        actions.append(button("Editar", self.edit_settings))
         actions.append(button("Servidores", lambda: self.open_servers(folder)))
-        more = Gtk.MenuButton(label="Más acciones")
+        more = Gtk.MenuButton(icon_name="view-more-symbolic", tooltip_text="Más acciones")
+        more.update_property([Gtk.AccessibleProperty.LABEL], ["Más acciones"])
         popover = Gtk.Popover()
         menu = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, css_classes=["action-menu"])
         popover.set_child(menu)
         more.set_popover(popover)
         actions.append(more)
-        details.append(actions)
+        content.append(actions)
+        details.append(hero)
+        enter(hero)
+        tiles = Gtk.Box(spacing=12, homogeneous=True)
+        for category, title in (("mod", "Mods"), ("shader", "Shaders"), ("resourcepack", "Texturas")):
+            count = len(biblioteca.content_files(folder, category))
+            tile = feature_button(title, "1 instalado" if count == 1 else f"{count} instalados",
+                                  lambda kind=category: biblioteca.Browser(self, folder, instance, kind))
+            tile.set_sensitive(not self.busy)
+            tiles.append(tile)
+        tile = feature_button("Tiempo jugado", tiempo.short(played), lambda: None)
+        tile.add_css_class("stat")
+        tile.set_can_target(False)
+        tile.set_focusable(False)
+        tiles.append(tile)
+        details.append(tiles)
+        if instance.get("notes"):
+            note = label(instance["notes"], "muted")
+            note.set_wrap(True)
+            details.append(note)
 
         def add_action(title, action, style=None):
             def activate():
@@ -889,6 +928,7 @@ class Nova(
         alternate.set_sensitive(not self.parallel and (not self.busy or
                                 (self.running and self.running[0] == folder)))
         menu.append(alternate)
+        add_action("Ver registro", lambda: self.open_log(folder))
         add_action("Abrir carpeta", lambda: motor.open_folder(folder))
         add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))
         add_action("Duplicar instancia", lambda: self.copy_instance(folder, "duplicate"))
@@ -1048,9 +1088,11 @@ class Nova(
         self.refresh()
 
         minimized = False
+        began = []
 
         def started(player):
             nonlocal minimized
+            began.append(time.monotonic())
             self.running = folder, player, server
             self.library["selected"] = folder.name
             self.library.setdefault("recent", {})[folder.name] = time.time()
@@ -1066,6 +1108,9 @@ class Nova(
         def finish(message, failed):
             self.running = None
             self.launch_stage = ""
+            if began:
+                tiempo.add(self.library, folder.name, time.monotonic() - began[0])
+                self.save_library()
             self.finished(message)
             self.failed_log = folder / "minecraft.log"
             self.failure_log.set_visible(failed)

@@ -31,13 +31,55 @@ def cover_texture(path, width, height):
     return Gdk.Texture.new_for_pixbuf(pixels)
 
 
+# Boxes of the three bundled covers inside referencia.png (x, y, width, height).
+DEFAULT_COVERS = ((303, 311, 376, 216), (713, 311, 370, 216), (1116, 311, 377, 216))  # inset: skip the sheet's frame
+
+
+@lru_cache(maxsize=8)
+def default_cover(index):
+    x, y, width, height = DEFAULT_COVERS[index % len(DEFAULT_COVERS)]
+    sheet = GdkPixbuf.Pixbuf.new_from_file(str(HERE / "referencia.png"))
+    return Gdk.Texture.new_for_pixbuf(sheet.new_subpixbuf(x, y, width, height))
+
+
+def hero_art(instance, height=260):
+    """Wide banner picture: the custom cover when there is one, else a bundled cover."""
+    picture = Gtk.Picture(can_shrink=True, content_fit=Gtk.ContentFit.COVER, height_request=height)
+    cover = instance.get("cover", "")
+    path = motor.ROOT / "covers" / cover if re.fullmatch(r"[a-f0-9]{64}\.png", cover) else None
+    try:
+        if path and path.is_file():
+            picture.set_paintable(cover_texture(path, 1600, height * 2))
+            return picture
+    except GLib.Error:
+        pass
+    picture.set_paintable(default_cover(instance["artwork"]))
+    return picture
+
+
+def motion_enabled():
+    return Gtk.Settings.get_default().get_property("gtk-enable-animations")
+
+
+def enter(widget, delay=0):
+    """Fade and rise into place. The `entering` class holds the start state; removing it lets the
+    CSS transition run, so an interrupted entrance retargets instead of restarting."""
+    if not motion_enabled():
+        return
+    widget.add_css_class("entering")
+
+    def settle():
+        widget.remove_css_class("entering")
+        return False
+
+    GLib.timeout_add(48 + delay, settle)
+
+
 def instance_art(instance, width=-1, height=145):
-    frame = Gtk.Overlay(width_request=width, height_request=height)
-    background = Gtk.Box(css_classes=[f"art{instance['artwork']}"])
-    frame.set_child(background)
-    picture = Gtk.Picture(can_shrink=True, content_fit=Gtk.ContentFit.COVER,
-                          css_classes=["instance-cover"])
-    frame.add_overlay(picture)
+    picture = Gtk.Picture(can_shrink=True, content_fit=Gtk.ContentFit.COVER, width_request=width,
+                          height_request=height, css_classes=["instance-cover"])
+    picture.set_overflow(Gtk.Overflow.HIDDEN)
+    picture.set_paintable(default_cover(instance["artwork"]))
     cover = instance.get("cover", "")
     if re.fullmatch(r"[a-f0-9]{64}\.png", cover):
         path = motor.ROOT / "covers" / cover
@@ -46,7 +88,7 @@ def instance_art(instance, width=-1, height=145):
                 picture.set_paintable(cover_texture(path, width * 2 if width > 0 else 768, height * 2))
             except GLib.Error:
                 pass
-    return frame
+    return picture
 
 
 def label(value, style=None):
