@@ -24,6 +24,7 @@ jobs:
       - name: Construir y verificar el RPM
         run: |
           set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           version=$(python3 -c 'import actualizaciones; print(actualizaciones.VERSION)')
           spec_version=$(rpmspec -q --qf '%{version}' nova-launcher.spec)
           test "$spec_version" = "$version"
