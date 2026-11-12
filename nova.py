@@ -21,12 +21,17 @@ import consola
 import historial
 import integraciones
 import motor
+import estadisticas
+import i18n
 import respaldos
 import tiempo
 from widgets import resolution_field, instance_art, hero_art, enter, label, button, feature_button, HERE
 from vistas_cuentas import CuentasMixin
 from vistas_paginas import PaginasMixin
 from vistas_salud import SaludMixin
+from vistas_perfiles import PerfilesMixin
+from vistas_curseforge import CurseForgeMixin
+from vistas_estadisticas import EstadisticasMixin
 from vistas_importar import ImportarMixin
 from vistas_servidores import ServidoresMixin
 from vistas_descargas import DescargasMixin
@@ -38,6 +43,9 @@ from vistas_respaldos import RespaldosMixin
 class Nova(
     PaginasMixin,
     SaludMixin,
+    PerfilesMixin,
+    CurseForgeMixin,
+    EstadisticasMixin,
     CuentasMixin,
     ImportarMixin,
     ServidoresMixin,
@@ -120,9 +128,10 @@ class Nova(
         accounts = motor.read(motor.ROOT / "accounts.json", {"active": "", "profiles": []})
         self.preferences = {
             "memory": 4, "java": "", "resolution": "default", "console": False,
-            "compact": False, "alphabetical": False, "launch_behavior": "keep", "beta": False, "auto_backup_days": 0, "theme": "dark",
+            "compact": False, "alphabetical": False, "launch_behavior": "keep", "beta": False, "auto_backup_days": 0, "theme": "dark", "language": "es",
             **motor.read(motor.ROOT / "settings.json", {}),
         }
+        i18n.set_language(self.preferences.get("language", "es"))
         self.release_repo = actualizaciones.repository(
             motor.read(HERE / "canal.json", {}).get("repository", "")
         )
@@ -159,22 +168,25 @@ class Nova(
         self.nav_box = nav
         nav_scroll.set_child(nav)
         sidebar.append(nav_scroll)
-        nav.append(label("BIBLIOTECA", "nav-caption"))
+        nav.append(label(i18n.tr("BIBLIOTECA"), "nav-caption"))
         nav.append(self.nav_button("Instancias", "view-grid-symbolic",
                                    lambda: (self.leave_page(), scroll.get_vadjustment().set_value(0)), active=True))
         nav.append(self.nav_button("Nueva instancia", "list-add-symbolic", self.add_instance))
-        nav.append(label("DESCUBRIR", "nav-caption"))
+        nav.append(self.nav_button("Novedades", "package-x-generic-symbolic", self.show_news))
+        nav.append(label(i18n.tr("DESCUBRIR"), "nav-caption"))
         nav.append(self.nav_button("Explorar", "system-search-symbolic", self.browse))
+        nav.append(self.nav_button("CurseForge", "system-search-symbolic", self.show_curseforge))
         nav.append(self.nav_button("Modpacks", "package-x-generic-symbolic", self.browse_packs))
         nav.append(self.nav_button("Importar pack", "document-open-symbolic",
                                    lambda: self.add_instance(import_only=True)))
-        nav.append(label("HERRAMIENTAS", "nav-caption"))
+        nav.append(label(i18n.tr("HERRAMIENTAS"), "nav-caption"))
         nav.append(self.nav_button("Skins", "applications-graphics-symbolic", self.open_skins))
         nav.append(self.nav_button("Servidores", "network-server-symbolic", self.open_servers))
         nav.append(self.nav_button("Respaldos", "document-open-symbolic", self.show_backups))
         nav.append(self.nav_button("Sesiones", "media-playback-start-symbolic", self.show_sessions))
         nav.append(self.nav_button("Descargas", "folder-download-symbolic", self.show_downloads))
         nav.append(self.nav_button("Almacenamiento", "drive-harddisk-symbolic", self.show_storage))
+        nav.append(self.nav_button("Estadísticas", "applications-graphics-symbolic", self.show_statistics))
         # One card: version and update state on the left, settings gear on the right.
         self.release_card = Gtk.Box(spacing=4, css_classes=["me-card"])
         info = Gtk.Box(spacing=10)
@@ -319,9 +331,9 @@ class Nova(
         icon_widget = Gtk.Image.new_from_file(str(bundled)) if bundled.is_file() else Gtk.Image.new_from_icon_name(icon)
         icon_widget.set_pixel_size(16)
         row.append(icon_widget)
-        row.append(label(title))
+        row.append(label(i18n.tr(title)))
         control.set_child(row)
-        control.update_property([Gtk.AccessibleProperty.LABEL], [title])
+        control.update_property([Gtk.AccessibleProperty.LABEL], [i18n.tr(title)])
         if active:
             control.add_css_class("nav-active")
         return control
@@ -407,8 +419,13 @@ class Nova(
              lambda: self.import_pack("zip")),
         )
         options += (("Importar desde Prism Launcher", "Copiá la instancia, sus mods y sus mundos.",
-                     self.choose_prism),)
-        for name, detail, action in options[2:4] if import_only else options:
+                     self.choose_prism),
+                    ("Desde una plantilla", "Supervivencia, PvP, rendimiento y más, con ajustes razonables.",
+                     self.show_templates),
+                    ("Importar un perfil de Nova", "Archivo .json exportado desde otra instancia.",
+                     self.import_profile))
+        shown = options[2:4] + options[6:] if import_only else options
+        for name, detail, action in shown:
             content.append(feature_button(name, detail, lambda run=action: choose(run)))
         chooser.set_child(content)
         self.show_page(chooser)
@@ -418,9 +435,9 @@ class Nova(
         if self.selected:
             self.instance_form(self.selected)
 
-    def instance_form(self, folder):
+    def instance_form(self, folder, preset=None):
         values = self.instances[folder] if folder else {
-            **motor.DEFAULTS, "name": "", "memory": self.preferences["memory"],
+            **motor.DEFAULTS, "name": "", "memory": self.preferences["memory"], **(preset or {}),
         }
         dialog = Gtk.Dialog(title="Editar instancia" if folder else "Nueva instancia",
                             transient_for=self.window, modal=True)
@@ -690,6 +707,13 @@ class Nova(
         box.append(backup_days)
         box.append(label("Se hace una vez al abrir Nova para las instancias sin respaldo reciente. "
                          "No borra respaldos viejos.", "opt-hint"))
+        box.append(label("Idioma", "settings-heading"))
+        language = Gtk.ComboBoxText()
+        for code in i18n.available():
+            language.append(code, {"es": "Español", "en": "English"}.get(code, code))
+        language.set_active_id(self.preferences.get("language", "es"))
+        box.append(language)
+        box.append(label("Se aplica al reiniciar Nova. Los textos sin traducción siguen en español.", "opt-hint"))
         box.append(label("Apariencia", "settings-heading"))
         theme = Gtk.ComboBoxText()
         theme.append("dark", "Oscuro")
@@ -720,6 +744,7 @@ class Nova(
                                 "launch_behavior": behavior.get_active_id(),
                                 "auto_backup_days": backup_days.get_value_as_int(),
                                 "theme": theme.get_active_id(),
+                                "language": language.get_active_id() or "es",
                                 **{key: control.get_active() for key, control in toggles.items()}}
                     motor.save(motor.ROOT / "settings.json", settings)
                     self.preferences = settings
@@ -993,6 +1018,7 @@ class Nova(
                                 (self.running and self.running[0] == folder)))
         menu.append(alternate)
         add_action("Salud y mods", lambda: self.show_health(folder))
+        add_action("Exportar perfil", lambda: self.export_profile(folder))
         add_action("Ver registro", lambda: self.open_log(folder))
         add_action("Abrir carpeta", lambda: motor.open_folder(folder))
         add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))
@@ -1154,10 +1180,13 @@ class Nova(
 
         minimized = False
         began = []
+        clicked = time.monotonic()
+        wall = []
 
         def started(player):
             nonlocal minimized
             began.append(time.monotonic())
+            wall.append(time.time())
             self.running = folder, player, server
             self.library["selected"] = folder.name
             self.library.setdefault("recent", {})[folder.name] = time.time()
@@ -1174,8 +1203,11 @@ class Nova(
             self.running = None
             self.launch_stage = ""
             if began:
-                tiempo.add(self.library, folder.name, time.monotonic() - began[0])
+                seconds = time.monotonic() - began[0]
+                tiempo.add(self.library, folder.name, seconds)
                 self.save_library()
+                estadisticas.record_session(folder.name, started_at=wall[0], seconds=seconds,
+                                            launch_seconds=began[0] - clicked, ok=not failed)
             self.finished(message)
             self.failed_log = folder / "minecraft.log"
             self.failure_log.set_visible(failed)
