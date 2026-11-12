@@ -32,6 +32,7 @@ jobs:
           cp -R /ucrt64/{bin,lib,share,etc} "$bundle/runtime/"
           cp *.py nova.css nova-light.css nova-logo.svg referencia.png canal.json "$bundle/app/"
           cp -R icons branding locales "$bundle/app/"
+          cp LICENSE THIRD_PARTY_LICENSES.md "$bundle/app/"
           "$bundle/runtime/bin/python.exe" -m pip install --target "$bundle/app" -r requirements.txt
           cd "$bundle/app"
           ../runtime/bin/python.exe -c 'import nova, skins, minecraft_launcher_lib; print(nova.actualizaciones.VERSION)'

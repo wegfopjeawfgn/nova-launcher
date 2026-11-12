@@ -193,6 +193,11 @@
       <details>
         <summary>¿Cómo sé que el instalador es el original?</summary>
         <p>Cada archivo de la release tiene su suma SHA-256. Nova también verifica la suma de las actualizaciones que descarga. Los instaladores todavía no tienen firma de código.</p>
+        <p>En Windows, antes de abrirlo ejecutá en PowerShell <code>Get-FileHash .\nova-launcher-…-windows-x64-setup.exe -Algorithm SHA256</code> y comprobá que el resultado coincide con el archivo <code>.sha256</code> de la release. Si coincide y SmartScreen avisa, elegí «Más información → Ejecutar de todos modos».</p>
+      </details>
+      <details>
+        <summary>¿Es de código abierto?</summary>
+        <p>Sí. Nova es software libre bajo la licencia <a href="https://github.com/wegfopjeawfgn/nova-launcher/blob/main/LICENSE">GPL-3.0-or-later</a>: podés usarlo, estudiarlo, modificarlo y compartirlo, y las versiones modificadas que distribuyas deben mantener la misma licencia. Los avisos de las dependencias están en <a href="https://github.com/wegfopjeawfgn/nova-launcher/blob/main/THIRD_PARTY_LICENSES.md">THIRD_PARTY_LICENSES.md</a>.</p>
       </details>
       <details>
         <summary>¿Dónde pido ayuda o reporto un error?</summary>
@@ -207,6 +212,7 @@
     <nav aria-label="Información del proyecto">
       <a href="terminos.html">Términos y condiciones</a>
       <a href="terminos.html#privacidad">Privacidad</a>
+      <a href="https://github.com/wegfopjeawfgn/nova-launcher/blob/main/LICENSE">Licencia GPL-3.0</a>
       <a href="https://github.com/wegfopjeawfgn/nova-launcher/releases">Versiones</a>
       <a href="https://github.com/wegfopjeawfgn/nova-launcher/issues">Soporte ↗</a>
     </nav>
