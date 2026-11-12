@@ -5,8 +5,11 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gtk, Pango
+import threading
 
+from gi.repository import GLib, Gtk, Pango
+
+import estado
 import motor
 import servidores
 from widgets import label, button
@@ -55,6 +58,16 @@ class ServidoresMixin:
             self.select(folder)
             self.play(target)
 
+        def check(target, result):
+            result.set_visible(True)
+            result.set_text("Comprobando…")
+
+            def worker():
+                answer = estado.check_server(target)
+                GLib.idle_add(result.set_text, estado.describe(answer))
+
+            threading.Thread(target=worker, daemon=True).start()
+
         def populate():
             while child := rows.get_first_child():
                 rows.remove(child)
@@ -81,7 +94,13 @@ class ServidoresMixin:
                     text = label(value, style)
                     text.set_ellipsize(Pango.EllipsizeMode.END)
                     info.append(text)
+                result = label("", "muted")
+                result.set_wrap(True)
+                result.set_visible(False)
+                info.append(result)
                 row.append(info)
+                row.append(button("Comprobar", lambda target=target, result=result: check(target, result),
+                                  "quiet-button"))
                 menu = Gtk.MenuButton(icon_name="view-more-symbolic", tooltip_text="Acciones del servidor")
                 popover = Gtk.Popover()
                 options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, css_classes=["action-menu"])
@@ -89,6 +108,8 @@ class ServidoresMixin:
                 menu.set_popover(popover)
                 options.append(button("Editar", lambda title=title, target=target, popover=popover:
                                       (popover.popdown(), edit_server(title, target))))
+                options.append(button("Copiar dirección", lambda target=target, popover=popover:
+                                      (popover.popdown(), popover.get_clipboard().set(target))))
                 options.append(button("Quitar de favoritos" if key in favorites else "Marcar como favorito",
                                       lambda key=key, popover=popover:
                                       (popover.popdown(), change_preference("favorites", key))))

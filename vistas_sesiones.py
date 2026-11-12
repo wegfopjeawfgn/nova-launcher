@@ -13,6 +13,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import GLib, Gtk
 
 import errores
+import estadisticas
 import tiempo
 import motor
 from widgets import label, button
@@ -97,11 +98,16 @@ class SesionesMixin:
         log_path = isolated / "minecraft.log"
         self.second_session = folder, player, isolated
         began = []
+        clicked = time.monotonic()
+        wall = []
 
         def finish(message, failed):
             if began:
-                tiempo.add(self.library, folder.name, time.monotonic() - began[0])
+                seconds = time.monotonic() - began[0]
+                tiempo.add(self.library, folder.name, seconds)
                 self.save_library()
+                estadisticas.record_session(folder.name, started_at=wall[0], seconds=seconds,
+                                            launch_seconds=began[0] - clicked, ok=not failed)
             self.parallel = False
             self.second_session = None
             self.status.set_text(message)
@@ -139,7 +145,7 @@ class SesionesMixin:
                     result = motor.launch(folder, player, instance,
                                           lambda text: GLib.idle_add(self.status.set_text, text),
                                           game=game, log_path=log_path, held_lock=lock,
-                                          on_started=lambda: began.append(time.monotonic()))
+                                          on_started=lambda: (began.append(time.monotonic()), wall.append(time.time())))
                 message = f"Sesión de {player} cerrada" + (f" · código {result}" if result else ".")
                 GLib.idle_add(finish, message, result != 0)
             except Exception as error:

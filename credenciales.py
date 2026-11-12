@@ -40,3 +40,36 @@ def load_session():
 
 def clear_session():
     _path().unlink(missing_ok=True)
+
+
+def _key_path():
+    return motor.ROOT / "curseforge.json"
+
+
+def save_api_key(key):
+    """Store the CurseForge key the user typed. Never shipped with Nova, never logged."""
+    path = _key_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f"curseforge.{uuid.uuid4().hex[:8]}.tmp")
+    try:
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+            json.dump({"api_key": key}, output)
+            output.flush()
+            os.fsync(output.fileno())
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def load_api_key():
+    """The saved key, else the CURSEFORGE_API_KEY environment variable, else ``None``."""
+    try:
+        key = json.loads(_key_path().read_text(encoding="utf-8"))["api_key"]
+    except (OSError, ValueError, KeyError, TypeError):
+        key = os.environ.get("CURSEFORGE_API_KEY")
+    return key if isinstance(key, str) and key.strip() else None
+
+
+def clear_api_key():
+    _key_path().unlink(missing_ok=True)

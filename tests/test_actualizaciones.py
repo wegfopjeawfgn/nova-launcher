@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -48,6 +49,31 @@ class ChannelTests(unittest.TestCase):
 
     def test_none_when_empty(self):
         self.assertEqual(actualizaciones.newest([], True), (None, None))
+
+
+class NewsTests(unittest.TestCase):
+    def reply(self, payload):
+        response = mock.MagicMock()
+        response.json.return_value = payload
+        return response
+
+    def test_recent_releases_skip_drafts_and_clip_text(self):
+        payload = [{"tag_name": "v2.0.0", "name": "Dos", "published_at": "2026-11-12T10:00:00Z", "body": "x" * 5000},
+                   {"tag_name": "v1.9.0", "draft": True}, {"nope": 1}, "junk",
+                   {"tag_name": "v1.8.0", "name": None, "body": None}]
+        with mock.patch.object(actualizaciones.requests, "get", return_value=self.reply(payload)) as get:
+            found = actualizaciones.recent_releases("a/b", limit=3)
+        self.assertEqual([item["tag"] for item in found], ["v2.0.0", "v1.8.0"])
+        self.assertEqual(len(found[0]["body"]), 1500)
+        self.assertEqual(found[0]["date"], "2026-11-12")
+        self.assertEqual(found[1]["name"], "v1.8.0")
+        self.assertEqual(found[0]["url"], "https://github.com/a/b/releases/tag/v2.0.0")
+        self.assertEqual(get.call_args.kwargs["params"], {"per_page": 3})
+
+    def test_requires_a_valid_repository(self):
+        for bad in ("", "a b"):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                actualizaciones.recent_releases(bad)
 
 
 if __name__ == "__main__":

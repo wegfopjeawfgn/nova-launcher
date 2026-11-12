@@ -21,7 +21,7 @@ modules:
     buildsystem: simple
     build-commands:
       - install -d /app/share/nova-launcher
-      - cp -r *.py nova.css nova-light.css nova-logo.svg referencia.png canal.json icons branding /app/share/nova-launcher/
+      - cp -r *.py nova.css nova-light.css nova-logo.svg referencia.png canal.json icons branding locales /app/share/nova-launcher/
       - |
         cat > /app/bin/nova-launcher <<'SH'
         #!/bin/sh
