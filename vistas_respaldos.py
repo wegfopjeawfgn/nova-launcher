@@ -1,4 +1,5 @@
 """Nova window: respaldos."""
+from datetime import datetime, timedelta
 import threading
 
 import gi
@@ -7,9 +8,10 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import GLib, Gtk, Pango
 
+import errores
 import motor
 import respaldos
-from widgets import label, button, feature_button
+from widgets import label, button, feature_button, size_text
 
 
 class RespaldosMixin:
@@ -25,21 +27,92 @@ class RespaldosMixin:
         rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
         scroller.set_child(rows)
         content.append(scroller)
-        paths = sorted((motor.ROOT / "backups").glob("*/backup.json"),
-                       key=lambda path: path.stat().st_mtime, reverse=True)
-        for path in paths:
-            info = motor.read(path, {})
-            instance = motor.read(path.parent / "instance.json", {})
-            if not instance.get("name"):
-                continue
-            when = info.get("created", "")[:16].replace("T", " ")
-            rows.append(feature_button(instance["name"], f"{when} · Restaurar como instancia nueva",
-                        lambda folder=path.parent: self.restore_backup(dialog, folder)))
-        if rows.get_first_child() is None:
+        backups = respaldos.list_backups()
+        for item in backups:
+            rows.append(self.backup_card(dialog, item))
+        if not backups:
             rows.append(label("Todavía no tenés respaldos. Creá uno desde el panel de una instancia.", "muted"))
             rows.get_first_child().set_wrap(True)
         dialog.set_child(content)
         self.show_page(dialog)
+
+    def backup_card(self, dialog, item):
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["job"])
+        line = Gtk.Box(spacing=10)
+        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, spacing=2)
+        info.append(label(item["name"], "job-title"))
+        when = item["created"][:16].replace("T", " ")
+        details = [when, size_text(item["size"]) if item["size"] else "tamaño desconocido",
+                   f"{item['worlds']} mundo(s)", f"{item['mods']} mod(s)"]
+        if item["auto"]:
+            details.append("automático")
+        info.append(label(" · ".join(details), "muted"))
+        line.append(info)
+        state = Gtk.Label(label="Sin verificar", valign=Gtk.Align.CENTER, css_classes=["state"])
+        line.append(state)
+        check = button("Verificar", lambda: verify())
+        line.append(check)
+        line.append(button("Restaurar", lambda: self.restore_backup(dialog, item["folder"]), "quiet-button"))
+        card.append(line)
+        detail = label("", "muted")
+        detail.set_wrap(True)
+        detail.set_visible(False)
+        card.append(detail)
+
+        def verify():
+            check.set_sensitive(False)
+            state.set_text("Verificando…")
+
+            def worker():
+                outcome = respaldos.verify_backup(item["folder"])
+                GLib.idle_add(done, *outcome)
+
+            def done(result, problems):
+                check.set_sensitive(True)
+                for name in ("state-ok", "state-error", "state-warning"):
+                    state.remove_css_class(name)
+                if result == "ok":
+                    state.set_text("Íntegro")
+                    state.add_css_class("state-ok")
+                elif result == "dañado":
+                    state.set_text("Dañado")
+                    state.add_css_class("state-error")
+                    detail.set_text("; ".join(problems[:4]) + (" …" if len(problems) > 4 else ""))
+                    detail.set_visible(True)
+                else:
+                    state.set_text("Sin suma de control")
+                    state.add_css_class("state-warning")
+                    detail.set_text("Es un respaldo anterior a la versión 1.4.0: no se puede comprobar su integridad.")
+                    detail.set_visible(True)
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        return card
+
+    def auto_backup(self):
+        """Once per start: back up instances that have none newer than the chosen number of days."""
+        days = self.preferences.get("auto_backup_days", 0)
+        if not isinstance(days, int) or days <= 0 or self.busy or self.parallel:
+            return False
+        limit = (datetime.now().astimezone() - timedelta(days=days)).isoformat(timespec="minutes")
+        newest = {}
+        for item in respaldos.list_backups():
+            newest[item["source"]] = max(newest.get(item["source"], ""), item["created"])
+        due = [folder for folder in self.instances if newest.get(folder.name, "") < limit]
+        if not due:
+            return False
+
+        def worker():
+            for folder in due:
+                try:
+                    respaldos.copy_instance(folder, "backup", auto=True)
+                except (OSError, ValueError, RuntimeError) as error:
+                    errores.record(error, "vistas_respaldos.auto_backup")
+                else:
+                    GLib.idle_add(self.status.set_text, f"Copia automática de «{self.instances[folder]['name']}» lista.")
+
+        threading.Thread(target=worker, daemon=True).start()
+        return False
 
     def restore_backup(self, dialog, folder):
         dialog.destroy()

@@ -12,7 +12,65 @@ import catalogo
 import motor
 
 
-def copy_instance(source, mode):
+MANIFEST = "backup-manifest.json"
+
+
+def build_manifest(root):
+    """Size and SHA-256 of every file in a backup, relative to its root."""
+    root = Path(root)
+    manifest = {}
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root).as_posix()
+        if path.is_file() and relative not in {MANIFEST, "backup.json"}:
+            with path.open("rb") as handle:
+                manifest[relative] = [path.stat().st_size, hashlib.file_digest(handle, "sha256").hexdigest()]
+    return manifest
+
+
+def verify_backup(folder):
+    """Return (state, problems): "ok", "dañado" or "sin_manifiesto" for backups made before 1.4.0."""
+    folder = Path(folder)
+    manifest = motor.read(folder / MANIFEST, None)
+    if not isinstance(manifest, dict):
+        return "sin_manifiesto", []
+    problems = []
+    for relative, expected in manifest.items():
+        path = folder / relative
+        try:
+            size, digest = expected
+            if path.is_symlink() or not path.is_file():
+                problems.append(f"Falta {relative}")
+                continue
+            with path.open("rb") as handle:
+                actual = hashlib.file_digest(handle, "sha256").hexdigest()
+            if path.stat().st_size != size or actual != digest:
+                problems.append(f"Cambió {relative}")
+        except (OSError, ValueError, TypeError):
+            problems.append(f"No se pudo leer {relative}")
+    return ("dañado" if problems else "ok"), problems
+
+
+def describe_backup(folder):
+    """Facts shown in the backup list, read from the backup itself."""
+    folder = Path(folder)
+    info = motor.read(folder / "backup.json", {})
+    instance = motor.read(folder / "instance.json", {})
+    return {"folder": folder, "name": instance.get("name", ""), "created": str(info.get("created", "")),
+            "auto": bool(info.get("auto")), "source": str(info.get("source", "")),
+            "size": int(info.get("size", 0) or 0), "worlds": int(info.get("worlds", 0) or 0),
+            "mods": int(info.get("mods", 0) or 0)}
+
+
+def list_backups():
+    found = []
+    for config in (motor.ROOT / "backups").glob("*/backup.json"):
+        item = describe_backup(config.parent)
+        if item["name"]:
+            found.append(item)
+    return sorted(found, key=lambda item: item["created"], reverse=True)
+
+
+def copy_instance(source, mode, *, auto=False):
     destination = motor.ROOT / ("backups" if mode == "backup" else "instances")
     destination.mkdir(parents=True, exist_ok=True)
     with motor.instance_lock(source), TemporaryDirectory(dir=destination) as temporary:
@@ -32,9 +90,17 @@ def copy_instance(source, mode):
         if not settings.get("name"):
             raise ValueError("La copia no contiene una instancia de Nova válida.")
         if mode == "backup":
-            motor.save(staged / "backup.json", {"created": datetime.now().astimezone().isoformat(timespec="minutes")})
+            manifest = build_manifest(staged)
+            motor.save(staged / MANIFEST, manifest)
+            game = staged / "game"
+            motor.save(staged / "backup.json", {
+                "created": datetime.now().astimezone().isoformat(timespec="minutes"), "auto": auto,
+                "source": source.name, "size": sum(size for size, _ in manifest.values()),
+                "worlds": len([p for p in (game / "saves").glob("*") if p.is_dir()]) if (game / "saves").is_dir() else 0,
+                "mods": len(list((game / "mods").glob("*.jar"))) if (game / "mods").is_dir() else 0})
         else:
             (staged / "backup.json").unlink(missing_ok=True)
+            (staged / MANIFEST).unlink(missing_ok=True)
             suffix = " (restaurada)" if mode == "restore" else " (copia)"
             settings["name"] = settings["name"][:40-len(suffix)] + suffix
             motor.save(staged / "instance.json", settings)

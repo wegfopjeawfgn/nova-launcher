@@ -56,6 +56,46 @@ class CopyInstanceTests(RespaldosCase):
         clone = respaldos.copy_instance(source, "clone")
         self.assertEqual(motor.read(clone / "instance.json", {})["name"], "Mi mundo (copia)")
 
+    def make_backup(self, **kwargs):
+        source = self.make_instance()
+        self.add_world(source)
+        (source / "game" / "mods" / "a.jar").write_bytes(b"jar")
+        return respaldos.copy_instance(source, "backup", **kwargs)
+
+    def test_backup_records_contents_and_verifies_ok(self):
+        backup = self.make_backup(auto=True)
+        info = respaldos.describe_backup(backup)
+        self.assertEqual((info["name"], info["auto"], info["worlds"], info["mods"]), ("Mi mundo", True, 1, 1))
+        self.assertGreater(info["size"], 0)
+        self.assertEqual(respaldos.verify_backup(backup), ("ok", []))
+        self.assertEqual([item["folder"] for item in respaldos.list_backups()], [backup])
+
+    def test_verify_detects_changed_and_missing_files(self):
+        backup = self.make_backup()
+        (backup / "game" / "saves" / "W" / "level.dat").write_bytes(b"other")
+        (backup / "game" / "mods" / "a.jar").unlink()
+        state, problems = respaldos.verify_backup(backup)
+        self.assertEqual(state, "dañado")
+        self.assertEqual(sorted(p.split()[0] for p in problems), ["Cambió", "Falta"])
+
+    def test_verify_backup_without_manifest_is_not_called_ok(self):
+        backup = self.make_backup()
+        (backup / respaldos.MANIFEST).unlink()
+        self.assertEqual(respaldos.verify_backup(backup), ("sin_manifiesto", []))
+
+    def test_verify_refuses_symlinks_that_replace_files(self):
+        backup = self.make_backup()
+        target = backup / "game" / "mods" / "a.jar"
+        target.unlink()
+        target.symlink_to(self.folder)
+        self.assertEqual(respaldos.verify_backup(backup)[0], "dañado")
+
+    def test_restore_copy_has_no_backup_metadata(self):
+        backup = self.make_backup()
+        restored = respaldos.copy_instance(backup, "restore")
+        self.assertFalse((restored / "backup.json").exists())
+        self.assertFalse((restored / respaldos.MANIFEST).exists())
+
     def test_long_name_is_truncated(self):
         source = self.make_instance("N" * 40)
         clone = respaldos.copy_instance(source, "clone")
