@@ -30,7 +30,7 @@ jobs:
           bundle=packaging/windows/bundle
           mkdir -p "$bundle"/{app,runtime}
           cp -R /ucrt64/{bin,lib,share,etc} "$bundle/runtime/"
-          cp *.py nova.css nova-logo.svg referencia.png canal.json "$bundle/app/"
+          cp *.py nova.css nova-light.css nova-logo.svg referencia.png canal.json "$bundle/app/"
           cp -R icons branding "$bundle/app/"
           "$bundle/runtime/bin/python.exe" -m pip install --target "$bundle/app" -r requirements.txt
           cd "$bundle/app"

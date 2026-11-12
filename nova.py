@@ -26,6 +26,7 @@ import tiempo
 from widgets import resolution_field, instance_art, hero_art, enter, label, button, feature_button, HERE
 from vistas_cuentas import CuentasMixin
 from vistas_paginas import PaginasMixin
+from vistas_salud import SaludMixin
 from vistas_importar import ImportarMixin
 from vistas_servidores import ServidoresMixin
 from vistas_descargas import DescargasMixin
@@ -36,6 +37,7 @@ from vistas_respaldos import RespaldosMixin
 
 class Nova(
     PaginasMixin,
+    SaludMixin,
     CuentasMixin,
     ImportarMixin,
     ServidoresMixin,
@@ -97,6 +99,9 @@ class Nova(
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_USER + 1
         )
+        self.light_provider = Gtk.CssProvider()
+        self.light_provider.load_from_path(str(HERE / "nova-light.css"))
+        self.light_active = False
         self.window = Gtk.ApplicationWindow(application=self, title="Nova Launcher",
                                             default_width=1150, default_height=730)
         self.window.add_css_class("nova-main")
@@ -115,7 +120,7 @@ class Nova(
         accounts = motor.read(motor.ROOT / "accounts.json", {"active": "", "profiles": []})
         self.preferences = {
             "memory": 4, "java": "", "resolution": "default", "console": False,
-            "compact": False, "alphabetical": False, "launch_behavior": "keep", "beta": False,
+            "compact": False, "alphabetical": False, "launch_behavior": "keep", "beta": False, "auto_backup_days": 0, "theme": "dark",
             **motor.read(motor.ROOT / "settings.json", {}),
         }
         self.release_repo = actualizaciones.repository(
@@ -250,7 +255,9 @@ class Nova(
         self.library_filter.connect("changed", lambda _: self.refresh())
         self.update_accounts()
         self.refresh()
+        self.apply_theme()
         self.window.present()
+        GLib.timeout_add_seconds(30, self.auto_backup)
         self.versions = motor.read(motor.ROOT / "versions.json", [])
         threading.Thread(target=self.load_versions, daemon=True).start()
         if self.preferences.get("release_repo", self.release_repo):
@@ -282,6 +289,16 @@ class Nova(
 
 
 
+
+    def apply_theme(self):
+        light = self.preferences.get("theme") == "light"
+        Gtk.Settings.get_default().set_property("gtk-application-prefer-dark-theme", not light)
+        if light and not self.light_active:
+            Gtk.StyleContext.add_provider_for_display(
+                Gdk.Display.get_default(), self.light_provider, Gtk.STYLE_PROVIDER_PRIORITY_USER + 2)
+        elif not light and self.light_active:
+            Gtk.StyleContext.remove_provider_for_display(Gdk.Display.get_default(), self.light_provider)
+        self.light_active = light
 
     @staticmethod
     def header_button(title, icon, action, style=None):
@@ -666,6 +683,20 @@ class Nova(
             row.append(text)
             row.append(control)
             box.append(row)
+        box.append(label("Respaldos", "settings-heading"))
+        box.append(label("Copia automática cada cuántos días (0 = apagada)", "form-label"))
+        backup_days = Gtk.SpinButton.new_with_range(0, 90, 1)
+        backup_days.set_value(self.preferences.get("auto_backup_days", 0))
+        box.append(backup_days)
+        box.append(label("Se hace una vez al abrir Nova para las instancias sin respaldo reciente. "
+                         "No borra respaldos viejos.", "opt-hint"))
+        box.append(label("Apariencia", "settings-heading"))
+        theme = Gtk.ComboBoxText()
+        theme.append("dark", "Oscuro")
+        theme.append("light", "Claro")
+        theme.set_active_id(self.preferences.get("theme", "dark") if self.preferences.get("theme") in ("dark", "light")
+                            else "dark")
+        box.append(theme)
         box.append(label("Actualizaciones", "settings-heading"))
         box.append(label("Repositorio público de GitHub", "form-label"))
         repo = Gtk.Entry(text=self.preferences.get("release_repo", self.release_repo),
@@ -687,9 +718,12 @@ class Nova(
                                 "memory": memory.get_value_as_int(), "resolution": resolution.get_active_id(),
                                 "release_repo": actualizaciones.repository(repo.get_text()),
                                 "launch_behavior": behavior.get_active_id(),
+                                "auto_backup_days": backup_days.get_value_as_int(),
+                                "theme": theme.get_active_id(),
                                 **{key: control.get_active() for key, control in toggles.items()}}
                     motor.save(motor.ROOT / "settings.json", settings)
                     self.preferences = settings
+                    self.apply_theme()
                     self.refresh()
                     self.check_release()
                 except (OSError, ValueError) as exc:
@@ -958,6 +992,7 @@ class Nova(
         alternate.set_sensitive(not self.parallel and (not self.busy or
                                 (self.running and self.running[0] == folder)))
         menu.append(alternate)
+        add_action("Salud y mods", lambda: self.show_health(folder))
         add_action("Ver registro", lambda: self.open_log(folder))
         add_action("Abrir carpeta", lambda: motor.open_folder(folder))
         add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))

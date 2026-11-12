@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        1.3.1
+Version:        1.4.0
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        LicenseRef-Nova AND BSD-2-Clause
@@ -27,7 +27,7 @@ Manage Minecraft Java instances, mods, skins, and backups from Fedora.
 
 %install
 install -d %{buildroot}%{_datadir}/nova-launcher/{branding,icons,vendor}
-install -m644 *.py nova.css nova-logo.svg referencia.png canal.json LEEME.md %{buildroot}%{_datadir}/nova-launcher/
+install -m644 *.py nova.css nova-light.css nova-logo.svg referencia.png canal.json LEEME.md %{buildroot}%{_datadir}/nova-launcher/
 install -m644 branding/nova-loading.jar %{buildroot}%{_datadir}/nova-launcher/branding/
 install -m644 icons/*.svg %{buildroot}%{_datadir}/nova-launcher/icons/
 %{__python3} -m zipfile -e %{SOURCE1} %{buildroot}%{_datadir}/nova-launcher/vendor/
@@ -42,6 +42,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Thu Nov 12 2026 Nova Launcher <nova@localhost> - 1.4.0-1
+- Add mod analysis, installation diagnosis, verified backups, optional light theme and security hardening.
+
 * Thu Nov 12 2026 Nova Launcher <nova@localhost> - 1.3.1-1
 - Fix in-window pages that opened and closed again when another page was opened or on a double click.
 
