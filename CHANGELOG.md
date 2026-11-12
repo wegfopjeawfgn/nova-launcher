@@ -1,5 +1,22 @@
 # Cambios
 
+## 1.5.2
+- **Inicio**: una franja arriba de la biblioteca con la última partida (toca para seleccionarla), las descargas en
+  curso o en cola, el estado de la cuenta y si hay una versión nueva de Nova. Cada tarjeta abre su sección.
+- **Java**: en *Editar instancia* y en *Ajustes*, el botón *Elegir un Java instalado* busca las instalaciones del
+  equipo (JAVA_HOME, PATH, `/usr/lib/jvm`, `~/.jdks`, SDKMAN, el Java administrado por Nova y las carpetas
+  habituales de Windows), pregunta su versión con límite de tiempo y marca las que son demasiado antiguas.
+  No descarga ni ejecuta nada de otros lugares.
+- **Memoria mínima**: campo nuevo (0 = automática) que agrega `-Xms` antes de los argumentos del usuario. Se valida
+  que no supere la máxima, y el diagnóstico puede restablecerla si el valor es inválido.
+- **Calidad**: el CI ahora ejecuta `pyflakes` además de las pruebas, y se limpiaron los imports sin uso (228 pruebas).
+
+### Todavía no implementado
+- Memoria del proceso de Minecraft (hoy solo se muestra la del sistema).
+- Instalación automática de dependencias de CurseForge.
+- Selector de Java con descarga de un JDK nuevo (Nova usa el Java administrado de Mojang cuando el campo está vacío).
+- Firma de código de Windows (no hay certificado).
+
 ## 1.5.1
 - El menú *Más acciones* de la instancia ahora está agrupado (Jugar, Contenido, Instancia), alineado a la izquierda y se
   desplaza cuando no entra en la ventana, en lugar de cortarse por abajo.

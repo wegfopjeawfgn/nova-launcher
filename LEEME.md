@@ -1,4 +1,4 @@
-# Nova Launcher 1.5.1 para Fedora
+# Nova Launcher 1.5.2 para Fedora
 
 Descomprimí el ZIP y ejecutá `./iniciar.sh` desde la carpeta `nova-launcher`.
 Si faltan dependencias de Fedora, instalalas con:
@@ -32,12 +32,12 @@ En **Mods → Instalados** podés activar y desactivar mods, y consultar actuali
 
 **Pantalla de carga Nova** habilita el logo y los colores al iniciar Minecraft 1.21.11 con Fabric. Para otras versiones compatibles con Dark Loading Screen, el botón aplica los colores.
 
-El RPM instala Nova en el menú de aplicaciones de Fedora e incluye la biblioteca del launcher. Para instalar desde la terminal, usá `sudo dnf install ./nova-launcher-1.5.1-1.noarch.rpm`. Después buscá **Nova Launcher** en el menú.
+El RPM instala Nova en el menú de aplicaciones de Fedora e incluye la biblioteca del launcher. Para instalar desde la terminal, usá `sudo dnf install ./nova-launcher-1.5.2-1.noarch.rpm`. Después buscá **Nova Launcher** en el menú.
 
 Para conectar GitHub Releases, escribí `usuario/repositorio` en **Ajustes → Actualizaciones**. Antes de compilar el RPM para tus usuarios, poné ese valor en `canal.json`. Usá etiquetas estables como `v0.9.0` y adjuntá el RPM y su SHA-256 a cada release. Nova revisa las versiones al abrirse y ofrece el enlace de descarga cuando encuentra una más nueva.
 
 Nova es un launcher de terceros para Minecraft Java Edition, sin afiliación con Mojang o Microsoft.
 
-Para reconstruir el RPM en Fedora con `rpm-build` instalado, prepará `~/rpmbuild/SOURCES` y guardá ahí el archivo `nova-launcher-1.5.1.tar.gz` con la carpeta `nova-launcher` en su raíz y el wheel `minecraft_launcher_lib-8.0-py3-none-any.whl`. Ejecutá `rpmbuild -bb nova-launcher.spec`. Para cada versión nueva, actualizá la versión del spec y de `actualizaciones.py` antes de empaquetar.
+Para reconstruir el RPM en Fedora con `rpm-build` instalado, prepará `~/rpmbuild/SOURCES` y guardá ahí el archivo `nova-launcher-1.5.2.tar.gz` con la carpeta `nova-launcher` en su raíz y el wheel `minecraft_launcher_lib-8.0-py3-none-any.whl`. Ejecutá `rpmbuild -bb nova-launcher.spec`. Para cada versión nueva, actualizá la versión del spec y de `actualizaciones.py` antes de empaquetar.
 
 Los respaldos locales aparecen en **Respaldos**. Al restaurar, Nova crea una instancia separada. Los respaldos comparten la portada guardada en la biblioteca local de Nova.
