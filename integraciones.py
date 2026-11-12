@@ -6,6 +6,7 @@ import threading
 
 from gi.repository import GLib, Gtk
 
+import errores
 import catalogo
 import motor
 
@@ -80,6 +81,7 @@ def run(app, parent, title, task, success):
         try:
             task()
         except Exception as error:
+            errores.record(error, "integraciones.worker")
             GLib.idle_add(finish, f"No se pudo completar: {error}")
         else:
             GLib.idle_add(finish, None)

@@ -1,0 +1,35 @@
+app-id: io.nova.launcher
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+command: nova-launcher
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+modules:
+  - name: python-deps
+    buildsystem: simple
+    build-options:
+      build-args: [--share=network]  # local builds only; Flathub needs pinned sources
+    build-commands:
+      - pip3 install --prefix=/app --no-cache-dir -r requirements.txt
+  - name: nova-launcher
+    buildsystem: simple
+    build-commands:
+      - install -d /app/share/nova-launcher
+      - cp -r *.py nova.css nova-logo.svg referencia.png canal.json icons branding /app/share/nova-launcher/
+      - |
+        cat > /app/bin/nova-launcher <<'SH'
+        #!/bin/sh
+        exec python3 /app/share/nova-launcher/nova.py "$@"
+        SH
+      - chmod 755 /app/bin/nova-launcher
+      - install -Dm644 io.nova.launcher.desktop /app/share/applications/io.nova.launcher.desktop
+      - install -Dm644 nova-logo.svg /app/share/icons/hicolor/scalable/apps/io.nova.launcher.svg
+    sources:
+      - type: dir
+        path: ../..

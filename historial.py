@@ -4,7 +4,7 @@ import uuid
 
 import motor
 
-STATES = {"running": "En curso", "ok": "Listo", "error": "Con error",
+STATES = {"queued": "En cola", "running": "En curso", "ok": "Listo", "error": "Con error",
           "cancelled": "Cancelada", "interrupted": "Interrumpida"}
 
 
@@ -15,13 +15,13 @@ class History:
         data = motor.read(path, [])
         self.entries = [entry for entry in data if isinstance(entry, dict) and entry.get("id")]
         for entry in self.entries:
-            if entry.get("state") == "running":
+            if entry.get("state") in {"running", "queued"}:
                 entry["state"] = "interrupted"
                 entry["message"] = "Nova se cerró antes de terminar."
         self.entries = self.entries[-limit:]
 
-    def start(self, kind, title):
-        entry = {"id": uuid.uuid4().hex, "kind": kind, "title": title, "state": "running",
+    def start(self, kind, title, state="running"):
+        entry = {"id": uuid.uuid4().hex, "kind": kind, "title": title, "state": state,
                  "message": "", "time": datetime.now().isoformat(timespec="seconds")}
         self.entries.append(entry)
         self.entries = self.entries[-self.limit:]
@@ -42,7 +42,7 @@ class History:
         return list(reversed(self.entries))
 
     def clear_finished(self):
-        self.entries = [entry for entry in self.entries if entry["state"] == "running"]
+        self.entries = [entry for entry in self.entries if entry["state"] in {"running", "queued"}]
         self._save()
 
     def _save(self):

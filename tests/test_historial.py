@@ -48,5 +48,19 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(historial.History(self.path).recent(), [])
 
 
+class QueueStateTests(unittest.TestCase):
+    def test_queued_entries_become_interrupted_after_restart(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "h.json"
+            history = historial.History(path)
+            entry = history.start("import", "Pack", "queued")
+            self.assertEqual(history.recent()[0]["state"], "queued")
+            self.assertTrue(history.finish(entry, "running", ""))
+            reopened = historial.History(path)
+            self.assertEqual(reopened.recent()[0]["state"], "interrupted")
+            reopened.clear_finished()
+            self.assertEqual(reopened.recent(), [])
+
+
 if __name__ == "__main__":
     unittest.main()

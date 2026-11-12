@@ -32,5 +32,23 @@ class RepositoryTests(unittest.TestCase):
                 actualizaciones.repository(bad)
 
 
+class ChannelTests(unittest.TestCase):
+    releases = [
+        {"tag_name": "v9.0.0", "prerelease": True},
+        {"tag_name": "v8.0.0", "draft": True},
+        {"tag_name": "v7.1.0"},
+        {"tag_name": "nightly"},
+    ]
+
+    def test_stable_skips_prereleases_and_drafts(self):
+        self.assertEqual(actualizaciones.newest(self.releases, False)[0], (7, 1, 0))
+
+    def test_beta_includes_prereleases(self):
+        self.assertEqual(actualizaciones.newest(self.releases, True)[0], (9, 0, 0))
+
+    def test_none_when_empty(self):
+        self.assertEqual(actualizaciones.newest([], True), (None, None))
+
+
 if __name__ == "__main__":
     unittest.main()
