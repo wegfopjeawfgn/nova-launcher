@@ -1,119 +1,218 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" class="no-js">
 <head>
   <meta charset="utf-8">
   <meta name="google-site-verification" content="f-KJBeJi-TfsEfmEEZ4IR44FSGLed9uF5Enj_0-LfIo" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Nova Launcher para Fedora y Windows. Organizá tus instancias de Minecraft Java, mods y mundos desde una sola app.">
-  <meta name="theme-color" content="#141416">
+  <title>Nova Launcher — Launcher de Minecraft Java para Windows y Fedora</title>
+  <meta name="description" content="Nova Launcher organiza tus instancias de Minecraft Java: mods de Modrinth y CurseForge, respaldos verificados, skins, servidores y análisis de mods. Para Windows y Fedora.">
+  <meta name="theme-color" content="#141517">
+  <link rel="canonical" href="https://novalaunchermc.vercel.app/">
   <link rel="icon" type="image/svg+xml" href="assets/nova.svg">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Nova Launcher — Tus mods. Tus mundos. Un solo launcher.">
+  <meta property="og:description" content="Instancias, mods, respaldos verificados, skins y servidores para Minecraft Java en Windows y Fedora.">
+  <meta property="og:url" content="https://novalaunchermc.vercel.app/">
+  <meta property="og:image" content="https://novalaunchermc.vercel.app/assets/nova-biblioteca.webp">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="estilos.css">
-  <title>Nova Launcher — Minecraft Java en Fedora y Windows</title>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Nova Launcher","applicationCategory":"GameApplication","operatingSystem":"Windows, Fedora Linux","url":"https://novalaunchermc.vercel.app/","downloadUrl":"https://github.com/wegfopjeawfgn/nova-launcher/releases/latest","description":"Launcher de terceros para Minecraft Java Edition: instancias, mods, respaldos, skins y servidores.","inLanguage":"es"}
+  </script>
 </head>
 <body>
   <a class="skip" href="#contenido">Ir al contenido</a>
-  <header class="bar wrap">
-    <a class="brand" href="./"><img src="assets/nova.svg" width="36" height="36" alt=""> Nova Launcher</a>
-    <nav aria-label="Navegación">
-      <a href="#servidores">Servidores</a>
-      <a href="#funciones">Funciones</a>
-      <a href="#instalacion">Instalación</a>
-      <a href="https://github.com/wegfopjeawfgn/nova-launcher">GitHub <span aria-hidden="true">↗</span></a>
-    </nav>
+  <header class="bar">
+    <div class="wrap bar-in">
+      <a class="brand" href="./"><img src="assets/nova.svg" width="32" height="32" alt=""> Nova Launcher</a>
+      <nav aria-label="Navegación">
+        <a href="#funciones">Funciones</a>
+        <a href="#detalle">En detalle</a>
+        <a href="#instalacion">Instalación</a>
+        <a href="#preguntas">Preguntas</a>
+        <a class="nav-cta" href="https://github.com/wegfopjeawfgn/nova-launcher">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
   </header>
+
   <main id="contenido">
     <section class="hero wrap" aria-labelledby="titulo">
       <div class="hero-copy">
-        <p class="version"><span></span> Versión estable · <b id="release-version">1.4.0</b></p>
-        <h1 id="titulo">Tu biblioteca de<br>Minecraft Java.</h1>
-        <p class="intro">Creá instancias separadas, instalá mods y guardá copias de tus mundos. Todo desde Nova Launcher.</p>
+        <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.5.1</b></p>
+        <h1 id="titulo">Tus mods.<br>Tus mundos.<br><em>Un solo launcher.</em></h1>
+        <p class="intro">Nova Launcher organiza tus instancias de Minecraft Java: instalá mods, revisá que todo funcione, guardá respaldos verificados y entrá a tus servidores.</p>
         <div class="actions">
-          <a class="primary" id="release-rpm" href="descargas/nova-launcher-1.4.0-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v4h16v-4"/></svg> Descargar para Fedora</a>
-          <a class="secondary" href="#instalacion">Cómo instalar</a>
+          <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.5.1-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
+          <div class="windows-download" id="windows-download">
+            <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.5.1/nova-launcher-1.5.1-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
+          </div>
         </div>
-        <div class="windows-download" id="windows-download">
-          <a class="secondary" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.4.0/nova-launcher-1.4.0-windows-x64-setup.exe">Descargar para Windows x64</a>
-          <p class="download-meta">Abrí el instalador y buscá <strong>Nova Launcher</strong> en Inicio.
-            <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.4.0/nova-launcher-1.4.0-windows-x64-setup.exe.sha256">SHA-256</a>
-          </p>
-        </div>
-        <p class="download-meta">Paquete RPM <a id="release-checksum" href="descargas/nova-launcher-1.4.0-1.noarch.rpm.sha256" download>SHA-256</a></p>
+        <p class="download-meta">Comprobá cada archivo con su suma:
+          <a id="release-checksum" href="descargas/nova-launcher-1.5.1-1.noarch.rpm.sha256" download>SHA-256 del RPM</a> ·
+          <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.5.1/nova-launcher-1.5.1-windows-x64-setup.exe.sha256">SHA-256 del instalador</a>
+        </p>
       </div>
-      <figure class="preview">
-        <img src="assets/nova-100.webp" width="1206" height="786" alt="Biblioteca de Nova con buscador de instancias, filtros y acceso a servidores">
-        <figcaption>Nova Launcher 1.0 en Fedora · Biblioteca de ejemplo</figcaption>
+      <figure class="shot hero-shot">
+        <img src="assets/nova-biblioteca.webp" width="1150" height="800" alt="Biblioteca de Nova con la portada de una instancia, el botón Jugar, estadísticas de contenido y la lista de instancias">
+        <figcaption>La biblioteca de Nova. Captura real con datos de ejemplo.</figcaption>
       </figure>
     </section>
-    <section class="section install server-feature wrap" id="servidores" aria-labelledby="servidores-titulo">
-      <div class="server-copy">
-        <p class="release-note">Servidores por instancia</p>
-        <h2 id="servidores-titulo">Entrá directo a tu servidor</h2>
-        <p>Elegí una instancia y abrí <strong>Servidores</strong>. Nova muestra los que guardaste en Minecraft y te permite sumar otros por dirección.</p>
-        <p>Al pulsar <strong>Entrar</strong>, Nova inicia Minecraft con la versión y los mods de esa instancia e intenta conectarse al servidor elegido.</p>
-      </div>
-      <figure class="preview">
-        <img src="assets/nova-servidores.webp" width="560" height="410" loading="lazy" alt="Panel de servidores con dos direcciones de ejemplo y un botón Entrar junto a cada una">
-        <figcaption>Panel de servidores con datos de ejemplo</figcaption>
-      </figure>
+
+    <section class="strip wrap" aria-label="Resumen">
+      <ul>
+        <li><b>Vanilla, Fabric, Forge, NeoForge y Quilt</b><span>una instancia para cada partida</span></li>
+        <li><b>Modrinth y CurseForge</b><span>mods, modpacks, shaders y texturas</span></li>
+        <li><b>Windows x64 y Fedora</b><span>instaladores con SHA-256</span></li>
+      </ul>
     </section>
+
     <section class="section wrap" id="funciones" aria-labelledby="funciones-titulo">
-      <h2 id="funciones-titulo">Tu biblioteca de juego</h2>
-      <p class="release-note release-intro">Nova 1.0 incluye migración desde Prism, respaldos individuales de mundos y exportación de modpacks a .mrpack.</p>
+      <p class="eyebrow">Lo que hace Nova</p>
+      <h2 id="funciones-titulo">Todo lo que necesitás para jugar, en un solo lugar</h2>
       <div class="feature-grid">
-        <article>
+        <article class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Zm0 9 8-4.5M12 12 4 7.5m8 4.5v9"/></svg>
           <h3>Instancias separadas</h3>
-          <p>Elegí la versión y el cargador para cada partida. Cambiá la RAM y Java por instancia.</p>
+          <p>Cada partida con su versión, cargador, RAM y Java. Plantillas para empezar rápido y perfiles que podés exportar e importar.</p>
         </article>
-        <article>
+        <article class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 3h6m-3-3v6"/></svg>
-          <h3>Contenido de Modrinth</h3>
-          <p>Buscá mods, modpacks, shaders y texturas. Actualizá los mods que instalaste con Nova y volvé a la versión anterior cuando lo necesites.</p>
+          <h3>Mods sin vueltas</h3>
+          <p>Buscá en Modrinth y, con tu propia clave, en CurseForge. Nova revisa dependencias, actualiza en lote y deja volver a la versión anterior.</p>
         </article>
-        <article>
+        <article class="reveal">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.2 7.8 8 9 4.8-1.2 8-4.5 8-9V6l-8-3Zm-3.5 9 2.5 2.5 4.5-5"/></svg>
+          <h3>Salud y mods</h3>
+          <p>Lee los metadatos de tus mods y avisa de dependencias faltantes, cargador o versión incorrectos y duplicados. Solo marca lo que puede comprobar.</p>
+        </article>
+        <article class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16v13H4zM3 4h18v3H3zm6 8h6"/></svg>
-          <h3>Copias de tus mundos</h3>
-          <p>Duplicá una instancia para probar cambios o restaurá un respaldo como una instancia separada.</p>
+          <h3>Respaldos verificados</h3>
+          <p>Copias manuales o automáticas con suma SHA-256 por archivo. Verificá su integridad y restaurá como una instancia separada.</p>
+        </article>
+        <article class="reveal">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h16v6H4zm0 10h16v6H4zM8 7h.01M8 17h.01"/></svg>
+          <h3>Servidores</h3>
+          <p>Entrá directo con la versión y los mods de la instancia, y comprobá si el servidor responde antes de abrir el juego.</p>
+        </article>
+        <article class="reveal">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 20 1-4L16.5 4.5a2 2 0 0 1 3 3L8 19l-4 1Z"/></svg>
+          <h3>Editor de skins</h3>
+          <p>Importá un PNG o dibujá por partes y capas. Equipá la skin en una instancia compatible.</p>
         </article>
       </div>
     </section>
-    <section class="section install server-feature wrap" aria-labelledby="skins-titulo">
-      <div class="server-copy">
-        <h2 id="skins-titulo">Tu skin, a tu manera</h2>
-        <p>Usá el <strong>modo fácil</strong> para importar un PNG, girar la vista previa y equipar la skin en una instancia compatible.</p>
-        <p>Pasá al <strong>modo avanzado</strong> para dibujar por partes y capas, tomar colores y deshacer cambios.</p>
+
+    <section class="section wrap" id="detalle" aria-labelledby="detalle-titulo">
+      <p class="eyebrow">En detalle</p>
+      <h2 id="detalle-titulo">Capturas reales de Nova</h2>
+      <div class="showcase">
+        <div class="row reveal">
+          <div class="copy">
+            <h3>Sabé qué falla antes de jugar</h3>
+            <p><strong>Salud y mods</strong> revisa cada mod y la instalación. Cada hallazgo dice qué es, qué consecuencia tiene y cómo solucionarlo, y distingue lo confirmado de lo posible.</p>
+            <p>Lo único automático es desactivar un duplicado, con confirmación y sin borrar nada.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-salud.webp" width="1150" height="800" loading="lazy" alt="Página Salud y mods con hallazgos de dependencias faltantes, mod duplicado y archivo dañado"><figcaption>Ejemplo con mods de prueba</figcaption></figure>
+        </div>
+        <div class="row flip reveal">
+          <div class="copy">
+            <h3>Tus respaldos, comprobados</h3>
+            <p>Cada respaldo guarda una suma de sus archivos y muestra fecha, tamaño, mundos y mods. El botón <strong>Verificar</strong> confirma que nada cambió.</p>
+            <p>Las copias automáticas son opcionales y vienen apagadas.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-respaldos.webp" width="1150" height="800" loading="lazy" alt="Lista de respaldos con fecha, tamaño, cantidad de mundos y mods y botones Verificar y Restaurar"><figcaption>Lista de respaldos</figcaption></figure>
+        </div>
+        <div class="row reveal">
+          <div class="copy">
+            <h3>Estadísticas que quedan en tu PC</h3>
+            <p>Tiempo jugado por instancia, arranque promedio y últimas sesiones. No hay telemetría: todo se guarda localmente y podés borrarlo cuando quieras.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-estadisticas.webp" width="1150" height="800" loading="lazy" alt="Página de estadísticas con resumen de sesiones, memoria del sistema y tiempo por instancia"><figcaption>Estadísticas locales con datos de ejemplo</figcaption></figure>
+        </div>
+        <div class="row flip reveal">
+          <div class="copy">
+            <h3>Empezá desde una plantilla</h3>
+            <p>Supervivencia, PvP, rendimiento, creativo y más. Completan el formulario con ajustes razonables y no asignan más de la mitad de tu RAM.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-plantillas.webp" width="1150" height="804" loading="lazy" alt="Lista de plantillas de instancia: Vanilla, Supervivencia, PvP, Modpacks, Rendimiento, Creativo y Experimentación"><figcaption>Plantillas de instancia</figcaption></figure>
+        </div>
+        <div class="row reveal">
+          <div class="copy">
+            <h3>Tu skin, a tu manera</h3>
+            <p>Usá el <strong>modo fácil</strong> para importar un PNG y probarlo, o el <strong>modo avanzado</strong> para dibujar por partes y capas.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-skins-150.webp" width="1150" height="800" loading="lazy" alt="Editor de skins de Nova con vista previa del modelo"><figcaption>Editor de skins</figcaption></figure>
+        </div>
+        <div class="row flip reveal">
+          <div class="copy">
+            <h3>Oscuro por defecto, claro si lo preferís</h3>
+            <p>Elegí el tema en Ajustes. Las animaciones respetan la configuración de tu escritorio.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-claro.webp" width="1150" height="800" loading="lazy" alt="Biblioteca de Nova con el tema claro"><figcaption>Tema claro</figcaption></figure>
+        </div>
       </div>
-      <figure class="preview skin-screenshot">
-        <img src="assets/nova-skins-100.webp" width="800" height="780" loading="lazy" alt="Editor de skins de Nova en modo avanzado, con lienzo de píxeles y modelo a la derecha">
-        <figcaption>Modo avanzado en Nova 1.0</figcaption>
-      </figure>
     </section>
-    <section class="section install wrap" id="instalacion" aria-labelledby="instalacion-titulo">
+
+    <section class="section wrap install" id="instalacion" aria-labelledby="instalacion-titulo">
       <div>
-        <h2 id="instalacion-titulo">Instalá Nova en Fedora</h2>
-        <p>Descargá el RPM y ejecutá este comando en la carpeta donde lo guardaste. Después abrí <strong>Nova Launcher</strong> desde el menú de aplicaciones.</p>
+        <p class="eyebrow">Instalación</p>
+        <h2 id="instalacion-titulo">Instalá Nova</h2>
+        <h3>Fedora</h3>
+        <p>Descargá el RPM y ejecutá este comando donde lo guardaste. Después abrí <strong>Nova Launcher</strong> desde el menú de aplicaciones.</p>
+        <h3>Windows x64</h3>
+        <p>Descargá el instalador, abrilo y buscá <strong>Nova Launcher</strong> en Inicio. Como el instalador no está firmado, Windows puede mostrar una advertencia: comprobá la suma SHA-256 antes de continuar.</p>
       </div>
       <div class="terminal">
         <span>Si el archivo está en Descargas</span>
-        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-1.4.0-1.noarch.rpm"</code></pre>
+        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-1.5.1-1.noarch.rpm"</code></pre>
         <button type="button" data-copy-command="install-downloads" hidden>Copiar comando para Descargas</button>
         <span>Si ya estás en la carpeta del archivo</span>
-        <pre><code id="install-current">sudo dnf install ./nova-launcher-1.4.0-1.noarch.rpm</code></pre>
+        <pre><code id="install-current">sudo dnf install ./nova-launcher-1.5.1-1.noarch.rpm</code></pre>
         <button type="button" data-copy-command="install-current" hidden>Copiar comando para esta carpeta</button>
         <p id="copy-status" role="status"></p>
         <p>RPM sin firma. El primer arranque de Minecraft descarga los archivos del juego.</p>
       </div>
     </section>
+
+    <section class="section wrap faq" id="preguntas" aria-labelledby="preguntas-titulo">
+      <p class="eyebrow">Preguntas frecuentes</p>
+      <h2 id="preguntas-titulo">Lo que suelen preguntar</h2>
+      <details>
+        <summary>¿Es un launcher oficial de Minecraft?</summary>
+        <p>No. Nova es un proyecto de terceros, sin afiliación ni aprobación de Mojang o Microsoft. Minecraft es una marca de sus titulares.</p>
+      </details>
+      <details>
+        <summary>¿Puedo jugar sin cuenta de Microsoft?</summary>
+        <p>Sí, con perfiles sin conexión. El inicio de sesión con Microsoft necesita un ID de aplicación aprobado para Minecraft Services; todavía no se probó de punta a punta.</p>
+      </details>
+      <details>
+        <summary>¿Dónde se guardan mis datos?</summary>
+        <p>En tu computadora: <code>~/.local/share/nova-launcher</code> en Fedora y <code>%LOCALAPPDATA%\nova-launcher</code> en Windows. Las estadísticas no salen de tu equipo y las contraseñas no se guardan.</p>
+      </details>
+      <details>
+        <summary>¿Cómo sé que el instalador es el original?</summary>
+        <p>Cada archivo de la release tiene su suma SHA-256. Nova también verifica la suma de las actualizaciones que descarga. Los instaladores todavía no tienen firma de código.</p>
+      </details>
+      <details>
+        <summary>¿Dónde pido ayuda o reporto un error?</summary>
+        <p>En <a href="https://github.com/wegfopjeawfgn/nova-launcher/issues">GitHub</a>. Desde Ajustes podés copiar un reporte sin datos personales.</p>
+      </details>
+    </section>
   </main>
+
   <footer class="wrap footer">
     <a class="brand" href="./"><img src="assets/nova.svg" width="30" height="30" alt=""> Nova Launcher</a>
     <p>Proyecto de terceros para Minecraft Java Edition, sin afiliación ni aprobación de Mojang o Microsoft.</p>
     <nav aria-label="Información del proyecto">
       <a href="terminos.html">Términos y condiciones</a>
       <a href="terminos.html#privacidad">Privacidad</a>
+      <a href="https://github.com/wegfopjeawfgn/nova-launcher/releases">Versiones</a>
       <a href="https://github.com/wegfopjeawfgn/nova-launcher/issues">Soporte ↗</a>
     </nav>
   </footer>
   <script src="version.js" defer></script>
+  <script>document.documentElement.classList.remove("no-js")</script>
+  <script src="efectos.js" defer></script>
 </body>
 </html>
