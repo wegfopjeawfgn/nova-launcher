@@ -178,7 +178,7 @@ class Editor:
             if candidate.is_file():
                 self.load(candidate, library=True)
         self.model.connect("changed", self.change_model)
-        self.window.present()
+        self.app.show_page(self.window)
 
     @staticmethod
     def control(title, action, *, primary=False):

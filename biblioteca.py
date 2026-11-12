@@ -183,7 +183,7 @@ class Browser:
             self.refresh_installed = None
             box.append(downloads)
         self.results_offset = 0
-        self.dialog.present()
+        app.show_page(self.dialog)
         self.search()
 
     @staticmethod

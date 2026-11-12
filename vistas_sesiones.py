@@ -2,6 +2,7 @@
 from pathlib import Path
 import re
 import shutil
+import time
 from tempfile import TemporaryDirectory
 import threading
 
@@ -12,6 +13,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import GLib, Gtk
 
 import errores
+import tiempo
 import motor
 from widgets import label, button
 
@@ -39,7 +41,7 @@ class SesionesMixin:
         if not sessions:
             box.append(label("No hay sesiones activas abiertas desde esta ventana.", "muted"))
         dialog.set_child(box)
-        dialog.present()
+        self.show_page(dialog)
 
     def play_parallel(self, folder):
         if self.parallel or (self.busy and (not self.running or self.running[0] != folder)):
@@ -94,8 +96,12 @@ class SesionesMixin:
         isolated = folder / "sessions" / player.casefold()
         log_path = isolated / "minecraft.log"
         self.second_session = folder, player, isolated
+        began = []
 
         def finish(message, failed):
+            if began:
+                tiempo.add(self.library, folder.name, time.monotonic() - began[0])
+                self.save_library()
             self.parallel = False
             self.second_session = None
             self.status.set_text(message)
@@ -132,7 +138,8 @@ class SesionesMixin:
                             shutil.copy2(item, target)
                     result = motor.launch(folder, player, instance,
                                           lambda text: GLib.idle_add(self.status.set_text, text),
-                                          game=game, log_path=log_path, held_lock=lock)
+                                          game=game, log_path=log_path, held_lock=lock,
+                                          on_started=lambda: began.append(time.monotonic()))
                 message = f"Sesión de {player} cerrada" + (f" · código {result}" if result else ".")
                 GLib.idle_add(finish, message, result != 0)
             except Exception as error:

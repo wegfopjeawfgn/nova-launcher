@@ -39,7 +39,7 @@ class RespaldosMixin:
             rows.append(label("Todavía no tenés respaldos. Creá uno desde el panel de una instancia.", "muted"))
             rows.get_first_child().set_wrap(True)
         dialog.set_child(content)
-        dialog.present()
+        self.show_page(dialog)
 
     def restore_backup(self, dialog, folder):
         dialog.destroy()
@@ -102,7 +102,7 @@ class RespaldosMixin:
 
         box.append(button("Usar valores predeterminados de Nova", reset))
         dialog.set_child(box)
-        dialog.present()
+        self.show_page(dialog)
         settings = {**instance, "java": instance["java"] or self.preferences["java"]}
 
         def worker():
@@ -184,4 +184,4 @@ class RespaldosMixin:
 
         render()
         dialog.set_child(box)
-        dialog.present()
+        self.show_page(dialog)

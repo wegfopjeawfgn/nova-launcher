@@ -32,20 +32,26 @@ class DescargasMixin:
             start(entry)
             return
         self.queue.append((entry, start))
+        self.show_queue()
         self.status.set_text(f"En cola ({len(self.queue)}) · {title}")
         if self.history_view:
             self.history_view()
+
+    def show_queue(self):
+        self.queue_label.set_text(f"En cola: {len(self.queue)}" if self.queue else "")
 
     def run_queue(self):
         if self.busy or self.cancel_download or not self.queue:
             return False
         entry, start = self.queue.pop(0)
+        self.show_queue()
         self.history.finish(entry, "running", "")
         start(entry)
         return False
 
     def unqueue(self, entry_id):
         self.queue = [item for item in self.queue if item[0] != entry_id]
+        self.show_queue()
         self.history.finish(entry_id, "cancelled", "Quitada de la cola.")
         if self.history_view:
             self.history_view()
@@ -59,7 +65,7 @@ class DescargasMixin:
             cancel.set_sensitive(self.cancel_download is not None)
 
     def show_downloads(self):
-        dialog = Gtk.Window(title="Descargas", transient_for=self.window, modal=False, default_width=440)
+        dialog = Gtk.Window(title="Descargas", transient_for=self.window, modal=False, default_width=560)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
         box.append(label("Centro de descargas", "subheading"))
         text = label(self.download_progress, "muted")
@@ -95,19 +101,35 @@ class DescargasMixin:
             if not entries:
                 rows.append(label("Todavía no hay descargas ni importaciones.", "muted"))
             for item in entries:
-                line = Gtk.Box(spacing=8)
-                info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
-                info.append(label(f"{item['title']} · {historial.STATES.get(item['state'], item['state'])}"))
+                row = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, css_classes=["job"])
+                line = Gtk.Box(spacing=12)
+                info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, spacing=2)
+                info.append(label(item["title"], "job-title"))
                 detail = label(f"{item['time'].replace('T', ' ')}  {item['message']}".strip(), "muted")
                 detail.set_wrap(True)
-                detail.set_max_width_chars(48)
+                detail.set_max_width_chars(56)
                 info.append(detail)
                 line.append(info)
+                line.append(Gtk.Label(label=historial.STATES.get(item["state"], item["state"]),
+                                      valign=Gtk.Align.CENTER,
+                                      css_classes=["state", f"state-{item['state']}"]))
                 if item["state"] == "queued":
                     line.append(button("Quitar", lambda i=item["id"]: self.unqueue(i)))
                 elif item["state"] in {"error", "cancelled"} and item["id"] in self.retries:
                     line.append(button("Reintentar", lambda i=item["id"]: retry(i)))
-                rows.append(line)
+                row.append(line)
+                if item["state"] == "running":
+                    bar = Gtk.ProgressBar(css_classes=["job-bar"])
+
+                    def pulse(widget=bar):
+                        if not widget.get_mapped():
+                            return False
+                        widget.pulse()
+                        return True
+
+                    GLib.timeout_add(110, pulse)
+                    row.append(bar)
+                rows.append(row)
 
         render()
         self.history_view = render
@@ -121,7 +143,7 @@ class DescargasMixin:
 
         dialog.connect("close-request", closed)
         dialog.set_child(box)
-        dialog.present()
+        self.show_page(dialog)
 
     def show_storage(self):
         dialog = Gtk.Window(title="Almacenamiento", transient_for=self.window, modal=True, default_width=460)
@@ -162,5 +184,5 @@ class DescargasMixin:
         remove.set_sensitive(cache.is_dir() and not self.busy)
         box.append(remove)
         dialog.set_child(box)
-        dialog.present()
+        self.show_page(dialog)
         threading.Thread(target=calculate, daemon=True).start()

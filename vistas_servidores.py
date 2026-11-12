@@ -157,4 +157,4 @@ class ServidoresMixin:
         address.connect("activate", lambda _: add_server())
         populate()
         dialog.set_child(box)
-        dialog.present()
+        self.show_page(dialog)
