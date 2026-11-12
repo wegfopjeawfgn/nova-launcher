@@ -18,6 +18,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 import actualizaciones
+import atajos
 import biblioteca
 import integraciones
 import consola
@@ -93,7 +94,10 @@ def feature_button(title, detail, action):
 
 class Nova(Gtk.Application):
     def __init__(self):
-        super().__init__(application_id="io.nova.launcher")
+        super().__init__(application_id="io.nova.launcher",
+                         flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+        self.add_main_option("jugar", 0, GLib.OptionFlags.NONE, GLib.OptionArg.STRING,
+                             "Iniciar una instancia por su identificador", "ID")
         self.window = None
         self.selected = None
         self.busy = False
@@ -110,6 +114,26 @@ class Nova(Gtk.Application):
         self.versions = []
         self.microsoft = None
         self.microsoft_active = False
+
+    def do_command_line(self, command_line):
+        options = command_line.get_options_dict().end().unpack()
+        self.activate()
+        target = options.get("jugar")
+        if target:
+            GLib.timeout_add(600, self.play_from_shortcut, target)
+        return 0
+
+    def play_from_shortcut(self, instance_id):
+        folder = motor.ROOT / "instances" / instance_id
+        if not atajos.valid_instance_id(instance_id) or folder not in getattr(self, "instances", {}):
+            self.status.set_text("El atajo apunta a una instancia que ya no existe.")
+        elif self.busy or self.parallel:
+            self.status.set_text("Nova está ocupada. Esperá a que termine la operación actual.")
+        else:
+            self.selected = folder
+            self.refresh()
+            self.play()
+        return False
 
     def do_activate(self):
         if self.window:
@@ -281,6 +305,14 @@ class Nova(Gtk.Application):
     def restore_backup(self, dialog, folder):
         dialog.destroy()
         self.copy_instance(folder, "restore")
+
+    def create_shortcut(self, folder, name):
+        try:
+            atajos.create(folder, name)
+        except (OSError, RuntimeError, ValueError) as error:
+            self.status.set_text(f"No se pudo crear el atajo: {error}")
+        else:
+            self.status.set_text(f"Atajo creado · buscá «{name} · Nova» en el menú de aplicaciones.")
 
     def copy_instance(self, folder, mode):
         def task():
@@ -1390,6 +1422,8 @@ class Nova(Gtk.Application):
         add_action("Abrir carpeta", lambda: motor.open_folder(folder))
         add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))
         add_action("Duplicar instancia", lambda: self.copy_instance(folder, "duplicate"))
+        if os.name != "nt":
+            add_action("Crear atajo en el menú", lambda: self.create_shortcut(folder, instance["name"]))
         add_action("Crear respaldo", lambda: self.copy_instance(folder, "backup"))
         add_action("Mundos", lambda: self.show_worlds(folder))
         add_action("Jugar sin conexión", lambda: self.play(offline=True))
@@ -1609,6 +1643,7 @@ class Nova(Gtk.Application):
                 except (GLib.Error, OSError, RuntimeError) as error:
                     self.status.set_text(f"No se pudo eliminar la instancia: {error}")
                 else:
+                    atajos.remove(folder)
                     self.status.set_text(f"«{name}» se movió a la Papelera.")
                     self.refresh()
             dialog.destroy()
