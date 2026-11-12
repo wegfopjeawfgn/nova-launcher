@@ -16,6 +16,7 @@ class PaginasMixin:
                                     transition_duration=200)
         self.page_stack.add_named(library, "library")
         self.current_page = None
+        self.page_serial = 0
         return self.page_stack
 
     def show_page(self, win):
@@ -23,7 +24,9 @@ class PaginasMixin:
         Its close/destroy calls keep working, so the code that built it needs no changes."""
         if self.current_page and self.current_page[0] is win:
             return
-        if self.current_page and not self.leave_page():
+        if self.current_page and self.current_page[0].get_title() == win.get_title():
+            return  # a double click or a repeated request: keep the page already open
+        if self.current_page and not self.leave_page(switch=False):
             return  # the page on screen refused to close (it is busy)
         child = win.get_child()
         win.set_child(None)
@@ -41,24 +44,27 @@ class PaginasMixin:
         child.set_vexpand(True)
         child.set_hexpand(True)
         page.append(child)
-        self.page_stack.add_named(page, "page")
-        self.page_stack.set_visible_child_name("page")
+        self.page_serial += 1
+        name = f"page{self.page_serial}"  # unique: a page that is still fading out must not shadow the new one
+        self.page_stack.add_named(page, name)
+        self.page_stack.set_visible_child_name(name)
         self.current_page = (win, page)
         win.present = lambda: None
         win.close = lambda: self.leave_page(win)
         win.destroy = lambda: self.leave_page(win, force=True)
         self.mark_nav(NAV_ALIASES.get(title, title))
 
-    def leave_page(self, win=None, force=False):
+    def leave_page(self, win=None, force=False, switch=True):
         if not self.current_page or (win is not None and self.current_page[0] is not win):
             return True
         current, page = self.current_page
         if not force and current.emit("close-request"):
             return False
         self.current_page = None
-        self.page_stack.set_visible_child_name("library")
-        self.mark_nav("Instancias")
-        GLib.timeout_add(300, lambda: (self.page_stack.remove(page), False)[1])
+        if switch:
+            self.page_stack.set_visible_child_name("library")
+            self.mark_nav("Instancias")
+        GLib.timeout_add(300, lambda: (page.get_parent() is self.page_stack and self.page_stack.remove(page), False)[1])
         return True
 
     def mark_nav(self, title):

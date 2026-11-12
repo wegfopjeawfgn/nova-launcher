@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        1.3.0
+Version:        1.3.1
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        LicenseRef-Nova AND BSD-2-Clause
@@ -42,6 +42,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Thu Nov 12 2026 Nova Launcher <nova@localhost> - 1.3.1-1
+- Fix in-window pages that opened and closed again when another page was opened or on a double click.
+
 * Thu Nov 12 2026 Nova Launcher <nova@localhost> - 1.3.0-1
 - Redesign the interface with in-window pages and motion, and track playtime per instance and in total.
 
