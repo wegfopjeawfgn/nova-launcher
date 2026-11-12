@@ -701,7 +701,8 @@ class Nova(
         if self.selected not in visible:
             self.selected = next((folder for folder in visible
                                   if folder.name == self.library.get("selected")), next(iter(visible), None))
-        compact = bool(self.visible_instances) and (len(self.visible_instances) > 12 or self.preferences["compact"])
+        compact = bool(self.visible_instances) and (len(self.visible_instances) > 12
+                                         or (self.preferences["compact"] and len(self.visible_instances) > 3))
         layout = (compact, tuple((folder, instance["name"], instance["version"], instance["loader"],
                                   instance["artwork"], instance.get("cover"))
                                  for folder, instance in self.visible_instances.items()))

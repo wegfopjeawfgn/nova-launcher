@@ -43,18 +43,21 @@ def default_cover(index):
 
 
 def hero_art(instance, height=260):
-    """Wide banner picture: the custom cover when there is one, else a bundled cover."""
-    picture = Gtk.Picture(can_shrink=True, content_fit=Gtk.ContentFit.COVER, height_request=height)
+    """Wide banner: the custom cover when there is one, else a bundled cover. The scrolled window
+    only caps the height; a Picture would otherwise grow to its own aspect ratio."""
+    picture = Gtk.Picture(can_shrink=True, content_fit=Gtk.ContentFit.COVER)
     cover = instance.get("cover", "")
     path = motor.ROOT / "covers" / cover if re.fullmatch(r"[a-f0-9]{64}\.png", cover) else None
+    picture.set_paintable(default_cover(instance["artwork"]))
     try:
         if path and path.is_file():
             picture.set_paintable(cover_texture(path, 1600, height * 2))
-            return picture
     except GLib.Error:
         pass
-    picture.set_paintable(default_cover(instance["artwork"]))
-    return picture
+    frame = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vscrollbar_policy=Gtk.PolicyType.NEVER,
+                               min_content_height=height, max_content_height=height, can_target=False)
+    frame.set_child(picture)
+    return frame
 
 
 def motion_enabled():
