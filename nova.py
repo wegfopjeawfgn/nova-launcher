@@ -21,6 +21,7 @@ import actualizaciones
 import biblioteca
 import integraciones
 import consola
+import historial
 import catalogo
 import motor
 import respaldos
@@ -102,6 +103,9 @@ class Nova(Gtk.Application):
         self.download_progress = "Sin descargas recientes."
         self.cancel_download = None
         self.download_view = None
+        self.history = historial.History(motor.ROOT / "downloads-history.json")
+        self.retries = {}
+        self.history_view = None
         self.launch_stage = ""
         self.versions = []
         self.microsoft = None
@@ -331,6 +335,8 @@ class Nova(Gtk.Application):
         self.busy = True
         cancel = threading.Event()
         self.cancel_download = cancel
+        entry = self.history.start("update", f"Actualización {tag}")
+        self.retries[entry] = lambda: self.download_update(url, path, tag)
         self.set_download_progress("Descargando actualización…")
         self.refresh()
 
@@ -342,6 +348,7 @@ class Nova(Gtk.Application):
         def finish(error):
             self.cancel_download = None
             message = error or "Actualización lista para instalar."
+            self.record(entry, error, cancel, message)
             self.set_download_progress(message)
             self.finished(message)
             if not error:
@@ -1084,12 +1091,15 @@ class Nova(Gtk.Application):
         self.busy = True
         cancel = threading.Event()
         self.cancel_download = cancel
+        entry = self.history.start("import", f"Importar {Path(path).name}")
+        self.retries[entry] = lambda: self.import_local(path, api_key, manual_dir)
         self.set_download_progress("Importando modpack…")
         self.refresh()
         memory = self.preferences["memory"]
 
         def finish(folder, message, manual=False):
             self.cancel_download = None
+            self.record(entry, None if folder else message, cancel, message)
             self.set_download_progress(message)
             if folder:
                 self.selected = folder
@@ -1766,6 +1776,14 @@ class Nova(Gtk.Application):
         dialog.set_child(box)
         dialog.present()
 
+    def record(self, entry, error, cancel, message):
+        state = "ok" if not error else "cancelled" if cancel.is_set() else "error"
+        self.history.finish(entry, state, message)
+        if state == "ok":
+            self.retries.pop(entry, None)
+        if self.history_view:
+            self.history_view()
+
     def set_download_progress(self, message):
         self.download_progress = message
         self.status.set_text(message)
@@ -1792,8 +1810,43 @@ class Nova(Gtk.Application):
         control.set_sensitive(self.cancel_download is not None)
         box.append(control)
         self.download_view = text, control
+        box.append(label("Historial reciente", "subheading"))
+        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        scroller = Gtk.ScrolledWindow(min_content_height=170, vexpand=True,
+                                      hscrollbar_policy=Gtk.PolicyType.NEVER)
+        scroller.set_child(rows)
+        box.append(scroller)
+
+        def retry(entry_id):
+            action = self.retries.get(entry_id)
+            if action and not self.busy and not self.cancel_download:
+                action()
+
+        def render():
+            while (child := rows.get_first_child()):
+                rows.remove(child)
+            entries = self.history.recent()
+            if not entries:
+                rows.append(label("Todavía no hay descargas ni importaciones.", "muted"))
+            for item in entries:
+                line = Gtk.Box(spacing=8)
+                info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
+                info.append(label(f"{item['title']} · {historial.STATES.get(item['state'], item['state'])}"))
+                detail = label(f"{item['time'].replace('T', ' ')}  {item['message']}".strip(), "muted")
+                detail.set_wrap(True)
+                detail.set_max_width_chars(48)
+                info.append(detail)
+                line.append(info)
+                if item["state"] in {"error", "cancelled"} and item["id"] in self.retries:
+                    line.append(button("Reintentar", lambda i=item["id"]: retry(i)))
+                rows.append(line)
+
+        render()
+        self.history_view = render
+        box.append(button("Limpiar historial", lambda: (self.history.clear_finished(), render()), "quiet-button"))
 
         def closed(*_):
+            self.history_view = None
             if self.download_view and self.download_view[0] is text:
                 self.download_view = None
             return False
