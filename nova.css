@@ -319,3 +319,10 @@ button.me-gear:hover { background: @nova_control; color: @nova_text; }
 .action-menu button { padding: 7px 12px; border-radius: 8px; }
 .menu-caption { color: @nova_dim; font-size: 10.5px; font-weight: 800; letter-spacing: 0.8px; margin: 8px 12px 2px; }
 .menu-separator { margin: 6px 4px 2px; background: @nova_border; min-height: 1px; }
+
+/* Home strip */
+.home-strip { margin-top: -4px; }
+button.home-card { background: @nova_surface; border: 1px solid @nova_border; border-radius: 12px; padding: 10px 14px; }
+button.home-card:hover { background: @nova_raised; border-color: @nova_border_strong; }
+.home-title { color: @nova_dim; font-size: 10.5px; font-weight: 800; letter-spacing: 0.8px; }
+.home-text { font-weight: 650; }
