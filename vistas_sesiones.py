@@ -41,7 +41,7 @@ class SesionesMixin:
         if not sessions:
             box.append(label("No hay sesiones activas abiertas desde esta ventana.", "muted"))
         dialog.set_child(box)
-        dialog.present()
+        self.show_page(dialog)
 
     def play_parallel(self, folder):
         if self.parallel or (self.busy and (not self.running or self.running[0] != folder)):

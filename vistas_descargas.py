@@ -143,7 +143,7 @@ class DescargasMixin:
 
         dialog.connect("close-request", closed)
         dialog.set_child(box)
-        dialog.present()
+        self.show_page(dialog)
 
     def show_storage(self):
         dialog = Gtk.Window(title="Almacenamiento", transient_for=self.window, modal=True, default_width=460)
@@ -184,5 +184,5 @@ class DescargasMixin:
         remove.set_sensitive(cache.is_dir() and not self.busy)
         box.append(remove)
         dialog.set_child(box)
-        dialog.present()
+        self.show_page(dialog)
         threading.Thread(target=calculate, daemon=True).start()

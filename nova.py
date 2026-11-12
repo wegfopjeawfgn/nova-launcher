@@ -25,6 +25,7 @@ import respaldos
 import tiempo
 from widgets import resolution_field, instance_art, hero_art, enter, label, button, feature_button, HERE
 from vistas_cuentas import CuentasMixin
+from vistas_paginas import PaginasMixin
 from vistas_importar import ImportarMixin
 from vistas_servidores import ServidoresMixin
 from vistas_descargas import DescargasMixin
@@ -34,6 +35,7 @@ from vistas_respaldos import RespaldosMixin
 
 
 class Nova(
+    PaginasMixin,
     CuentasMixin,
     ImportarMixin,
     ServidoresMixin,
@@ -104,6 +106,10 @@ class Nova(
             Gtk.ShortcutTrigger.parse_string("<Control>f"),
             Gtk.CallbackAction.new(lambda *_: self.library_query.grab_focus()),
         ))
+        keys.add_shortcut(Gtk.Shortcut.new(
+            Gtk.ShortcutTrigger.parse_string("Escape"),
+            Gtk.CallbackAction.new(lambda *_: self.current_page is not None and self.leave_page()),
+        ))
         self.window.add_controller(keys)
         self.window.connect("close-request", lambda _: self.busy or self.parallel)
         accounts = motor.read(motor.ROOT / "accounts.json", {"active": "", "profiles": []})
@@ -145,11 +151,12 @@ class Nova(
         nav_scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER,
                                         propagate_natural_width=True)
         nav = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+        self.nav_box = nav
         nav_scroll.set_child(nav)
         sidebar.append(nav_scroll)
         nav.append(label("BIBLIOTECA", "nav-caption"))
         nav.append(self.nav_button("Instancias", "view-grid-symbolic",
-                                   lambda: scroll.get_vadjustment().set_value(0), active=True))
+                                   lambda: (self.leave_page(), scroll.get_vadjustment().set_value(0)), active=True))
         nav.append(self.nav_button("Nueva instancia", "list-add-symbolic", self.add_instance))
         nav.append(label("DESCUBRIR", "nav-caption"))
         nav.append(self.nav_button("Explorar", "system-search-symbolic", self.browse))
@@ -163,15 +170,37 @@ class Nova(
         nav.append(self.nav_button("Sesiones", "media-playback-start-symbolic", self.show_sessions))
         nav.append(self.nav_button("Descargas", "folder-download-symbolic", self.show_downloads))
         nav.append(self.nav_button("Almacenamiento", "drive-harddisk-symbolic", self.show_storage))
-        footer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, css_classes=["sidebar-footer"])
-        footer.append(self.nav_button("Ajustes", "preferences-system-symbolic", self.global_settings))
-        self.release_button = button(f"Nova {actualizaciones.VERSION}", self.release_details, "version-button")
-        footer.append(self.release_button)
+        # One card: version and update state on the left, settings gear on the right.
+        self.release_card = Gtk.Box(spacing=4, css_classes=["me-card"])
+        info = Gtk.Box(spacing=10)
+        logo_tile = Gtk.Box(css_classes=["me-logo"], halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER)
+        logo_tile.append(Gtk.Image.new_from_pixbuf(GdkPixbuf.Pixbuf.new_from_file_at_scale(
+            str(HERE / "nova-logo.svg"), 20, 20, True)))
+        logo_tile.get_first_child().set_hexpand(True)
+        info.append(logo_tile)
+        texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, valign=Gtk.Align.CENTER)
+        texts.append(label(f"Nova {actualizaciones.VERSION}", "me-title"))
+        self.release_note = label("Al día", "me-note")
+        texts.append(self.release_note)
+        info.append(texts)
+        self.release_button = button("", self.release_details, "me-main")
+        self.release_button.set_child(info)
+        self.release_button.set_hexpand(True)
+        self.release_button.update_property([Gtk.AccessibleProperty.LABEL], ["Versión de Nova y actualizaciones"])
+        self.release_card.append(self.release_button)
+        gear = button("", self.global_settings, "me-gear")
+        gear.set_child(Gtk.Image.new_from_icon_name("emblem-system-symbolic"))
+        gear.set_tooltip_text("Ajustes")
+        gear.update_property([Gtk.AccessibleProperty.LABEL], ["Ajustes"])
+        gear.set_valign(Gtk.Align.CENTER)
+        self.release_card.append(gear)
+        footer = self.release_card
         sidebar.append(footer)
+        sidebar.set_hexpand(False)  # the footer card expands; the sidebar must not
         shell.append(sidebar)
         scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        shell.append(scroll)
+        shell.append(self.setup_pages(scroll))
         main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20)
         main.add_css_class("main")
         scroll.set_child(main)
@@ -365,7 +394,7 @@ class Nova(
         for name, detail, action in options[2:4] if import_only else options:
             content.append(feature_button(name, detail, lambda run=action: choose(run)))
         chooser.set_child(content)
-        chooser.present()
+        self.show_page(chooser)
 
 
     def edit_settings(self):
@@ -559,7 +588,7 @@ class Nova(
             dialog.destroy()
 
         dialog.connect("response", submit)
-        dialog.present()
+        self.show_page(dialog)
 
     @staticmethod
     def store_cover(name, data):
@@ -669,7 +698,7 @@ class Nova(
             dialog.destroy()
 
         dialog.connect("response", respond)
-        dialog.present()
+        self.show_page(dialog)
 
 
 

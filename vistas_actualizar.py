@@ -47,7 +47,7 @@ class ActualizarMixin:
             box.append(Gtk.LinkButton(uri=page, label="Ver cambios en GitHub"))
         box.append(button("Buscar actualizaciones", lambda: (dialog.destroy(), self.check_release(manual=True))))
         dialog.set_child(box)
-        dialog.present()
+        self.show_page(dialog)
 
     def download_update(self, url, path, tag):
         self.submit("update", f"Actualización {tag}",
@@ -119,15 +119,14 @@ class ActualizarMixin:
                 self.check_release(manual)
                 return
             self.available_release = release
-            self.release_button.set_label(f"Actualizar a {release[0]}" if release
-                                          else f"Nova {actualizaciones.VERSION}")
+            self.release_note.set_text(f"Actualizar a {release[0]}" if release else "Al día")
             if release:
-                self.release_button.add_css_class("primary")
+                self.release_card.add_css_class("update")
                 if manual:
                     self.status.set_text(f"Nueva versión de Nova · {release[0]}")
                     self.release_details()
             else:
-                self.release_button.remove_css_class("primary")
+                self.release_card.remove_css_class("update")
                 if manual:
                     self.status.set_text(error or "Ya tenés la última versión.")
 

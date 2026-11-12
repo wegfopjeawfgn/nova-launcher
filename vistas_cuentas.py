@@ -100,7 +100,7 @@ class CuentasMixin:
         box.append(button("Abrir mis skins", lambda: (dialog.destroy(), self.open_skins())))
         box.append(button("Cambiar de cuenta", lambda: (dialog.destroy(), self.accounts.popup())))
         dialog.set_child(box)
-        dialog.present()
+        self.show_page(dialog)
 
     def open_skins(self):
         from skins import Editor

@@ -85,9 +85,6 @@ button.nav-active {
   box-shadow: inset 3px 0 0 @nova_accent;
   color: @nova_text;
 }
-.sidebar-footer { border-top: 1px solid @nova_border; padding-top: 8px; }
-button.version-button:not(.primary) { color: @nova_muted; background: transparent; border-color: transparent; }
-button.version-button:not(.primary):hover { background: @nova_control; color: @nova_text; }
 
 /* Typography */
 .main { padding: 26px 30px 18px; }
@@ -244,8 +241,7 @@ button.card-new {
 button.card-new:hover { border-color: @nova_accent; color: @nova_text; background: @nova_surface; }
 .statusbar { background: @nova_surface; border-top: 1px solid @nova_border; padding: 6px 18px; color: @nova_muted; font-size: 12px; }
 .statusbar button { padding: 2px 10px; }
-.sidebar-footer { background: @nova_surface; border: 1px solid @nova_border; border-radius: 12px; padding: 3px; }
-.sidebar-footer button { min-height: 20px; padding-top: 3px; padding-bottom: 3px; }
+
 
 /* ---- Motion ----
    Curve: cubic-bezier(0.23, 1, 0.32, 1) (strong ease-out). Entrances 280-320ms, feedback 140-160ms.
@@ -295,3 +291,22 @@ switch:checked { background: @nova_accent; border-color: @nova_accent; }
 switch slider { background: @nova_muted; border-radius: 999px; min-width: 18px; min-height: 18px; margin: 2px;
                 transition: background-color 160ms ease-out; }
 switch:checked slider { background: #1d1b26; }
+
+/* Sidebar footer card: version + update state, settings gear */
+.me-card { background: @nova_surface; border: 1px solid @nova_border; border-radius: 13px; padding: 6px;
+           transition: border-color 180ms ease-out, background-color 180ms ease-out; }
+.me-card.update { border-color: @nova_accent_line; background: @nova_accent_dim; }
+button.me-main { background: transparent; border-color: transparent; padding: 4px 6px; border-radius: 10px; }
+button.me-main:hover { background: @nova_control; }
+.me-logo { background: @nova_accent_dim; border: 1px solid @nova_accent_line; border-radius: 10px;
+           min-width: 34px; min-height: 34px; color: @nova_accent; }
+.me-title { font-weight: 700; font-size: 13px; }
+.me-note { color: @nova_dim; font-size: 11.5px; }
+.me-card.update .me-note { color: @nova_accent; }
+button.me-gear { background: transparent; border-color: transparent; padding: 7px; border-radius: 9px; color: @nova_dim; }
+button.me-gear:hover { background: @nova_control; color: @nova_text; }
+
+/* Pages shown inside the main window */
+.page { padding: 18px 26px 10px; }
+.page-header { padding-bottom: 8px; }
+.page .menu { padding: 8px 0; }
