@@ -10,7 +10,6 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import GLib, Gdk, GdkPixbuf, Gtk
 
 import motor
-from progreso import size_text  # noqa: F401  (re-exported for the views)
 
 
 HERE = Path(__file__).resolve().parent

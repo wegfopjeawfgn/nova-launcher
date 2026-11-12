@@ -7,7 +7,6 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gio, Gtk
 
 import actualizaciones
-import errores
 import estadisticas
 import tiempo
 from progreso import size_text

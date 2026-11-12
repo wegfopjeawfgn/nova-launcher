@@ -154,7 +154,6 @@ class FetchFileTests(TempRootCase):
         target = self.folder / "r.bin"
         first = fake_response([])
         first.iter_content.side_effect = catalogo.requests.ConnectionError("cut")
-        first_chunks = fake_response([data[:4]])
         # a stream that yields 4 bytes and then fails
         def broken(_size):
             yield data[:4]

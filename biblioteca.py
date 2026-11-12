@@ -2,7 +2,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 import hashlib
-from pathlib import Path
 import threading
 
 import requests

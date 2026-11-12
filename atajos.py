@@ -4,7 +4,6 @@ from pathlib import Path
 import re
 import shutil
 
-import motor
 
 INSTANCE_ID = re.compile(r"[0-9a-f]{32}")
 
