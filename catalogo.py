@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import re
+import time
 import shutil
 from tempfile import TemporaryDirectory
 from urllib.parse import urljoin, urlsplit
@@ -13,6 +14,7 @@ import zipfile
 import requests
 
 import motor
+import progreso
 
 API = "https://api.modrinth.com/v2"
 DESTINATIONS = {"mod": ("mods", ".jar"), "shader": ("shaderpacks", ".zip"),
@@ -61,7 +63,13 @@ def releases(project, category, instance):
     return api(f"/project/{project}/version", **params)
 
 
-def download(version, destination, suffix):
+def speed_report(progress, label):
+    """Adapter from fetch_file's byte counters to the one-line messages the views already show."""
+    return lambda received, total, elapsed, resumed: progress(
+        f"{label} · {progreso.describe(received, total, elapsed, resumed_from=resumed)}")
+
+
+def download(version, destination, suffix, progress=None):
     files = [item for item in version["files"] if item["filename"].endswith(suffix)]
     if not files:
         raise ValueError(f"La publicación no incluye archivos {suffix}.")
@@ -71,47 +79,94 @@ def download(version, destination, suffix):
         raise ValueError("El archivo tiene una ruta de descarga inválida.")
     destination.mkdir(parents=True, exist_ok=True)
     target = destination / name
-    fetch_file(item["url"], target, item["hashes"]["sha512"])
+    fetch_file(item["url"], target, item["hashes"]["sha512"], progress=progress)
     return target
 
 
-def fetch_file(url, target, expected, *, algorithm="sha512", size=None):
-    digest = hashlib.new(algorithm)
-    received = 0
+def fetch_file(url, target, expected, *, algorithm="sha512", size=None, progress=None):
+    """Download and verify, retrying a cut connection up to three times. Each retry resumes the
+    partial file when the server supports byte ranges (see _fetch_once)."""
+    for attempt in range(3):
+        try:
+            return _fetch_once(url, target, expected, algorithm=algorithm, size=size, progress=progress)
+        except (requests.ConnectionError, requests.Timeout, requests.exceptions.ChunkedEncodingError):
+            if attempt == 2:
+                raise
+            time.sleep(1.5 * (attempt + 1))
+
+
+def _fetch_once(url, target, expected, *, algorithm, size, progress):
+    """Download to `target` and verify it. A download that is cut off is kept as `target.part` and the
+    next call resumes it when the server allows byte ranges. `progress(received, total, elapsed, resumed)`
+    is called a few times per second. The file only gets its final name after the checksum matches."""
+    target = Path(target)
+    if target.exists():
+        raise FileExistsError(target)
     target.parent.mkdir(parents=True, exist_ok=True)
-    created = False
-    try:
-        for _ in range(4):
+    part = target.with_name(target.name + ".part")
+    resumed = part.stat().st_size if part.is_file() else 0
+    started = time.monotonic()
+    last_report = 0.0
+    for attempt in range(4):
+        if size is not None:
+            parsed = urlsplit(url)
+            if parsed.scheme != "https" or parsed.netloc not in CURSEFORGE_CDN:
+                raise ValueError("Servidor de descarga de CurseForge no compatible.")
+        headers = {"User-Agent": motor.USER_AGENT}
+        if resumed:
+            headers["Range"] = f"bytes={resumed}-"
+        with requests.get(url, timeout=45, stream=True, headers=headers,
+                          allow_redirects=size is None) as response:
+            if size is not None and response.is_redirect:
+                url = urljoin(url, response.headers["Location"])
+                continue
+            if resumed and response.status_code == 416:  # the partial file does not fit: start over
+                part.unlink(missing_ok=True)
+                resumed = 0
+                continue
+            response.raise_for_status()
+            if size is not None and response.status_code not in (200, 206):
+                raise ValueError("Respuesta de descarga inesperada.")
+            appending = bool(resumed) and response.status_code == 206 and \
+                str(response.headers.get("Content-Range", "")).startswith(f"bytes {resumed}-")
+            digest = hashlib.new(algorithm)
+            received = 0
+            if appending:
+                with part.open("rb") as previous:  # hash what is already on disk
+                    for block in iter(lambda: previous.read(1024 * 256), b""):
+                        digest.update(block)
+                        received += len(block)
+            else:
+                resumed = 0
+            total = None
             if size is not None:
-                parsed = urlsplit(url)
-                if parsed.scheme != "https" or parsed.netloc not in CURSEFORGE_CDN:
-                    raise ValueError("Servidor de descarga de CurseForge no compatible.")
-            with requests.get(url, timeout=45, stream=True,
-                              headers={"User-Agent": motor.USER_AGENT},
-                              allow_redirects=size is None) as response:
-                if size is not None and response.is_redirect:
-                    url = urljoin(url, response.headers["Location"])
-                    continue
-                response.raise_for_status()
-                if size is not None and response.status_code != 200:
-                    raise ValueError("Respuesta de descarga inesperada.")
-                with target.open("xb") as file:
-                    created = True
+                total = size
+            elif str(response.headers.get("Content-Length", "")).isdigit():
+                total = received + int(response.headers["Content-Length"])
+            try:
+                with part.open("ab" if appending else "wb") as output:
                     for chunk in response.iter_content(1024 * 256):
                         received += len(chunk)
                         if size is not None and received > size:
                             raise ValueError("La descarga excede el tamaño anunciado.")
-                        file.write(chunk)
+                        output.write(chunk)
                         digest.update(chunk)
-                break
-        else:
-            raise ValueError("Demasiadas redirecciones al descargar desde CurseForge.")
-        if digest.hexdigest() != expected or (size is not None and received != size):
-            raise ValueError(f"No coincide la suma de verificación de {target.name}.")
-    except BaseException:
-        if created:  # never leave a partial or unverified file next to good ones
-            target.unlink(missing_ok=True)
-        raise
+                        now = time.monotonic()
+                        if progress and now - last_report >= 0.25:
+                            last_report = now
+                            progress(received, total, now - started, resumed)
+            except ValueError:
+                part.unlink(missing_ok=True)
+                raise
+            break
+    else:
+        raise ValueError("Demasiadas redirecciones al descargar desde CurseForge.")
+    if digest.hexdigest() != expected or (size is not None and received != size):
+        part.unlink(missing_ok=True)
+        raise ValueError(f"No coincide la suma de verificación de {target.name}.")
+    part.replace(target)
+    if progress:
+        progress(received, total, time.monotonic() - started, resumed)
 
 
 def install_content(folder, instance, category, version, *, update=False, progress=lambda _: None):
@@ -168,8 +223,9 @@ def install_content(folder, instance, category, version, *, update=False, progre
                 existing = destination / previous["file"]
                 if existing.is_file() or existing.with_name(existing.name + ".disabled").is_file():
                     continue
-            progress(f"Descargando {number}/{len(resolved)} · {release['name']}")
-            file = download(release, Path(temp), suffix)
+            label = f"Descargando {number}/{len(resolved)} · {release['name']}"
+            progress(label)
+            file = download(release, Path(temp), suffix, progress=speed_report(progress, label))
             target = destination / file.name
             disabled = target.with_name(target.name + ".disabled")
             if any(candidate.exists() and candidate != old for candidate in (target, disabled)):
@@ -349,12 +405,14 @@ def curseforge_index(manifest, game, api_key, progress, manual_dir=None):
             size = entry["fileLength"]
             if not re.fullmatch(r"[0-9a-fA-F]{40}", sha1) or not 0 < size <= 512 * 1024**2:
                 raise ValueError(f"No se puede verificar el archivo {file_id}.")
-            progress(f"Descargando {number}/{len(files)} · {name}")
+            label = f"Descargando {number}/{len(files)} · {name}"
+            progress(label)
             digest = sha1.lower()
 
             def retrieve(target):
                 if url:
-                    fetch_file(url, target, digest, algorithm="sha1", size=size)
+                    fetch_file(url, target, digest, algorithm="sha1", size=size,
+                               progress=speed_report(progress, label))
                     return
                 source = manual_dir / name if manual_dir else None
                 if not source or not source.is_file():
@@ -439,7 +497,8 @@ def import_pack(path, memory, api_key="", *, project=None, progress=lambda _: No
         required = [item for item in modrinth_files
                     if item.get("env", {}).get("client", "required") == "required"]
         for number, item in enumerate(required, 1):
-            progress(f"Descargando {number}/{len(required)} · {item['path']}")
+            label = f"Descargando {number}/{len(required)} · {item['path']}"
+            progress(label)
             target = game / pack_path(item["path"])
             mirrors = [url for url in item["downloads"] if url.startswith((
                 "https://cdn.modrinth.com/", "https://github.com/",
@@ -454,7 +513,7 @@ def import_pack(path, memory, api_key="", *, project=None, progress=lambda _: No
             def retrieve(staged):
                 for url in mirrors:
                     try:
-                        fetch_file(url, staged, digest)
+                        fetch_file(url, staged, digest, progress=speed_report(progress, label))
                     except (requests.RequestException, ValueError) as error:
                         staged.unlink(missing_ok=True)
                         last_error = error
