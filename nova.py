@@ -977,8 +977,14 @@ class Nova(
         more = Gtk.MenuButton(icon_name="view-more-symbolic", tooltip_text="Más acciones")
         more.update_property([Gtk.AccessibleProperty.LABEL], ["Más acciones"])
         popover = Gtk.Popover()
-        menu = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, css_classes=["action-menu"])
-        popover.set_child(menu)
+        menu = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, css_classes=["action-menu"])
+        # The list is long: keep it inside the window and let it scroll instead of running off the screen.
+        scroller = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, propagate_natural_height=True,
+                                      max_content_height=420, min_content_width=270)
+        scroller.set_child(menu)
+        popover.set_child(scroller)
+        popover.connect("show", lambda *_: scroller.set_max_content_height(
+            max(220, min(560, self.window.get_height() - 190))))
         more.set_popover(popover)
         actions.append(more)
         content.append(actions)
@@ -1002,35 +1008,50 @@ class Nova(
             note.set_wrap(True)
             details.append(note)
 
+        def group(title):
+            if menu.get_first_child() is not None:
+                menu.append(Gtk.Separator(css_classes=["menu-separator"]))
+            menu.append(label(title, "menu-caption"))
+
+        def add_item(control):
+            child = control.get_child()
+            if isinstance(child, Gtk.Label):  # left-aligned, like a menu
+                child.set_xalign(0)
+                child.set_hexpand(True)
+            menu.append(control)
+
         def add_action(title, action, style=None):
             def activate():
                 popover.popdown()
                 action()
             control = button(title, activate, style)
             control.set_sensitive(not self.busy)
-            menu.append(control)
+            add_item(control)
 
         favorite = folder.name in self.library.get("favorites", [])
+        group("JUGAR")
         add_action("Quitar de favoritas" if favorite else "Marcar como favorita",
                    lambda: self.toggle_favorite(folder))
         alternate = button("Jugar con otra cuenta", lambda: (popover.popdown(), self.play_parallel(folder)))
         alternate.set_sensitive(not self.parallel and (not self.busy or
                                 (self.running and self.running[0] == folder)))
-        menu.append(alternate)
+        add_item(alternate)
+        add_action("Jugar sin conexión", lambda: self.play(offline=True))
+        group("CONTENIDO")
         add_action("Salud y mods", lambda: self.show_health(folder))
-        add_action("Exportar perfil", lambda: self.export_profile(folder))
+        add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))
+        add_action("Mundos", lambda: self.show_worlds(folder))
+        add_action("Java y memoria", lambda: self.show_java(folder, instance))
         add_action("Ver registro", lambda: self.open_log(folder))
         add_action("Abrir carpeta", lambda: motor.open_folder(folder))
-        add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))
+        group("INSTANCIA")
         add_action("Duplicar instancia", lambda: self.copy_instance(folder, "duplicate"))
+        add_action("Crear respaldo", lambda: self.copy_instance(folder, "backup"))
+        add_action("Exportar instancia", lambda: self.export_instance(folder))
+        add_action("Exportar perfil", lambda: self.export_profile(folder))
         if os.name != "nt" and not Path("/.flatpak-info").exists():  # a sandbox cannot export launchers
             add_action("Crear atajo en el menú", lambda: self.create_shortcut(folder, instance["name"]))
-        add_action("Crear respaldo", lambda: self.copy_instance(folder, "backup"))
-        add_action("Mundos", lambda: self.show_worlds(folder))
-        add_action("Jugar sin conexión", lambda: self.play(offline=True))
         add_action("Reparar instalación", lambda: self.repair_instance(folder, instance))
-        add_action("Java y memoria", lambda: self.show_java(folder, instance))
-        add_action("Exportar instancia", lambda: self.export_instance(folder))
         if instance["loader"] in ("fabric", "quilt"):
             full_branding = instance["version"] == "1.21.11" and instance["loader"] == "fabric"
             title = "Pantalla de carga Nova" if full_branding else "Colores Nova en la carga"
@@ -1040,7 +1061,7 @@ class Nova(
                 "Pantalla Nova preparada para el próximo inicio." if full_branding else
                 "Colores aplicados. Se ven al iniciar Minecraft."
             ))
-        menu.append(Gtk.Separator())
+        menu.append(Gtk.Separator(css_classes=["menu-separator"]))
         add_action("Eliminar instancia", lambda: self.remove_instance(folder, instance["name"]), "danger")
 
     def save_file(self, title, filename, action):

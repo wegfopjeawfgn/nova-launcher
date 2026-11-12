@@ -1,5 +1,9 @@
 # Cambios
 
+## 1.5.1
+- El menú *Más acciones* de la instancia ahora está agrupado (Jugar, Contenido, Instancia), alineado a la izquierda y se
+  desplaza cuando no entra en la ventana, en lugar de cortarse por abajo.
+
 ## 1.5.0
 
 ### Nuevo

@@ -313,3 +313,9 @@ button.me-gear:hover { background: @nova_control; color: @nova_text; }
 
 .state-warning { background: rgba(230, 200, 138, 0.1); color: #e6c88a; border-color: rgba(230, 200, 138, 0.3); }
 .state-info { background: @nova_control; color: @nova_muted; }
+
+/* Instance actions menu: grouped, left-aligned and scrollable */
+.action-menu { padding: 6px; }
+.action-menu button { padding: 7px 12px; border-radius: 8px; }
+.menu-caption { color: @nova_dim; font-size: 10.5px; font-weight: 800; letter-spacing: 0.8px; margin: 8px 12px 2px; }
+.menu-separator { margin: 6px 4px 2px; background: @nova_border; min-height: 1px; }
