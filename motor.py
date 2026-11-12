@@ -26,7 +26,8 @@ DATA_HOME = (Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData/Local
 ROOT = DATA_HOME / "nova-launcher"
 LOADERS = {"vanilla": "Vanilla", "fabric": "Fabric", "forge": "Forge",
            "neoforge": "NeoForge", "quilt": "Quilt"}
-DEFAULTS = {"version": VERSION, "loader": "vanilla", "loader_version": "", "java": "", "jvm_args": ""}
+DEFAULTS = {"version": VERSION, "loader": "vanilla", "loader_version": "", "java": "", "jvm_args": "",
+            "memory_min": 0}
 USER_AGENT = f"NovaLauncher/{NOVA_VERSION} (desktop Minecraft launcher)"
 
 
@@ -83,6 +84,16 @@ def parse_jvm_args(text):
     if any(piece.startswith(("-Xmx", "-javaagent")) for piece in pieces):
         raise ValueError("La memoria se ajusta en RAM asignada. Los agentes de Java no se permiten aquí.")
     return pieces
+
+
+def heap_arguments(instance):
+    """-Xmx from the instance's maximum RAM, plus -Xms when a valid minimum was chosen (0 = let Java decide)."""
+    maximum = instance["memory"]
+    arguments = [f"-Xmx{maximum}G"]
+    minimum = instance.get("memory_min", 0)
+    if isinstance(minimum, int) and not isinstance(minimum, bool) and 1 <= minimum <= maximum:
+        arguments.insert(0, f"-Xms{minimum}G")
+    return arguments
 
 
 def rotate_log(path, keep=3):
@@ -225,7 +236,7 @@ def launch(folder, profile, instance, status, session=None, *, on_started=None, 
         options = {
             "username": profile, "uuid": player_id.hex, "token": "0",
             "gameDirectory": str(game), "launcherName": "Nova Launcher",
-            "launcherVersion": NOVA_VERSION, "jvmArguments": [f"-Xmx{instance['memory']}G"],
+            "launcherVersion": NOVA_VERSION, "jvmArguments": heap_arguments(instance),
         }
         options["jvmArguments"].extend(parse_jvm_args(instance.get("jvm_args", "")))
         if (instance["version"] == "1.21.11" and instance["loader"] == "fabric"

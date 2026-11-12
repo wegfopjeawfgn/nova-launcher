@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 import sys
 import tempfile
@@ -60,6 +59,24 @@ class RotateLogTests(unittest.TestCase):
         self.assertEqual((folder / "minecraft.log.1").read_text(), "4")
         self.assertEqual((folder / "minecraft.log.3").read_text(), "2")
         self.assertFalse((folder / "minecraft.log.4").exists())
+
+
+class HeapArgumentTests(unittest.TestCase):
+    def test_maximum_only_by_default(self):
+        self.assertEqual(motor.heap_arguments({"memory": 4}), ["-Xmx4G"])
+        self.assertEqual(motor.heap_arguments({"memory": 4, "memory_min": 0}), ["-Xmx4G"])
+
+    def test_valid_minimum_goes_first(self):
+        self.assertEqual(motor.heap_arguments({"memory": 6, "memory_min": 2}), ["-Xms2G", "-Xmx6G"])
+        self.assertEqual(motor.heap_arguments({"memory": 4, "memory_min": 4}), ["-Xms4G", "-Xmx4G"])
+
+    def test_invalid_minimum_is_ignored(self):
+        for bad in (8, -1, True, "2", 2.5, None):
+            with self.subTest(bad=bad):
+                self.assertEqual(motor.heap_arguments({"memory": 4, "memory_min": bad}), ["-Xmx4G"])
+
+    def test_defaults_include_the_minimum(self):
+        self.assertEqual(motor.DEFAULTS["memory_min"], 0)
 
 
 if __name__ == "__main__":

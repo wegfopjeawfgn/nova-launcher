@@ -49,6 +49,10 @@ def invalid_settings(instance):
     memory = instance.get("memory")
     if not isinstance(memory, int) or isinstance(memory, bool) or not 1 <= memory <= 64:
         problems["memory"] = "La RAM asignada debe ser un número entero de GB entre 1 y 64."
+    minimum = instance.get("memory_min", 0)
+    if (not isinstance(minimum, int) or isinstance(minimum, bool) or minimum < 0
+            or (isinstance(memory, int) and not isinstance(memory, bool) and minimum > memory)):
+        problems["memory_min"] = "La RAM mínima debe ser 0 (automática) o un entero que no supere la máxima."
     try:
         motor.parse_jvm_args(instance.get("jvm_args", ""))
     except ValueError as error:
@@ -67,13 +71,13 @@ def diagnose(folder, instance, *, shared=None, java=None, memory_mb=None):
     found = []
     problems = invalid_settings(instance)
     if problems:
-        repairable = [name for name in problems if name in {"memory", "jvm_args"}]
+        repairable = [name for name in problems if name in {"memory", "memory_min", "jvm_args"}]
         found.append(_finding(
             "settings", "error", "Configuración incorrecta",
             "; ".join(problems.values()),
             "Minecraft puede no iniciar o usar valores inesperados.",
             "Corregí los valores en Editar instancia." if not repairable else
-            "Nova puede restablecer RAM y argumentos de Java a valores seguros (guarda una copia antes).",
+            "Nova puede restablecer RAM, RAM mínima y argumentos de Java a valores seguros (guarda una copia antes).",
             action="reset_settings" if repairable else None))
     version = instance.get("version", "")
     metadata = shared / "versions" / version / f"{version}.json" if version else None
@@ -154,13 +158,16 @@ def apply(action, folder):
         raise ValueError("No se pudo leer instance.json.")
     problems = invalid_settings(instance)
     changes = []
-    if not {"memory", "jvm_args"} & set(problems):
+    if not {"memory", "memory_min", "jvm_args"} & set(problems):
         return changes
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     shutil.copy2(config, config.with_name(f"instance.json.bak-{stamp}"))
     if "memory" in problems:
         changes.append(f"RAM: {instance.get('memory')!r} → 4 GB")
         instance["memory"] = 4
+    if "memory_min" in problems:
+        changes.append(f"RAM mínima: {instance.get('memory_min')!r} → automática")
+        instance["memory_min"] = 0
     if "jvm_args" in problems:
         changes.append("Argumentos de Java: vaciados")
         instance["jvm_args"] = ""
