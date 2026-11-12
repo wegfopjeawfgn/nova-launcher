@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.5.3
+- **Licencia**: Nova Launcher pasa a ser software libre bajo GPL-3.0-or-later. El repositorio incluye `LICENSE` y
+  `THIRD_PARTY_LICENSES.md` (con el aviso BSD-2-Clause de minecraft-launcher-lib), y los dos se distribuyen con el RPM, el
+  instalador de Windows y el paquete Flatpak. El RPM declara `GPL-3.0-or-later AND BSD-2-Clause`.
+- **Windows**: instrucciones para comprobar el SHA-256 con PowerShell y para la advertencia de SmartScreen, y una guía
+  del estado de la firma de código (`packaging/windows/FIRMA.md`). El instalador sigue sin firmar.
+- **Web**: sección de licencia en los términos, pregunta frecuente sobre código abierto y enlace en el pie.
+
 ## 1.5.2
 - **Inicio**: una franja arriba de la biblioteca con la última partida (toca para seleccionarla), las descargas en
   curso o en cola, el estado de la cuenta y si hay una versión nueva de Nova. Cada tarjeta abre su sección.

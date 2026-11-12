@@ -28,6 +28,7 @@ modules:
         exec python3 /app/share/nova-launcher/nova.py "$@"
         SH
       - chmod 755 /app/bin/nova-launcher
+      - install -Dm644 LICENSE THIRD_PARTY_LICENSES.md -t /app/share/licenses/io.nova.launcher/
       - install -Dm644 io.nova.launcher.desktop /app/share/applications/io.nova.launcher.desktop
       - install -Dm644 nova-logo.svg /app/share/icons/hicolor/scalable/apps/io.nova.launcher.svg
     sources:
