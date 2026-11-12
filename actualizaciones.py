@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 
 import requests
 
+import seguridad
 from nova_version import NOVA_VERSION as VERSION
 REPO = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_.-]{1,100}")
 
@@ -59,6 +60,8 @@ def check(repo, beta=False):
 
 
 def download(url, destination, *, progress=lambda _: None):
+    if not seguridad.safe_update_url(url):
+        raise ValueError("La actualización debe descargarse desde una release de GitHub por HTTPS.")
     extension = ".exe" if os.name == "nt" else ".rpm"
     if destination.suffix.lower() != extension:
         raise ValueError(f"Guardá la actualización con extensión {extension}.")

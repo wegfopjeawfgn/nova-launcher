@@ -7,6 +7,7 @@ from gi.repository import Gio, GLib
 from minecraft_launcher_lib import microsoft_account as microsoft
 
 import errores
+import seguridad
 
 REDIRECT = "http://localhost:8765"
 PAGE = ("<!doctype html><meta charset=utf-8><title>Nova Launcher</title>"
@@ -14,20 +15,21 @@ PAGE = ("<!doctype html><meta charset=utf-8><title>Nova Launcher</title>"
         "<h2>Listo, podés volver a Nova Launcher.</h2><p>Esta pestaña ya se puede cerrar.</p>")
 
 
-def wait_for_callback(timeout=180):
+def wait_for_callback(state, timeout=180):
     """Listen on localhost for the OAuth redirect; return ``(url_getter, close)`` or ``None``."""
     result = {}
     done = threading.Event()
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            if "code=" in self.path or "error=" in self.path:
+            accepted = seguridad.oauth_callback_ok(self.path, state)
+            if accepted:
                 result["url"] = REDIRECT + self.path
                 done.set()
-            self.send_response(200)
+            self.send_response(200 if accepted else 400)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(PAGE.encode())
+            self.wfile.write(PAGE.encode() if accepted else "Solicitud ignorada.".encode())
 
         def log_message(self, *_):
             pass
@@ -56,7 +58,7 @@ def connect(app):
     def configure(value, _):
         client_id = str(uuid.UUID(value))
         url, state, verifier = microsoft.get_secure_login_data(client_id, REDIRECT)
-        waiter = wait_for_callback()
+        waiter = wait_for_callback(state)
         Gio.AppInfo.launch_default_for_uri(url, None)
         if not waiter:
             GLib.idle_add(request_callback, client_id, state, verifier)
