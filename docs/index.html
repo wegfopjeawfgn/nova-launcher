@@ -5,7 +5,7 @@
   <meta name="google-site-verification" content="f-KJBeJi-TfsEfmEEZ4IR44FSGLed9uF5Enj_0-LfIo" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Nova Launcher — Launcher de Minecraft Java para Windows y Fedora</title>
-  <meta name="description" content="Nova Launcher organiza tus instancias de Minecraft Java: mods de Modrinth y CurseForge, importación de mods, texturas y shaders desde tu equipo, respaldos verificados, skins y servidores. Para Windows y Fedora.">
+  <meta name="description" content="Nova Launcher organiza tus instancias de Minecraft Java: mods de Modrinth y CurseForge, importación de mods, texturas y shaders desde tu equipo, respaldos verificados, skins, servidores y un cliente Rust experimental (Pomme). Para Windows y Fedora.">
   <meta name="theme-color" content="#07080b">
   <meta name="color-scheme" content="dark">
   <link rel="canonical" href="https://novalaunchermc.vercel.app/">
@@ -15,6 +15,9 @@
   <meta property="og:description" content="Instancias, mods, texturas y shaders desde tu equipo, respaldos verificados, skins y servidores para Minecraft Java en Windows y Fedora.">
   <meta property="og:url" content="https://novalaunchermc.vercel.app/">
   <meta property="og:image" content="https://novalaunchermc.vercel.app/assets/nova-biblioteca.webp">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="820">
+  <meta property="og:image:alt" content="Biblioteca de Nova Launcher con el banner de una instancia y el botón Jugar">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,6 +34,7 @@
       <a class="brand" href="./" aria-label="Nova Launcher, ir al inicio"><img src="assets/nova.svg" width="32" height="32" alt=""><span>Nova Launcher</span></a>
       <nav aria-label="Navegación">
         <a href="#funciones">Funciones</a>
+        <a href="#rust">Rust</a>
         <a href="#importar">Importar</a>
         <a href="#detalle">En detalle</a>
         <a href="#instalacion">Instalación</a>
@@ -45,7 +49,10 @@
       <canvas class="sky" data-sky aria-hidden="true"></canvas>
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.8.1</b></p>
+          <div class="badge-row">
+            <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.8.1</b></p>
+          <a class="badge badge-link" href="#rust"><span aria-hidden="true"></span> Nuevo · Cliente Rust (experimental)</a>
+          </div>
           <h1 id="titulo">Tus mods.<br>Tus mundos.<br><em>Un solo launcher.</em></h1>
           <p class="intro">Nova Launcher organiza tus instancias de Minecraft Java: instalá mods, importá los que ya tenés, revisá que todo funcione, guardá respaldos verificados y entrá a tus servidores.</p>
           <div class="actions">
@@ -60,7 +67,7 @@
           </p>
         </div>
         <figure class="shot hero-shot">
-          <img src="assets/nova-biblioteca.webp" width="1280" height="820" alt="Biblioteca de Nova Launcher con el banner de una instancia, el botón Jugar, los estantes de mods, shaders y texturas y la lista de instancias">
+          <img src="assets/nova-biblioteca.webp" width="1280" height="820" fetchpriority="high" alt="Biblioteca de Nova Launcher con el banner de una instancia, el botón Jugar, los estantes de mods, shaders y texturas y la lista de instancias">
           <figcaption>La biblioteca de Nova. Captura real con datos de ejemplo.</figcaption>
         </figure>
       </div>
@@ -69,10 +76,40 @@
 
     <section class="strip wrap" aria-label="Resumen">
       <ul>
+        <li><b>Java o Pomme (Rust)</b><span>elegís el cliente de cada instancia</span></li>
         <li><b>Vanilla, Fabric, Forge, NeoForge y Quilt</b><span>una instancia para cada partida</span></li>
         <li><b>Modrinth, CurseForge y tu equipo</b><span>mods, modpacks, shaders y texturas</span></li>
         <li><b>Windows x64 y Fedora</b><span>instaladores con SHA-256</span></li>
       </ul>
+    </section>
+
+    <section class="section wrap import rust" id="rust" aria-labelledby="rust-titulo">
+      <div class="copy reveal">
+        <h2 id="rust-titulo">Minecraft también en Rust, sin dejar Java</h2>
+        <p>Cada instancia puede usar <strong>Pomme</strong>, un cliente de Minecraft Java escrito en Rust. Java sigue siendo lo normal: Pomme es una opción más, y se elige por instancia en Editar instancia.</p>
+        <dl class="kinds">
+          <div><dt>Estado</dt><dd>experimental: Pomme está en desarrollo y le faltan funciones</dd></div>
+          <div><dt>Es de</dt><dd>un proyecto independiente, no oficial (<code>PommeMC/Client</code>, GPL-3.0)</dd></div>
+          <div><dt>Mods</dt><dd>no usa mods, shaders ni texturas de Java</dd></div>
+          <div><dt>Cuenta</dt><dd>tiene su propio inicio de sesión de Microsoft y pide tener Minecraft Java</dd></div>
+          <div><dt>Sistemas</dt><dd>Linux x64 y Windows x64</dd></div>
+        </dl>
+        <ul class="checks">
+          <li>Nova te pregunta antes de descargarlo y lo baja de la release oficial en GitHub.</li>
+          <li>Comprueba el tamaño y la suma SHA-256 que publica GitHub antes de abrirlo.</li>
+          <li>El tiempo jugado cuenta igual que con Java y, si falla, queda un <code>pomme.log</code>.</li>
+        </ul>
+      </div>
+      <div class="shots">
+        <figure class="shot reveal">
+          <img src="assets/nova-pomme.webp" width="1280" height="820" loading="lazy" alt="Biblioteca de Nova con una instancia que usa Pomme: el banner muestra la etiqueta Pomme · Rust y un aviso de que no usa los mods de Java">
+          <figcaption>Una instancia con Pomme. Datos de ejemplo.</figcaption>
+        </figure>
+        <figure class="shot small reveal">
+          <img src="assets/nova-pomme-descarga.webp" width="460" height="287" loading="lazy" alt="Aviso Descargar Pomme: explica que es un cliente no oficial, en desarrollo, y que Nova comprueba su suma SHA-256">
+          <figcaption>El aviso antes de descargar</figcaption>
+        </figure>
+      </div>
     </section>
 
     <section class="section wrap" id="funciones" aria-labelledby="funciones-titulo">
@@ -92,6 +129,11 @@
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 20h16"/></svg>
           <h3>Importá lo que ya tenés</h3>
           <p>Sumá mods, texturas, shaders y paquetes de datos desde archivos de tu equipo, o abrí un modpack. Nova revisa cada archivo antes de copiarlo.</p>
+        </li>
+        <li class="reveal">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 3v3m6-3v3M9 18v3m6-3v3M3 9h3m-3 6h3m12-6h3m-3 6h3M7 6h10v12H7zm3 4h4v4h-4z"/></svg>
+          <h3>Cliente Rust (experimental)</h3>
+          <p>Elegí Pomme, un cliente de Minecraft Java escrito en Rust, para una instancia. Java sigue siendo lo normal y Nova pregunta antes de descargar nada.</p>
         </li>
         <li class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.2 7.8 8 9 4.8-1.2 8-4.5 8-9V6l-8-3Zm-3.5 9 2.5 2.5 4.5-5"/></svg>
@@ -201,7 +243,11 @@
       </details>
       <details>
         <summary>¿Puedo jugar sin cuenta de Microsoft?</summary>
-        <p>Sí, con perfiles sin conexión. El inicio de sesión con Microsoft necesita un ID de aplicación aprobado para Minecraft Services; todavía no se probó de punta a punta.</p>
+        <p>Con Java, sí, con perfiles sin conexión. Con Pomme no: pide una cuenta de Microsoft y tener Minecraft Java. El inicio de sesión con Microsoft necesita un ID de aplicación aprobado para Minecraft Services; todavía no se probó de punta a punta.</p>
+      </details>
+      <details>
+        <summary>¿Qué es Pomme y es seguro usarlo?</summary>
+        <p>Pomme es un cliente de Minecraft Java escrito en Rust, de un proyecto independiente (<a href="https://github.com/PommeMC/Client">PommeMC/Client</a>, GPL-3.0-or-later). Nova lo descarga de su release oficial y comprueba el tamaño y la suma SHA-256 que publica GitHub. Eso confirma que es el archivo de esa release; no garantiza que el programa esté libre de errores. Sus propios autores avisan de que está en desarrollo y que sus instaladores todavía no están firmados.</p>
       </details>
       <details>
         <summary>¿Qué es la cuenta Nova?</summary>
