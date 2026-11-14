@@ -24,7 +24,16 @@ class CuentasMixin:
         popover = Gtk.Popover()
         options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         options.add_css_class("menu")
-        options.append(label("Cuentas", "subheading"))
+        options.append(label("Cuenta Nova", "subheading"))
+        nova = getattr(self, "nova_account", None)
+        if nova:
+            user = nova["usuario"]
+            options.append(label(f"{user['avatar_emoji']}  {user['username']}", "muted"))
+            options.append(button("Cerrar sesión de Nova", self.disconnect_nova, "quiet-button"))
+        else:
+            options.append(button("Iniciar sesión con Nova", self.connect_nova))
+        options.append(Gtk.Separator())
+        options.append(label("Cuentas de Minecraft", "subheading"))
         if name:
             options.append(button("Ver mi perfil", self.show_profile))
         if self.profiles:
@@ -105,6 +114,124 @@ class CuentasMixin:
     def open_skins(self):
         from skins import Editor
         Editor(self)
+
+    # ---- Cuenta Nova: the shared Nova Studios account (name and avatar only; no plan here) ----
+
+    def connect_nova(self):
+        import threading
+        import nova_cuenta
+        from gi.repository import Gio
+        self.accounts.popdown()
+        cancelled = threading.Event()
+        dialog = Gtk.Window(title="Iniciar sesión con Nova", transient_for=self.window, modal=True,
+                            default_width=420)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, css_classes=["menu"])
+        title = label("Conectando con Nova Studios…", "subheading")
+        detail = label("Usá la misma cuenta que en Nova Music. Tu contraseña se escribe solo en la web.", "muted")
+        detail.set_wrap(True)
+        code = label("", "subheading")
+        code.set_selectable(True)
+        code.set_visible(False)
+        reopen = button("Abrir el navegador de nuevo", lambda: None)
+        reopen.set_visible(False)
+        close = button("Cancelar", lambda: dialog.close(), "quiet-button")
+        for widget in (title, detail, code, reopen, close):
+            box.append(widget)
+        dialog.set_child(box)
+        dialog.connect("close-request", lambda *_: cancelled.set() or False)
+
+        def failed(message):
+            title.set_text("No se pudo conectar")
+            detail.set_text(message)
+            code.set_visible(False)
+            reopen.set_visible(False)
+            close.set_label("Cerrar")
+
+        def waiting(connection):
+            if cancelled.is_set():
+                return
+            title.set_text("Aprobá este código en tu navegador")
+            detail.set_text("Se abrió la página de Nova Studios. Comprobá que el código coincide y pulsá «Conectar».")
+            code.set_text(connection["codigo"])
+            code.set_visible(True)
+            reopen.connect("clicked", lambda *_: Gio.AppInfo.launch_default_for_uri(connection["pagina"], None))
+            reopen.set_visible(True)
+            Gio.AppInfo.launch_default_for_uri(connection["pagina"], None)
+
+        def finished(result):
+            if cancelled.is_set():
+                return
+            if result[0] == "aprobado":
+                try:
+                    nova_cuenta.save(result[1], result[2])
+                except (OSError, nova_cuenta.CuentaError) as error:
+                    failed(f"No se pudo guardar la sesión: {error}")
+                    return
+                self.nova_account = nova_cuenta.load()
+                self.update_accounts()
+                self.status.set_text(f"Cuenta Nova conectada · {self.nova_account['usuario']['username']}")
+                dialog.destroy()
+            elif result[0] == "rechazado":
+                failed("La conexión se canceló desde la web. No se conectó nada.")
+            elif result[0] == "expirado":
+                failed("El código venció. Volvé a intentarlo desde Cuentas.")
+
+        def worker():
+            try:
+                connection = nova_cuenta.start()
+                GLib.idle_add(waiting, connection)
+                result = nova_cuenta.wait_for_approval(connection, cancelled.is_set)
+            except nova_cuenta.CuentaError as error:
+                GLib.idle_add(failed, str(error))
+                return
+            GLib.idle_add(finished, result)
+
+        threading.Thread(target=worker, daemon=True).start()
+        self.show_page(dialog)
+
+    def disconnect_nova(self):
+        import threading
+        import nova_cuenta
+        self.accounts.popdown()
+        account = getattr(self, "nova_account", None)
+        nova_cuenta.clear()
+        self.nova_account = None
+        self.update_accounts()
+        self.status.set_text("Sesión de Nova cerrada en este equipo.")
+        if account:
+            threading.Thread(target=nova_cuenta.revoke, args=(account["token"],), daemon=True).start()
+
+    def refresh_nova(self):
+        """At startup, refresh name and avatar; forget the session if it was revoked on the web."""
+        import threading
+        import nova_cuenta
+        account = getattr(self, "nova_account", None)
+        if not account:
+            return
+
+        def apply(user):
+            if self.nova_account is not account:
+                return
+            if user is None:
+                nova_cuenta.clear()
+                self.nova_account = None
+                self.status.set_text("La sesión de Nova venció. Volvé a iniciarla desde Cuentas.")
+            elif user != account["usuario"]:
+                try:
+                    nova_cuenta.save(account["token"], user)
+                except (OSError, nova_cuenta.CuentaError):
+                    return
+                self.nova_account = nova_cuenta.load()
+            self.update_accounts()
+
+        def worker():
+            try:
+                user = nova_cuenta.profile(account["token"])
+            except nova_cuenta.CuentaError:
+                return  # Offline: keep the saved name; never sign out for a network problem.
+            GLib.idle_add(apply, user)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def connect_microsoft(self):
         import cuentas
