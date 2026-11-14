@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        1.7.0
+Version:        1.8.0
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        GPL-3.0-or-later AND BSD-2-Clause
@@ -44,6 +44,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Sat Nov 14 2026 Nova Launcher <nova@localhost> - 1.8.0-1
+- Add Pomme, an optional unofficial Rust client, as a per-instance choice.
+
 * Sat Nov 14 2026 Nova Launcher <nova@localhost> - 1.7.0-1
 - Redesign aligned with Nova Studios and import mods, packs and shaders from local files.
 

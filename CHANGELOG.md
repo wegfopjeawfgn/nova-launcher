@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar
+## 1.8.0
 - **Pomme (experimental)**: cada instancia puede usar el cliente **Pomme**, un cliente de Minecraft Java no oficial
   escrito en Rust, en lugar de Java (que sigue siendo lo normal). Se elige en Editar instancia > Cliente. La primera vez,
   Nova pregunta y lo descarga desde la release oficial de `PommeMC/Client`, comprueba el tamaño y la suma SHA-256 que
