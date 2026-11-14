@@ -400,8 +400,12 @@ def content_files(folder, category):
 
 def installed_view(app, folder, category=None):
     view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-    query = Gtk.SearchEntry(placeholder_text="Buscar contenido instalado")
-    view.append(query)
+    top = Gtk.Box(spacing=8)
+    query = Gtk.SearchEntry(placeholder_text="Buscar contenido instalado", hexpand=True)
+    top.append(query)
+    top.append(Browser.button("Importar", lambda: app.import_files(
+        category=category, folder=folder, parent=view.get_root(), after=refresh)))
+    view.append(top)
     scroll = Gtk.ScrolledWindow(vexpand=True, min_content_height=280, min_content_width=475)
     view.append(scroll)
     rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -442,9 +446,8 @@ def installed_view(app, folder, category=None):
                     row.append(Browser.button("Volver a anterior", lambda key=project: change(
                         lambda: catalogo.restore_mod(folder, key), "Versión anterior restaurada."
                     )))
-                if project:
-                    row.append(Browser.button("Mover a la Papelera",
-                                              lambda path=file, key=project: remove(path, key)))
+                row.append(Browser.button("Mover a la Papelera",
+                                          lambda path=file, key=project: remove(path, key)))
                 rows.append(row)
         if rows.get_first_child() is None:
             rows.append(Gtk.Label(label="Sin coincidencias." if query.get_text().strip() else "Todavía no hay contenido instalado.", xalign=0,
@@ -619,17 +622,18 @@ def installed_view(app, folder, category=None):
         actions.append(batch)
         dependencies = Browser.button("Revisar dependencias", check_dependencies)
         actions.append(dependencies)
-        view.insert_child_after(actions, query)
+        view.insert_child_after(actions, top)
     query.connect("search-changed", lambda _: refresh())
     refresh()
     return view, refresh
 
 
-def open_installed(app, folder):
-    dialog = Gtk.Dialog(title="Contenido instalado", transient_for=app.window, modal=True)
+def open_installed(app, folder, category=None):
+    titles = {"mod": "Mods instalados", "shader": "Shaders instalados", "resourcepack": "Texturas instaladas"}
+    dialog = Gtk.Dialog(title=titles.get(category, "Contenido instalado"), transient_for=app.window, modal=True)
     dialog.add_button("Cerrar", Gtk.ResponseType.CLOSE)
     dialog.connect("response", lambda widget, _: widget.destroy())
-    view, _ = installed_view(app, folder)
+    view, _ = installed_view(app, folder, category)
     view.add_css_class("menu")
     dialog.get_content_area().append(view)
     dialog.present()

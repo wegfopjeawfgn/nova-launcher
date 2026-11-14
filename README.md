@@ -1,6 +1,6 @@
 # Nova Launcher
 
-Launcher de terceros para Minecraft Java Edition en Fedora y Windows. Gestiona instancias, mods de Modrinth, skins y respaldos desde una aplicación de escritorio.
+Launcher de terceros para Minecraft Java Edition en Fedora y Windows. Gestiona instancias, mods de Modrinth, skins y respaldos desde una aplicación de escritorio. También importa mods, texturas, shaders y modpacks desde archivos de tu equipo (botón Importar, `Ctrl+O` o arrastrando a la ventana).
 
 Descargá el RPM y el archivo SHA-256 desde **Releases**. En la carpeta de descarga, ejecutá:
 

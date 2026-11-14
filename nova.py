@@ -26,7 +26,8 @@ import i18n
 import inicio
 import respaldos
 import tiempo
-from widgets import resolution_field, instance_art, hero_art, enter, label, button, feature_button, HERE
+from widgets import (resolution_field, instance_art, hero_art, enter, label, button, feature_button,
+                     content_tile, stat_tile, default_cover, HERE)
 from vistas_cuentas import CuentasMixin
 from vistas_paginas import PaginasMixin
 from vistas_salud import SaludMixin
@@ -35,6 +36,7 @@ from vistas_perfiles import PerfilesMixin
 from vistas_curseforge import CurseForgeMixin
 from vistas_estadisticas import EstadisticasMixin
 from vistas_importar import ImportarMixin
+from vistas_archivos import ArchivosMixin
 from vistas_servidores import ServidoresMixin
 from vistas_descargas import DescargasMixin
 from vistas_sesiones import SesionesMixin
@@ -50,6 +52,7 @@ class Nova(
     EstadisticasMixin,
     CuentasMixin,
     ImportarMixin,
+    ArchivosMixin,
     ServidoresMixin,
     DescargasMixin,
     SesionesMixin,
@@ -122,6 +125,10 @@ class Nova(
             Gtk.CallbackAction.new(lambda *_: self.library_query.grab_focus()),
         ))
         keys.add_shortcut(Gtk.Shortcut.new(
+            Gtk.ShortcutTrigger.parse_string("<Control>o"),
+            Gtk.CallbackAction.new(lambda *_: self.import_files()),
+        ))
+        keys.add_shortcut(Gtk.Shortcut.new(
             Gtk.ShortcutTrigger.parse_string("Escape"),
             Gtk.CallbackAction.new(lambda *_: self.current_page is not None and self.leave_page()),
         ))
@@ -162,7 +169,12 @@ class Nova(
         titlebar.pack_end(self.accounts)
         self.window.set_titlebar(titlebar)
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.window.set_child(outer)
+        frame = Gtk.Overlay()
+        frame.set_child(outer)
+        drop_hint = self.drop_hint()
+        frame.add_overlay(drop_hint)
+        self.window.set_child(frame)
+        self.setup_drop(self.window, drop_hint)
         shell = Gtk.Box(vexpand=True)
         outer.append(shell)
         sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, css_classes=["sidebar"])
@@ -181,7 +193,7 @@ class Nova(
         nav.append(self.nav_button("Explorar", "system-search-symbolic", self.browse))
         nav.append(self.nav_button("CurseForge", "system-search-symbolic", self.show_curseforge))
         nav.append(self.nav_button("Modpacks", "package-x-generic-symbolic", self.browse_packs))
-        nav.append(self.nav_button("Importar pack", "document-open-symbolic",
+        nav.append(self.nav_button("Importar", "document-open-symbolic",
                                    lambda: self.add_instance(import_only=True)))
         nav.append(label(i18n.tr("HERRAMIENTAS"), "nav-caption"))
         nav.append(self.nav_button("Skins", "applications-graphics-symbolic", self.open_skins))
@@ -237,7 +249,7 @@ class Nova(
                                                  self.add_instance, "primary"))
         main.append(library_header)
         self.home_cards = {}
-        home = Gtk.Box(spacing=12, homogeneous=True, css_classes=["home-strip"])
+        home = Gtk.Box(spacing=0, homogeneous=False, css_classes=["home-strip"])
         for key, action in (("last", lambda: self.select(self.last_played) if self.last_played else None),
                             ("downloads", self.show_downloads),
                             ("account", lambda: self.accounts.popup()),
@@ -250,6 +262,7 @@ class Nova(
             inner.append(title)
             inner.append(text)
             card.set_child(inner)
+            card.set_hexpand(True)
             card.connect("clicked", lambda _, run=action: run())
             home.append(card)
             self.home_cards[key] = (card, title, text)
@@ -443,12 +456,12 @@ class Nova(
 
 
     def add_instance(self, *, import_only=False):
-        title = "Importar modpack" if import_only else "Nueva instancia"
+        title = "Importar" if import_only else "Nueva instancia"
         chooser = Gtk.Window(title=title, transient_for=self.window,
                              modal=True, default_width=510, resizable=False)
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, css_classes=["menu"])
         content.append(label(title, "subheading"))
-        content.append(label("Elegí el formato del archivo" if import_only else
+        content.append(label("Elegí qué querés importar" if import_only else
                              "Elegí cómo querés empezar", "muted"))
 
         def choose(action):
@@ -464,6 +477,8 @@ class Nova(
              lambda: self.import_pack("mrpack")),
             ("Importar ZIP", "Abrí un ZIP de CurseForge o exportado desde Nova.",
              lambda: self.import_pack("zip")),
+            ("Archivos del equipo", "Mods, texturas, shaders, paquetes de datos o un modpack. "
+             "También podés arrastrarlos a la ventana.", self.import_files),
         )
         options += (("Importar desde Prism Launcher", "Copiá la instancia, sus mods y sus mundos.",
                      self.choose_prism),
@@ -471,7 +486,8 @@ class Nova(
                      self.show_templates),
                     ("Importar un perfil de Nova", "Archivo .json exportado desde otra instancia.",
                      self.import_profile))
-        shown = options[2:4] + options[6:] if import_only else options
+        # Archivos del equipo (4), Prism (5) and perfil (7) when importing; everything but the files option otherwise.
+        shown = (options[4], options[5], options[7]) if import_only else options[:4] + options[5:]
         for name, detail, action in shown:
             content.append(feature_button(name, detail, lambda run=action: choose(run)))
         chooser.set_child(content)
@@ -491,38 +507,84 @@ class Nova(
         dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
         dialog.add_button("Guardar", Gtk.ResponseType.OK).add_css_class("primary")
         box = dialog.get_content_area()
-        box.add_css_class("menu")
-        box.set_spacing(8)
+        box.set_spacing(0)
+        scroller = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        form = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=22, css_classes=["form-page"])
+        form.set_halign(Gtk.Align.START)
+        card_width = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.HORIZONTAL)  # every section card is as wide as the widest
+        scroller.set_child(form)
+        box.append(scroller)
+        head = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        head.append(label("Editar instancia" if folder else "Nueva instancia", "subheading"))
+        head.append(label("Nombre, versión, memoria y portada de esta instancia." if folder else
+                          "Elegí cómo se llama y con qué versión de Minecraft juega.", "muted"))
+        form.append(head)
 
-        tabs = Gtk.Notebook()
-        box.append(tabs)
-        general = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, css_classes=["menu"])
-        appearance = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
-        tabs.append_page(general, Gtk.Label(label="Juego"))
-        tabs.append_page(appearance, Gtk.Label(label="Portada y notas"))
+        def section(title):
+            group = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+            group.append(label(title, "form-section"))
+            card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, css_classes=["form-card"])
+            card_width.add_widget(card)
+            group.append(card)
+            form.append(group)
+            return card
 
-        def game_field(title, widget):
-            general.append(label(title))
-            general.append(widget)
-            return widget
+        def row(card, title, control, hint=None, width=None):
+            line = Gtk.Box(spacing=18, css_classes=["form-row"])
+            text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, hexpand=True, valign=Gtk.Align.CENTER)
+            text.append(label(title, "form-label"))
+            if hint:
+                note = label(hint, "opt-hint")
+                note.set_wrap(True)
+                note.set_max_width_chars(46)
+                text.append(note)
+            line.append(text)
+            if width:
+                control.set_size_request(width, -1)
+            control.set_halign(Gtk.Align.END)
+            control.set_valign(Gtk.Align.CENTER)
+            line.append(control)
+            card.append(line)
+            return control
 
-        name = game_field("Nombre", Gtk.Entry(text=values["name"], width_chars=43))
-        versions = game_field("Versión de Minecraft", Gtk.ComboBoxText.new_with_entry())
+        identity = section("Instancia")
+        game = section("Minecraft")
+        performance = section("Rendimiento")
+        java_card = section("Java")
+
+        name = row(identity, "Nombre", Gtk.Entry(text=values["name"], max_length=40, placeholder_text="Mi instancia"), width=300)
+        name.connect("activate", lambda _: dialog.response(Gtk.ResponseType.OK))
+        notes = row(identity, "Nota", Gtk.Entry(text=values.get("notes", ""), max_length=160,
+                                                 placeholder_text="Ej. Mundo cooperativo con amigos"),
+                    hint="Un recordatorio corto. Se ve debajo del banner.", width=300)
+        cover = values.get("cover", "")
+        pending = None
+        preview = instance_art({**values, "artwork": values.get("artwork", 0)}, width=192, height=108)
+        cover_controls = Gtk.Box(spacing=14)
+        cover_controls.append(preview)
+        cover_buttons = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, valign=Gtk.Align.CENTER)
+        cover_controls.append(cover_buttons)
+        row(identity, "Portada", cover_controls, hint="Se ve en la biblioteca y en el banner.")
+
+        versions = row(game, "Versión de Minecraft", Gtk.ComboBoxText.new_with_entry(), width=300)
         for item in self.versions:
             versions.append(item["id"], item["id"])
         if not versions.set_active_id(values["version"]):
             versions.get_child().set_text(values["version"])
-        loader = game_field("Cargador", Gtk.ComboBoxText())
+        loader = row(game, "Cargador", Gtk.ComboBoxText(), hint="Fabric, Forge, NeoForge o Quilt para usar mods.",
+                     width=300)
         for key, title in motor.LOADERS.items():
             loader.append(key, title)
         loader.set_active_id(values["loader"])
-        build_row = game_field("Versión del cargador (opcional)", Gtk.Box(spacing=8))
+        build_row = Gtk.Box(spacing=8)
         builds = Gtk.ComboBoxText.new_with_entry()
         builds.set_hexpand(True)
         loader_build = builds.get_child()
         loader_build.set_text(values["loader_version"])
-        loader_build.set_placeholder_text("Automática si se deja vacía")
+        loader_build.set_placeholder_text("Automática")
         build_row.append(builds)
+        row(game, "Versión del cargador", build_row, hint="Opcional. Vacía, Nova elige la más reciente compatible.",
+            width=300)
         build_row.set_sensitive(values["loader"] != "vanilla")
 
         def load_builds():
@@ -556,7 +618,8 @@ class Nova(
 
             threading.Thread(target=worker, daemon=True).start()
 
-        lookup = button("Consultar builds", load_builds)
+        lookup = button("Consultar", load_builds)
+        lookup.set_tooltip_text("Buscar las versiones del cargador compatibles con esta versión de Minecraft")
         build_row.append(lookup)
 
         def loader_changed(_):
@@ -565,35 +628,32 @@ class Nova(
             build_row.set_sensitive(loader.get_active_id() != "vanilla")
 
         loader.connect("changed", loader_changed)
-        memory = game_field("Memoria máxima (GB)", Gtk.SpinButton.new_with_range(1, 32, 1))
-        memory.set_value(values["memory"])
-        memory_min = game_field("Memoria mínima (GB · 0 = automática)", Gtk.SpinButton.new_with_range(0, 32, 1))
-        memory_min.set_value(values.get("memory_min", 0))
-        java = game_field("Ruta de Java para esta instancia (opcional)", Gtk.Entry(text=values["java"]))
-        general.append(java_picker(java, lambda: versions.get_child().get_text().strip()))
-        jvm_args = game_field("Argumentos extra de Java (opcional)",
-                              Gtk.Entry(text=values.get("jvm_args", ""),
-                                        placeholder_text="-XX:+UseG1GC"))
         fixed = folder and (values.get("pack") or (folder / "game" / "saves").exists()
                             or (folder / "game" / "mods").exists())
         if fixed:
             for widget in (versions, loader, build_row):
                 widget.set_sensitive(False)
-            general.append(label("Esta instancia contiene un pack, mods o mundos.", "muted"))
-        resolution = game_field("Tamaño de la ventana", resolution_field(
-            values.get("resolution"), "Usar ajuste de Nova"
-        ))
-        cover = values.get("cover", "")
-        pending = None
-        cover_frame = instance_art({**values, "artwork": values.get("artwork", 0)}, height=135)
-        preview = cover_frame.get_last_child()
-        appearance.append(cover_frame)
-        cover_buttons = Gtk.Box(spacing=8)
-        appearance.append(cover_buttons)
-        notes = Gtk.Entry(text=values.get("notes", ""), max_length=160,
-                          placeholder_text="Ej. Mundo cooperativo con amigos")
-        appearance.append(label("Nota de la instancia", "form-label"))
-        appearance.append(notes)
+            lock_note = label("Esta instancia tiene un pack, mods o mundos: la versión y el cargador no se pueden "
+                              "cambiar. Creá otra instancia si necesitás otra versión.", "form-note")
+            lock_note.set_wrap(True)
+            game.append(lock_note)
+
+        memory = row(performance, "Memoria máxima", Gtk.SpinButton.new_with_range(1, 32, 1),
+                     hint="En GB. Los modpacks grandes suelen pedir 6 u 8.", width=120)
+        memory.set_value(values["memory"])
+        memory_min = row(performance, "Memoria mínima", Gtk.SpinButton.new_with_range(0, 32, 1),
+                         hint="En GB. 0 deja que Java decida.", width=120)
+        memory_min.set_value(values.get("memory_min", 0))
+        resolution = row(performance, "Tamaño de la ventana", resolution_field(
+            values.get("resolution"), "Usar ajuste de Nova"), width=300)
+
+        java = row(java_card, "Ruta de Java", Gtk.Entry(text=values["java"], placeholder_text="Administrado por Nova"),
+                   hint="Opcional. Para usar un Java que ya tenés instalado.", width=300)
+        row(java_card, "Java instalado", java_picker(java, lambda: versions.get_child().get_text().strip()),
+            hint="Buscá los que ya hay en este equipo.")
+        jvm_args = row(java_card, "Argumentos extra", Gtk.Entry(text=values.get("jvm_args", ""),
+                                                                 placeholder_text="-XX:+UseG1GC"),
+                       hint="Opcional. Para usuarios avanzados.", width=300)
 
         def choose_cover():
             picker = Gtk.FileChooserNative(title="Elegir portada", transient_for=dialog,
@@ -627,12 +687,12 @@ class Nova(
         def clear_cover():
             nonlocal pending, cover
             pending, cover = None, ""
-            preview.set_paintable(None)
+            preview.set_paintable(default_cover(values.get("artwork", 0)))
 
         cover_buttons.append(button("Elegir imagen", choose_cover))
-        cover_buttons.append(button("Usar portada original", clear_cover))
+        cover_buttons.append(button("Usar la original", clear_cover, "quiet-button"))
 
-        error = label("", "muted")
+        error = label("", "form-status")
         error.set_wrap(True)
         box.append(error)
 
@@ -1046,18 +1106,18 @@ class Nova(
         content.append(actions)
         details.append(hero)
         enter(hero)
+        details.append(label("Contenido", "section-title"))
         tiles = Gtk.Box(spacing=12, homogeneous=True)
         for category, title in (("mod", "Mods"), ("shader", "Shaders"), ("resourcepack", "Texturas")):
             count = len(biblioteca.content_files(folder, category))
-            tile = feature_button(title, "1 instalado" if count == 1 else f"{count} instalados",
-                                  lambda kind=category: biblioteca.Browser(self, folder, instance, kind))
+            tile = content_tile(
+                title, count,
+                lambda kind=category: biblioteca.open_installed(self, folder, kind),
+                lambda kind=category: biblioteca.Browser(self, folder, instance, kind),
+                lambda kind=category: self.import_files(category=kind, folder=folder))
             tile.set_sensitive(not self.busy)
             tiles.append(tile)
-        tile = feature_button("Tiempo jugado", tiempo.short(played), lambda: None)
-        tile.add_css_class("stat")
-        tile.set_can_target(False)
-        tile.set_focusable(False)
-        tiles.append(tile)
+        tiles.append(stat_tile("Tiempo jugado", tiempo.short(played)))
         details.append(tiles)
         if instance.get("notes"):
             note = label(instance["notes"], "muted")
@@ -1096,6 +1156,7 @@ class Nova(
         group("CONTENIDO")
         add_action("Salud y mods", lambda: self.show_health(folder))
         add_action("Contenido instalado", lambda: biblioteca.open_installed(self, folder))
+        add_action("Importar archivos del equipo", lambda: self.import_files(folder=folder))
         add_action("Mundos", lambda: self.show_worlds(folder))
         add_action("Java y memoria", lambda: self.show_java(folder, instance))
         add_action("Ver registro", lambda: self.open_log(folder))

@@ -109,13 +109,54 @@ def button(value, action, style=None):
     return widget
 
 
+def content_tile(title, count, manage, explore, import_files):
+    """A shelf for one kind of content: the count opens the installed list; two actions add more."""
+    tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, css_classes=["shelf-tile"])
+    main = button("", manage, "shelf-main")
+    inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, halign=Gtk.Align.START)
+    inner.append(label(title, "shelf-title"))
+    figures = Gtk.Box(spacing=6)
+    figures.append(label(str(count), "shelf-count"))
+    unit = label("instalado" if count == 1 else "instalados", "shelf-unit")
+    unit.set_valign(Gtk.Align.END)
+    figures.append(unit)
+    inner.append(figures)
+    main.set_child(inner)
+    main.update_property([Gtk.AccessibleProperty.LABEL], [f"Gestionar {title}: {count} instalados"])
+    tile.append(main)
+    actions = Gtk.Box(spacing=6, css_classes=["shelf-actions"], homogeneous=True)
+    explore_button = button("Explorar", explore, "shelf-action")
+    explore_button.set_tooltip_text(f"Buscar {title.lower()} en Modrinth")
+    explore_button.update_property([Gtk.AccessibleProperty.LABEL], [f"Explorar {title.lower()} en Modrinth"])
+    import_button = button("Importar", import_files, "shelf-action")
+    import_button.set_tooltip_text(f"Añadir {title.lower()} desde archivos de este equipo")
+    import_button.update_property([Gtk.AccessibleProperty.LABEL], [f"Importar {title.lower()} desde el equipo"])
+    actions.append(explore_button)
+    actions.append(import_button)
+    tile.append(actions)
+    return tile
+
+
+def stat_tile(title, value):
+    tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, css_classes=["shelf-tile", "shelf-stat"])
+    tile.append(label(title, "shelf-title"))
+    tile.append(label(value, "shelf-count"))
+    return tile
+
+
 def feature_button(title, detail, action):
     tile = button("", action, "feature")
-    content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-    content.append(label(title, "feature-title"))
+    content = Gtk.Box(spacing=12)
+    texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, hexpand=True)
+    texts.append(label(title, "feature-title"))
     description = label(detail, "muted")
     description.set_wrap(True)
-    content.append(description)
+    texts.append(description)
+    content.append(texts)
+    chevron = Gtk.Image.new_from_icon_name("go-next-symbolic")
+    chevron.add_css_class("feature-chevron")
+    chevron.set_valign(Gtk.Align.CENTER)
+    content.append(chevron)
     tile.set_child(content)
     tile.update_property([Gtk.AccessibleProperty.LABEL], [title])
     return tile
