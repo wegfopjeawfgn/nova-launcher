@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar
+## 1.7.0
 - **Rediseño**: nueva identidad alineada con Nova Studios. Fondo de cielo nocturno, tinta clara y un único acento cian
   (ion) propio del launcher, con un logo nuevo (estrella de cuatro puntas dentro de una órbita). La fila de estado
   reemplaza las cuatro tarjetas de la biblioteca, la barra lateral cabe sin cortarse y los estantes de Mods, Shaders
