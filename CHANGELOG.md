@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar
+## 1.6.0
 - **Cuenta Nova**: «Iniciar sesión con Nova» en el menú de Cuentas conecta el launcher con la misma cuenta que Nova
   Music. Se aprueba un código en `studiosnova.vercel.app/conectar`; la contraseña nunca pasa por el launcher. El acceso
   se guarda en `nova-cuenta.json` (solo legible por el usuario) y se revoca al cerrar sesión. Solo muestra el nombre y

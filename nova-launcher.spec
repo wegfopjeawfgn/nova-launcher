@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        1.5.3
+Version:        1.6.0
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        GPL-3.0-or-later AND BSD-2-Clause
@@ -44,6 +44,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Sat Nov 14 2026 Nova Launcher <nova@localhost> - 1.6.0-1
+- Add Cuenta Nova sign-in through the Nova Studios site.
+
 * Thu Nov 12 2026 Nova Launcher <nova@localhost> - 1.5.3-1
 - Relicense as GPL-3.0-or-later and ship LICENSE and THIRD_PARTY_LICENSES.md.
 
