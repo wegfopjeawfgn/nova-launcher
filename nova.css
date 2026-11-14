@@ -1,20 +1,23 @@
-/* Nova Launcher · dark theme. Palette: graphite surfaces with a lavender accent. */
-@define-color nova_canvas #141517;
-@define-color nova_sidebar #181a1d;
-@define-color nova_surface #1c1e22;
-@define-color nova_raised #222429;
-@define-color nova_control #25272c;
-@define-color nova_hover #2e3138;
-@define-color nova_border #33363d;
-@define-color nova_border_strong #454851;
-@define-color nova_text #f0eff3;
-@define-color nova_muted #b5b7c2;
-@define-color nova_accent #c8bfdf;
-@define-color nova_accent_hover #d9d2ea;
-@define-color nova_accent_dim #2e2a39;
-@define-color nova_accent_line #51485f;
-@define-color nova_danger #ffb9c8;
-@define-color nova_dim #8d909c;
+/* Nova Launcher · dark theme.
+   Same night sky as Nova Studios: near-black ground, starlight ink and one accent, ion cyan, that belongs to
+   the launcher. Depth comes from tonal steps and hairlines; shadows are only used under the hero. */
+@define-color nova_canvas #0b0d12;
+@define-color nova_sidebar #07080b;
+@define-color nova_surface #10131a;
+@define-color nova_raised #151a23;
+@define-color nova_control #181d27;
+@define-color nova_hover #212836;
+@define-color nova_border #1d222c;
+@define-color nova_border_strong #2c3341;
+@define-color nova_text #eef0f5;
+@define-color nova_muted #a9aebb;
+@define-color nova_accent #8fd6e8;
+@define-color nova_accent_hover #b4e7f3;
+@define-color nova_accent_dim #0f2830;
+@define-color nova_accent_line #21505d;
+@define-color nova_danger #ffa99a;
+@define-color nova_dim #8189a0;
+@define-color nova_warm #f1d49b;
 
 /* Base */
 window, window.nova-main { background: @nova_canvas; color: @nova_text; }
@@ -27,18 +30,19 @@ window > decoration { border-radius: 14px; }
 .muted, .card-meta { color: @nova_muted; }
 .menu { padding: 22px; }
 .dialog-action-area { padding: 0 22px 18px; }
-tooltip { background: @nova_raised; border: 1px solid @nova_border; border-radius: 8px; }
+tooltip { background: @nova_raised; border: 1px solid @nova_border_strong; border-radius: 8px; }
+label { font-feature-settings: "tnum"; }
 
 /* Title bar */
 headerbar, .titlebar {
-  background-color: @nova_surface;
+  background-color: @nova_sidebar;
   background-image: none;
   border-bottom: 1px solid @nova_border;
   color: @nova_text;
   padding: 6px 12px;
 }
-.nova-titlebar { padding: 5px 10px 5px 15px; }
-.brand { font-size: 16px; font-weight: 750; letter-spacing: 0.2px; }
+.nova-titlebar { padding: 5px 10px 5px 16px; }
+.brand { font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
 headerbar windowcontrols { padding: 0 2px; border-spacing: 4px; }
 headerbar windowcontrols button, .nova-titlebar windowcontrols button {
   min-width: 32px;
@@ -48,50 +52,47 @@ headerbar windowcontrols button, .nova-titlebar windowcontrols button {
   border: 1px solid transparent;
   border-radius: 8px;
 }
-headerbar windowcontrols button > image { color: @nova_text; opacity: 1; -gtk-icon-style: symbolic; }
+headerbar windowcontrols button > image { color: @nova_muted; opacity: 1; -gtk-icon-style: symbolic; }
 headerbar windowcontrols button:hover { background: @nova_hover; }
-headerbar windowcontrols button.close:hover { background: #713548; }
+headerbar windowcontrols button:hover > image { color: @nova_text; }
+headerbar windowcontrols button.close:hover { background: #5d2a33; }
 headerbar windowcontrols button:active { background: @nova_border_strong; }
 .nova-titlebar windowcontrols.end { border-left: 1px solid @nova_border; margin-left: 6px; padding-left: 9px; }
-.account-switcher > button { background: @nova_control; padding: 5px 12px; min-height: 24px; border-radius: 9px; }
-.account-switcher > button:hover { border-color: @nova_accent; }
+.account-switcher > button { background: @nova_control; padding: 5px 12px; min-height: 24px; border-radius: 999px; }
+.account-switcher > button:hover { border-color: @nova_accent_line; }
 
 /* Sidebar */
 .sidebar {
   background: @nova_sidebar;
   border-right: 1px solid @nova_border;
-  padding: 14px 10px 10px;
-  min-width: 170px;
+  padding: 10px 10px 10px;
+  min-width: 176px;
 }
 .nav-caption {
-  color: #9a9dab;
+  color: @nova_dim;
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-  margin: 14px 10px 4px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin: 12px 10px 3px;
 }
 button.nav-button {
   background: transparent;
   border-color: transparent;
   border-radius: 9px;
-  padding: 4px 10px;
+  padding: 2px 10px;
   min-height: 22px;
-  transition: background 120ms ease;
+  color: @nova_muted;
 }
-button.nav-button:hover { background: @nova_control; }
-button.nav-active {
-  background: @nova_accent_dim;
-  border-color: @nova_accent_line;
-  box-shadow: inset 3px 0 0 @nova_accent;
-  color: @nova_text;
-}
+button.nav-button:hover { background: @nova_control; color: @nova_text; }
+button.nav-active { background: @nova_accent_dim; border-color: transparent; color: @nova_accent_hover; }
+button.nav-active:hover { background: @nova_accent_dim; color: @nova_accent_hover; }
 
 /* Typography */
-.main { padding: 26px 30px 18px; }
-.heading { font-size: 32px; font-weight: 800; letter-spacing: -0.6px; }
-.subheading { font-size: 22px; font-weight: 750; letter-spacing: -0.2px; }
-.settings-heading { font-size: 17px; font-weight: 750; margin-top: 12px; }
-.form-label, .catalog-title, .feature-title { font-weight: 700; }
+.main { padding: 26px 32px 18px; }
+.heading { font-size: 30px; font-weight: 700; letter-spacing: -0.7px; }
+.subheading { font-size: 21px; font-weight: 700; letter-spacing: -0.3px; }
+.settings-heading { font-size: 17px; font-weight: 700; margin-top: 12px; }
+.form-label, .catalog-title, .feature-title { font-weight: 650; }
 .form-error { color: @nova_danger; }
 .status-line { border-top: 1px solid @nova_border; color: @nova_muted; padding: 10px 0 0; font-size: 12px; }
 
@@ -104,25 +105,23 @@ button {
   background-color: @nova_control;
   color: @nova_text;
   border: 1px solid @nova_border_strong;
-  border-radius: 9px;
+  border-radius: 10px;
   padding: 8px 14px;
-  transition: background 120ms ease, border-color 120ms ease;
 }
 button:hover { background-color: @nova_hover; }
-button:active { background-color: @nova_border; }
+button:active { background-color: @nova_border_strong; }
 button:disabled { opacity: 0.45; }
 button.primary {
-  background-image: linear-gradient(180deg, #d4cbe8, @nova_accent);
   background-color: @nova_accent;
-  border-color: #b9aed3;
-  color: #1d1b26;
+  border-color: @nova_accent;
+  color: #06161b;
   font-weight: 700;
   padding: 8px 18px;
 }
-button.primary:hover { background-image: linear-gradient(180deg, #e2dcf0, @nova_accent_hover); }
+button.primary:hover { background-color: @nova_accent_hover; border-color: @nova_accent_hover; }
 button.primary:disabled { opacity: 0.5; }
-button.danger { color: @nova_danger; border-color: #795068; }
-button.danger:hover { background: #47273c; }
+button.danger { color: @nova_danger; border-color: #6b3a41; }
+button.danger:hover { background: #3a1d23; }
 button.quiet-button { background: transparent; border-color: transparent; color: @nova_muted; }
 button.quiet-button:hover { background: @nova_control; color: @nova_text; }
 button:focus-visible, menubutton:focus-within, checkbutton:focus-visible, combobox:focus-within {
@@ -131,8 +130,8 @@ button:focus-visible, menubutton:focus-within, checkbutton:focus-visible, combob
 }
 entry, spinbutton, searchentry, dropdown > button, combobox button {
   background-color: @nova_control;
-  border: 1px solid #41444c;
-  border-radius: 9px;
+  border: 1px solid @nova_border_strong;
+  border-radius: 10px;
   color: @nova_text;
   min-height: 34px;
 }
@@ -141,94 +140,91 @@ entry:focus-within, searchentry:focus-within, spinbutton:focus-within { border-c
 spinbutton > button { border-radius: 0; border-width: 0 0 0 1px; padding: 4px 9px; }
 spinbutton > entry { border-width: 0; min-width: 26px; }
 spinbutton > text:focus, spinbutton > entry:focus { outline-color: @nova_accent; border-color: @nova_accent; }
-entry selection, textview text selection, spinbutton text selection { background-color: #585467; color: #fff6ff; }
+entry selection, textview text selection, spinbutton text selection { background-color: @nova_accent; color: #06161b; }
 combobox arrow, dropdown arrow { background: none; background-color: transparent; border: none; color: @nova_muted; }
 checkbutton check { background: @nova_control; border: 1px solid @nova_border_strong; border-radius: 5px; }
-checkbutton check:checked { background: @nova_accent; border-color: @nova_accent; color: #1d1b26; }
+checkbutton check:checked { background: @nova_accent; border-color: @nova_accent; color: #06161b; }
 scale trough, progressbar trough { background: @nova_control; border-radius: 6px; }
 scale highlight, progressbar progress { background: @nova_accent; border-radius: 6px; }
-scrollbar slider { background: #4a4d57; border-radius: 6px; min-width: 6px; min-height: 6px; }
-scrollbar slider:hover { background: #666a76; }
-textview, textview text { background-color: #181a1d; color: #dadbe0; }
+scrollbar slider { background: #2f3646; border-radius: 6px; min-width: 6px; min-height: 6px; }
+scrollbar slider:hover { background: #46506a; }
+textview, textview text { background-color: #080a0e; color: #dadde6; }
 stackswitcher { padding: 4px; }
-stackswitcher button:checked { background: #373941; color: @nova_text; }
+stackswitcher button:checked { background: @nova_hover; color: @nova_text; }
 notebook > header { background: @nova_control; border-color: @nova_border; }
 notebook > header tab:checked { color: @nova_text; background: @nova_hover; }
 .action-menu { padding: 6px; }
 .action-menu button { background: transparent; border-color: transparent; }
 .action-menu button:hover { background: @nova_control; }
-.action-menu button.danger:hover { background: #47273c; }
+.action-menu button.danger:hover { background: #3a1d23; }
 
 /* Library: cards, compact rows and the selected instance */
-button.card { padding: 0; border: 1px solid @nova_border; border-radius: 12px; background: @nova_surface; }
+button.card { padding: 0; border: 1px solid @nova_border; border-radius: 14px; background: @nova_surface; }
 button.card:hover { border-color: @nova_border_strong; background: @nova_raised; }
 button.card.selected { border-color: @nova_accent; box-shadow: 0 0 0 1px @nova_accent; }
-.card-label { padding: 12px; font-size: 17px; font-weight: 700; }
-.card-meta { padding: 0 12px 12px; font-size: 13px; }
+.card-label { padding: 12px 14px 2px; font-size: 16px; font-weight: 650; }
+.card-meta { padding: 0 14px 13px; font-size: 12.5px; }
 .instance-cover { border-radius: 8px; }
-button.card .instance-cover { border-radius: 11px 11px 0 0; }
-button.compact-instance { padding: 8px 12px; background: @nova_surface; border-color: @nova_border; border-radius: 11px; }
+button.card .instance-cover { border-radius: 13px 13px 0 0; }
+button.compact-instance { padding: 8px 12px; background: @nova_surface; border-color: @nova_border; border-radius: 12px; }
 button.compact-instance:hover { background: @nova_raised; }
 button.compact-instance.selected { background: @nova_raised; border-color: @nova_accent_line; }
-.compact-name { font-weight: 700; }
+.compact-name { font-weight: 650; }
 .inline-details { margin: 2px 0 6px; }
 .chip {
-  background: @nova_control;
-  border: 1px solid @nova_border;
+  background: rgba(21, 26, 35, 0.88);
+  border: 1px solid @nova_border_strong;
   border-radius: 999px;
   color: @nova_text;
   font-size: 12px;
-  font-weight: 650;
-  padding: 3px 11px;
+  font-weight: 600;
+  padding: 2px 11px;
 }
 .chip-accent { background: @nova_accent_dim; border-color: @nova_accent_line; color: @nova_accent_hover; }
 .instance-toolbar { border-top: 1px solid @nova_border; padding-top: 14px; }
 .instance-actions flowboxchild { padding: 0; }
 .empty-state { padding: 28px 12px; }
-button.feature { background: @nova_raised; border-color: @nova_border; border-radius: 11px; padding: 14px 16px; }
-button.feature:hover { background: #2a2d33; border-color: @nova_accent; }
+button.feature { background: @nova_raised; border-color: @nova_border; border-radius: 12px; padding: 14px 16px; }
+button.feature:hover { background: @nova_hover; border-color: @nova_accent_line; }
 
 /* Catalog */
-.catalog-row { background: @nova_surface; border: 1px solid @nova_border; border-radius: 11px; padding: 12px; }
+.catalog-row { background: @nova_surface; border: 1px solid @nova_border; border-radius: 12px; padding: 12px; }
 .catalog-title { color: @nova_text; font-size: 15px; }
-.catalog-art { background: #2a2d33; border-radius: 8px; }
-.catalog-footer { background: @nova_control; border-radius: 9px; color: #dadbe0; padding: 9px 12px; }
+.catalog-art { background: @nova_hover; border-radius: 8px; }
+.catalog-footer { background: @nova_control; border-radius: 10px; color: #dadde6; padding: 9px 12px; }
 .catalog-row button:not(.primary) { padding: 6px 11px; }
 .settings-row { border-top: 1px solid @nova_border; padding-top: 12px; margin-top: 4px; }
 
 /* Skin editor */
-.skin-panel { background: @nova_surface; border: 1px solid @nova_border; border-radius: 12px; padding: 12px; }
-.skin-preview { background: #202127; }
+.skin-panel { background: @nova_surface; border: 1px solid @nova_border; border-radius: 14px; padding: 12px; }
+.skin-preview { background: #0e1118; }
 .skin-canvas { background: @nova_canvas; border-radius: 6px; }
 .skin-toolbar { border-top: 1px solid @nova_border; padding-top: 10px; }
-.skin-editor button:checked { background: #383243; color: @nova_text; border-color: #635773; }
+.skin-editor button:checked { background: @nova_accent_dim; color: @nova_text; border-color: @nova_accent_line; }
 
-/* ---- Library redesign: hero banner, stat tiles, docked status bar ---- */
+/* ---- Library: hero banner, status row, content shelves, docked status bar ---- */
 .top-search { min-width: 360px; background-color: @nova_control; }
-.section-title { font-size: 16px; font-weight: 750; }
+.section-title { font-size: 15px; font-weight: 700; letter-spacing: -0.1px; }
 .hero {
   border: 1px solid @nova_border;
-  border-radius: 18px;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+  border-radius: 16px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
   min-height: 262px;
 }
 .hero-shade {
   background-image:
-    linear-gradient(90deg, rgba(20, 21, 23, 0.96) 0%, rgba(20, 21, 23, 0.78) 38%, rgba(20, 21, 23, 0.08) 80%),
-    linear-gradient(0deg, rgba(20, 21, 23, 0.8), rgba(20, 21, 23, 0) 55%);
+    linear-gradient(90deg, rgba(7, 8, 11, 0.96) 0%, rgba(7, 8, 11, 0.8) 40%, rgba(7, 8, 11, 0.06) 82%),
+    linear-gradient(0deg, rgba(7, 8, 11, 0.82), rgba(7, 8, 11, 0) 55%);
 }
-.hero-content { padding: 0 30px 26px; }
-.hero-title { font-size: 34px; font-weight: 800; letter-spacing: -0.8px; }
-.hero-actions { margin-top: 6px; }
+.hero-content { padding: 0 32px 28px; }
+.hero-title { font-size: 36px; font-weight: 700; letter-spacing: -1px; }
+.hero-actions { margin-top: 8px; }
 button.play-button {
-  padding: 13px 34px;
-  border-radius: 14px;
+  padding: 12px 34px;
+  border-radius: 999px;
   font-size: 16px;
-  box-shadow: 0 0 0 1px rgba(200, 191, 223, 0.4), 0 10px 30px rgba(200, 191, 223, 0.26);
 }
 button.play-button image { -gtk-icon-size: 20px; }
-.chip { background: rgba(37, 39, 44, 0.9); }
-.chip-accent { background: @nova_accent_dim; }
 button.feature.stat { background: @nova_surface; }
 button.feature.stat:hover { border-color: @nova_border; background: @nova_surface; }
 button.card-new {
@@ -239,9 +235,31 @@ button.card-new {
   min-height: 132px;
 }
 button.card-new:hover { border-color: @nova_accent; color: @nova_text; background: @nova_surface; }
-.statusbar { background: @nova_surface; border-top: 1px solid @nova_border; padding: 6px 18px; color: @nova_muted; font-size: 12px; }
+.statusbar { background: @nova_sidebar; border-top: 1px solid @nova_border; padding: 6px 18px; color: @nova_muted; font-size: 12px; }
 .statusbar button { padding: 2px 10px; }
 
+/* Content shelves: the count opens the installed list, two quiet actions add more. */
+.shelf-tile { background: @nova_surface; border: 1px solid @nova_border; border-radius: 14px; }
+.shelf-main { background: transparent; border-color: transparent; border-radius: 13px 13px 0 0; padding: 14px 16px 10px; }
+.shelf-main:hover { background: @nova_raised; }
+.shelf-title { color: @nova_muted; font-size: 12.5px; font-weight: 600; }
+.shelf-count { font-size: 30px; font-weight: 700; letter-spacing: -0.8px; }
+.shelf-unit { color: @nova_dim; font-size: 12.5px; padding-bottom: 5px; }
+.shelf-actions { border-top: 1px solid @nova_border; padding: 4px; border-spacing: 2px; }
+.shelf-action { background: transparent; border-color: transparent; color: @nova_text; border-radius: 9px;
+                min-height: 32px; padding: 3px 8px; font-size: 13px; font-weight: 600; }
+.shelf-action:hover { background: @nova_accent_dim; color: @nova_accent_hover; }
+.shelf-stat { padding: 14px 16px; }
+
+/* Drag and drop */
+.drop-hint { background: rgba(7, 8, 11, 0.84); }
+.drop-card { background: @nova_surface; border: 1px dashed @nova_accent; border-radius: 18px; padding: 38px 52px; }
+.drop-title { font-size: 20px; font-weight: 700; color: @nova_accent_hover; }
+
+/* Import review */
+.import-row { background: @nova_raised; border: 1px solid @nova_border; border-radius: 12px; padding: 10px 12px; }
+.import-note { color: @nova_warm; font-size: 12.5px; padding-top: 2px; }
+.import-note.form-error { color: @nova_danger; }
 
 /* ---- Motion ----
    Curve: cubic-bezier(0.23, 1, 0.32, 1) (strong ease-out). Entrances 280-320ms, feedback 140-160ms.
@@ -263,34 +281,34 @@ button.card:active { transform: scale(0.98); }
 button.feature { transition: background-color 140ms ease-out, border-color 160ms ease-out, transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
 button.feature:hover { transform: translateY(-1px); }
 button.feature.stat:hover { transform: none; }
-button.nav-active { transition: background-color 180ms ease-out, box-shadow 220ms ease-out, border-color 180ms ease-out; }
+button.nav-active { transition: background-color 180ms ease-out, color 180ms ease-out; }
 
 /* The play button breathes while Minecraft prepares or runs: a state indicator, not decoration. */
 @keyframes launch-glow {
-  from { box-shadow: 0 0 0 1px rgba(200, 191, 223, 0.35), 0 6px 18px rgba(200, 191, 223, 0.14); }
-  to { box-shadow: 0 0 0 1px rgba(200, 191, 223, 0.75), 0 8px 30px rgba(200, 191, 223, 0.46); }
+  from { box-shadow: 0 0 0 1px rgba(143, 214, 232, 0.35), 0 6px 18px rgba(143, 214, 232, 0.14); }
+  to { box-shadow: 0 0 0 1px rgba(143, 214, 232, 0.75), 0 8px 30px rgba(143, 214, 232, 0.4); }
 }
 button.play-button.launching { animation: launch-glow 1100ms ease-in-out infinite alternate; }
 
 /* Downloads center */
 .job { background: @nova_surface; border: 1px solid @nova_border; border-radius: 12px; padding: 12px 14px; }
-.job-title { font-weight: 700; }
-.state { font-size: 11.5px; font-weight: 750; padding: 3px 10px; border-radius: 999px; background: @nova_control;
+.job-title { font-weight: 650; }
+.state { font-size: 11.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: @nova_control;
          color: @nova_muted; border: 1px solid @nova_border_strong; }
-.state-running { background: @nova_accent_dim; color: #d9d2ea; border-color: @nova_accent_line; }
-.state-ok { background: rgba(169, 216, 184, 0.1); color: #a9d8b8; border-color: rgba(169, 216, 184, 0.3); }
-.state-error { background: rgba(255, 185, 200, 0.08); color: @nova_danger; border-color: rgba(255, 185, 200, 0.3); }
+.state-running { background: @nova_accent_dim; color: @nova_accent_hover; border-color: @nova_accent_line; }
+.state-ok { background: rgba(159, 220, 180, 0.1); color: #9fdcb4; border-color: rgba(159, 220, 180, 0.3); }
+.state-error { background: rgba(255, 169, 154, 0.08); color: @nova_danger; border-color: rgba(255, 169, 154, 0.3); }
 progressbar.job-bar trough { min-height: 6px; }
 progressbar.job-bar progress { min-height: 6px; }
 
 /* Settings rows */
 .opt-row { padding: 9px 0; border-bottom: 1px solid @nova_border; }
-.opt-hint { color: @nova_dim; font-size: 12px; }
+.opt-hint { color: @nova_dim; font-size: 12.5px; }
 switch { background: @nova_control; border: 1px solid @nova_border_strong; border-radius: 999px; transition: background-color 160ms ease-out; }
 switch:checked { background: @nova_accent; border-color: @nova_accent; }
 switch slider { background: @nova_muted; border-radius: 999px; min-width: 18px; min-height: 18px; margin: 2px;
                 transition: background-color 160ms ease-out; }
-switch:checked slider { background: #1d1b26; }
+switch:checked slider { background: #06161b; }
 
 /* Sidebar footer card: version + update state, settings gear */
 .me-card { background: @nova_surface; border: 1px solid @nova_border; border-radius: 13px; padding: 6px;
@@ -298,31 +316,62 @@ switch:checked slider { background: #1d1b26; }
 .me-card.update { border-color: @nova_accent_line; background: @nova_accent_dim; }
 button.me-main { background: transparent; border-color: transparent; padding: 4px 6px; border-radius: 10px; }
 button.me-main:hover { background: @nova_control; }
-.me-logo { background: @nova_accent_dim; border: 1px solid @nova_accent_line; border-radius: 10px;
+.me-logo { background: @nova_canvas; border: 1px solid @nova_border_strong; border-radius: 10px;
            min-width: 34px; min-height: 34px; color: @nova_accent; }
-.me-title { font-weight: 700; font-size: 13px; }
+.me-title { font-weight: 650; font-size: 13px; }
 .me-note { color: @nova_dim; font-size: 11.5px; }
 .me-card.update .me-note { color: @nova_accent; }
 button.me-gear { background: transparent; border-color: transparent; padding: 7px; border-radius: 9px; color: @nova_dim; }
 button.me-gear:hover { background: @nova_control; color: @nova_text; }
 
 /* Pages shown inside the main window */
-.page { padding: 18px 26px 10px; }
+.page { padding: 18px 32px 10px; }
 .page-header { padding-bottom: 8px; }
 .page .menu { padding: 8px 0; }
 
-.state-warning { background: rgba(230, 200, 138, 0.1); color: #e6c88a; border-color: rgba(230, 200, 138, 0.3); }
+.state-warning { background: rgba(241, 212, 155, 0.1); color: @nova_warm; border-color: rgba(241, 212, 155, 0.3); }
 .state-info { background: @nova_control; color: @nova_muted; }
 
 /* Instance actions menu: grouped, left-aligned and scrollable */
 .action-menu { padding: 6px; }
 .action-menu button { padding: 7px 12px; border-radius: 8px; }
-.menu-caption { color: @nova_dim; font-size: 10.5px; font-weight: 800; letter-spacing: 0.8px; margin: 8px 12px 2px; }
+.menu-caption { color: @nova_dim; font-size: 11px; font-weight: 700; letter-spacing: 1px; margin: 8px 12px 2px; }
 .menu-separator { margin: 6px 4px 2px; background: @nova_border; min-height: 1px; }
 
-/* Home strip */
-.home-strip { margin-top: -4px; }
-button.home-card { background: @nova_surface; border: 1px solid @nova_border; border-radius: 12px; padding: 10px 14px; }
-button.home-card:hover { background: @nova_raised; border-color: @nova_border_strong; }
-.home-title { color: @nova_dim; font-size: 10.5px; font-weight: 800; letter-spacing: 0.8px; }
-.home-text { font-weight: 650; }
+/* Status row: one quiet strip instead of four cards */
+.home-strip { margin-top: -4px; background: @nova_surface; border: 1px solid @nova_border; border-radius: 14px; }
+button.home-card { background: transparent; border: none; border-radius: 0; padding: 11px 16px;
+                   border-right: 1px solid @nova_border; }
+button.home-card:last-child { border-right: none; }
+button.home-card:hover { background: @nova_raised; }
+.home-title { color: @nova_dim; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+.home-text { font-weight: 600; font-size: 13.5px; }
+
+/* Forms: titled sections made of rows (name and help on the left, control on the right) */
+.form-page { padding: 6px 6px 26px 0; }
+.form-section { color: @nova_muted; font-size: 12px; font-weight: 700; letter-spacing: 0.8px; }
+.form-card { background: @nova_surface; border: 1px solid @nova_border; border-radius: 14px; }
+.form-row { padding: 12px 16px; border-bottom: 1px solid @nova_border; }
+.form-row:last-child { border-bottom: none; }
+.form-note { color: @nova_muted; font-size: 12.5px; padding: 11px 16px; background: @nova_raised;
+             border-top: 1px solid @nova_border; border-radius: 0 0 13px 13px; }
+.form-status { color: @nova_warm; font-size: 12.5px; padding: 2px 0 6px; }
+.page .dialog-action-area { padding: 12px 0 8px; }
+.page .dialog-action-area button { min-width: 96px; }
+
+/* Drop-down with an editable entry: one field, not two boxes */
+combobox box.linked > entry { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+combobox box.linked > entry ~ button { border-radius: 0 10px 10px 0; border-left-width: 0; min-width: 28px; padding: 0 6px; }
+combobox box.linked > button arrow { color: @nova_muted; }
+.import-list { padding-bottom: 14px; }
+.feature-chevron { color: @nova_dim; }
+button.feature:hover .feature-chevron { color: @nova_accent; }
+.form-page { padding-right: 16px; }
+combobox arrow, dropdown arrow {
+  min-width: 16px; min-height: 16px;
+  border: none; border-radius: 0; box-shadow: none; outline: none; background: none;
+  -gtk-icon-source: -gtk-icontheme("pan-down-symbolic");
+  color: @nova_muted;
+}
+combobox button.combo { padding: 4px 10px; }
+spinbutton text, entry text { color: @nova_text; }

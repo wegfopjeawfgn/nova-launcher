@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.7.0
+- **Rediseño**: nueva identidad alineada con Nova Studios. Fondo de cielo nocturno, tinta clara y un único acento cian
+  (ion) propio del launcher, con un logo nuevo (estrella de cuatro puntas dentro de una órbita). La fila de estado
+  reemplaza las cuatro tarjetas de la biblioteca, la barra lateral cabe sin cortarse y los estantes de Mods, Shaders
+  y Texturas muestran su cantidad con las acciones Explorar e Importar. Tema claro y oscuro con contraste AA.
+- **Importar archivos del equipo**: mods (`.jar`), texturas y shaders (`.zip`), paquetes de datos y modpacks
+  (`.mrpack` o ZIP) desde el botón Importar de cada estante, el menú Importar, `Ctrl+O` o arrastrando a la ventana.
+  Nova revisa cada archivo antes de copiarlo (qué es, si el cargador coincide, si está dañado), nunca pisa lo que ya
+  está instalado y copia por pasos para no dejar archivos a medias. Los mods que no vinieron de Modrinth ahora
+  también se pueden mover a la Papelera desde Contenido instalado.
+- **Editar instancia**: formulario nuevo en secciones (Instancia, Minecraft, Rendimiento y Java), con ayuda en cada
+  campo, desplazamiento propio y los botones Guardar y Cancelar siempre visibles. Corrige que elegir una portada
+  nueva no actualizaba la vista previa y que el tema claro dejaba etiquetas ilegibles.
+- **Web**: rediseñada con el estilo de studiosnova.vercel.app y capturas nuevas.
+- Herramienta `tools/capturas.py` para generar capturas con datos de ejemplo sin tocar tus datos.
+
 ## 1.6.0
 - **Cuenta Nova**: «Iniciar sesión con Nova» en el menú de Cuentas conecta el launcher con la misma cuenta que Nova
   Music. Se aprueba un código en `studiosnova.vercel.app/conectar`; la contraseña nunca pasa por el launcher. El acceso

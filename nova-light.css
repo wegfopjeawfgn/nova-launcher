@@ -1,49 +1,59 @@
-/* Optional light theme: loaded after nova.css, so it only overrides the palette and the few literals. */
-@define-color nova_canvas #f4f3f7;
-@define-color nova_sidebar #ebeaf0;
+/* Optional light theme: loaded after nova.css, so it only overrides the palette and the few literals.
+   Same family as the dark theme: cool neutrals and a deeper teal for the launcher's cyan accent. */
+@define-color nova_canvas #f3f5f8;
+@define-color nova_sidebar #e8ecf1;
 @define-color nova_surface #ffffff;
-@define-color nova_raised #f7f6fb;
-@define-color nova_control #eceaf2;
-@define-color nova_hover #e1deea;
-@define-color nova_border #dcdae5;
-@define-color nova_border_strong #c4c1d1;
-@define-color nova_text #1d1b26;
-@define-color nova_muted #565868;
-@define-color nova_dim #70727f;
-@define-color nova_accent #6f5da8;
-@define-color nova_accent_hover #5f4e96;
-@define-color nova_accent_dim #e8e2f4;
-@define-color nova_accent_line #b9acd8;
+@define-color nova_raised #f7f9fb;
+@define-color nova_control #edf0f4;
+@define-color nova_hover #e0e5ec;
+@define-color nova_border #dce1e8;
+@define-color nova_border_strong #c4ccd7;
+@define-color nova_text #10131a;
+@define-color nova_muted #4a5262;
+@define-color nova_dim #626b7c;
+@define-color nova_accent #0e7490;
+@define-color nova_accent_hover #0b5f77;
+@define-color nova_accent_dim #def0f5;
+@define-color nova_accent_line #9fcddb;
 @define-color nova_danger #b4233f;
+@define-color nova_warm #8a5a00;
 
-button.primary { background-image: linear-gradient(180deg, #8573bb, #6f5da8); border-color: #5f4e96; color: #ffffff; }
-button.primary:hover { background-image: linear-gradient(180deg, #9684c9, #7d6bb6); }
+headerbar, .titlebar { background-color: #ffffff; }
+button.primary { background-color: #0e7490; border-color: #0e7490; color: #ffffff; }
+button.primary:hover { background-color: #0b5f77; border-color: #0b5f77; }
 button.danger { border-color: #e2a0b0; }
 button.danger:hover, .action-menu button.danger:hover { background: #fbe4ea; }
-.nav-caption { color: #70727f; }
-entry, spinbutton, searchentry, dropdown > button, combobox button { border-color: #c4c1d1; }
-entry selection, textview text selection, spinbutton text selection { background-color: #cfc6ea; color: #1d1b26; }
-textview, textview text { background-color: #ffffff; color: #1d1b26; }
-scrollbar slider { background: #b8b5c6; }
-scrollbar slider:hover { background: #9d9aae; }
-stackswitcher button:checked { background: #e1deea; }
-button.feature:hover, .catalog-art { background: #eceaf2; }
-.catalog-footer { color: #1d1b26; }
-.skin-preview { background: #eceaf2; }
-.skin-editor button:checked { background: #e8e2f4; border-color: #b9acd8; }
-.chip { background: rgba(255, 255, 255, 0.92); }
-.chip-accent { background: @nova_accent_dim; color: #4d3f80; }
-.hero { box-shadow: 0 14px 34px rgba(60, 50, 90, 0.18); }
-.hero label, .hero .hero-title { color: #f0eff3; }
-.hero label.chip { color: #1d1b26; }
-.hero label.chip-accent { color: #4d3f80; }
-.hero button:not(.primary) label, .hero button:not(.primary) image { color: #f0eff3; }
-.hero button:not(.primary) { background: rgba(37, 39, 44, 0.78); border-color: #454851; color: #f0eff3; }
-button.play-button { box-shadow: 0 0 0 1px rgba(111, 93, 168, 0.4), 0 10px 30px rgba(111, 93, 168, 0.28); }
-.state-running { color: #4d3f80; }
-.state-ok { color: #2d7a4a; background: rgba(45, 122, 74, 0.1); border-color: rgba(45, 122, 74, 0.35); }
-.state-error { color: #b4233f; background: rgba(180, 35, 63, 0.08); border-color: rgba(180, 35, 63, 0.3); }
-.state-warning { color: #8a6417; background: rgba(138, 100, 23, 0.1); border-color: rgba(138, 100, 23, 0.3); }
-switch slider { background: #70727f; }
+entry, spinbutton, searchentry, dropdown > button, combobox button { border-color: #c4ccd7; }
+entry selection, textview text selection, spinbutton text selection { background-color: #b7e0ec; color: #10131a; }
+checkbutton check:checked { color: #ffffff; }
 switch:checked slider { background: #ffffff; }
-.me-logo { color: @nova_accent; }
+textview, textview text { background-color: #ffffff; color: #10131a; }
+scrollbar slider { background: #b8c0cc; }
+scrollbar slider:hover { background: #9aa4b4; }
+button.feature:hover, .catalog-art { background: #edf0f4; }
+.catalog-footer { color: #10131a; }
+.skin-preview { background: #edf0f4; }
+.chip { background: rgba(255, 255, 255, 0.92); }
+.chip-accent { background: @nova_accent_dim; color: #0b5f77; }
+.hero { box-shadow: 0 16px 36px rgba(20, 40, 60, 0.2); }
+.hero label, .hero .hero-title { color: #eef0f5; }
+.hero label.chip { color: #10131a; }
+.hero label.chip-accent { color: #0b5f77; }
+.hero button:not(.primary) label, .hero button:not(.primary) image { color: #eef0f5; }
+button.play-button { box-shadow: 0 8px 22px rgba(14, 116, 144, 0.3); }
+.state-ok { color: #2a7a45; background: rgba(42, 122, 69, 0.1); border-color: rgba(42, 122, 69, 0.3); }
+.state-warning { color: #8a5a00; background: rgba(138, 90, 0, 0.08); border-color: rgba(138, 90, 0, 0.3); }
+.drop-hint { background: rgba(243, 245, 248, 0.86); }
+.drop-title { color: #0b5f77; }
+.me-logo { background: #0b0d12; }
+
+/* The hero is a photo: its own buttons stay dark, but menus opened from it follow the light theme. */
+.hero button:not(.primary) { background-color: rgba(11, 13, 18, 0.62); border-color: rgba(238, 240, 245, 0.28); }
+.hero button:not(.primary):hover { background-color: rgba(11, 13, 18, 0.82); }
+.hero popover label { color: @nova_text; }
+.hero popover label.menu-caption { color: @nova_dim; }
+.hero popover button:not(.primary) { background-color: transparent; border-color: transparent; }
+.hero popover button:not(.primary):hover { background-color: @nova_control; }
+.hero popover button:not(.primary) label, .hero popover button:not(.primary) image { color: @nova_text; }
+.hero popover button.danger label { color: @nova_danger; }
+.form-status { color: @nova_warm; }

@@ -5,28 +5,33 @@
   <meta name="google-site-verification" content="f-KJBeJi-TfsEfmEEZ4IR44FSGLed9uF5Enj_0-LfIo" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Nova Launcher — Launcher de Minecraft Java para Windows y Fedora</title>
-  <meta name="description" content="Nova Launcher organiza tus instancias de Minecraft Java: mods de Modrinth y CurseForge, respaldos verificados, skins, servidores y análisis de mods. Para Windows y Fedora.">
-  <meta name="theme-color" content="#141517">
+  <meta name="description" content="Nova Launcher organiza tus instancias de Minecraft Java: mods de Modrinth y CurseForge, importación de mods, texturas y shaders desde tu equipo, respaldos verificados, skins y servidores. Para Windows y Fedora.">
+  <meta name="theme-color" content="#07080b">
+  <meta name="color-scheme" content="dark">
   <link rel="canonical" href="https://novalaunchermc.vercel.app/">
   <link rel="icon" type="image/svg+xml" href="assets/nova.svg">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Nova Launcher — Tus mods. Tus mundos. Un solo launcher.">
-  <meta property="og:description" content="Instancias, mods, respaldos verificados, skins y servidores para Minecraft Java en Windows y Fedora.">
+  <meta property="og:description" content="Instancias, mods, texturas y shaders desde tu equipo, respaldos verificados, skins y servidores para Minecraft Java en Windows y Fedora.">
   <meta property="og:url" content="https://novalaunchermc.vercel.app/">
   <meta property="og:image" content="https://novalaunchermc.vercel.app/assets/nova-biblioteca.webp">
   <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&family=Martian+Mono:wdth,wght@87.5,400;87.5,500&display=swap">
   <link rel="stylesheet" href="estilos.css">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Nova Launcher","applicationCategory":"GameApplication","operatingSystem":"Windows, Fedora Linux","url":"https://novalaunchermc.vercel.app/","downloadUrl":"https://github.com/wegfopjeawfgn/nova-launcher/releases/latest","description":"Launcher de terceros para Minecraft Java Edition: instancias, mods, respaldos, skins y servidores.","inLanguage":"es"}
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Nova Launcher","applicationCategory":"GameApplication","operatingSystem":"Windows, Fedora Linux","url":"https://novalaunchermc.vercel.app/","downloadUrl":"https://github.com/wegfopjeawfgn/nova-launcher/releases/latest","description":"Launcher de terceros para Minecraft Java Edition: instancias, mods, respaldos, skins y servidores.","inLanguage":"es","publisher":{"@type":"Organization","name":"Nova Studios","url":"https://studiosnova.vercel.app/"}}
   </script>
 </head>
 <body>
   <a class="skip" href="#contenido">Ir al contenido</a>
-  <header class="bar">
+  <header class="bar" data-bar>
     <div class="wrap bar-in">
-      <a class="brand" href="./"><img src="assets/nova.svg" width="32" height="32" alt=""> Nova Launcher</a>
+      <a class="brand" href="./" aria-label="Nova Launcher, ir al inicio"><img src="assets/nova.svg" width="32" height="32" alt=""><span>Nova Launcher</span></a>
       <nav aria-label="Navegación">
         <a href="#funciones">Funciones</a>
+        <a href="#importar">Importar</a>
         <a href="#detalle">En detalle</a>
         <a href="#instalacion">Instalación</a>
         <a href="#preguntas">Preguntas</a>
@@ -36,127 +41,140 @@
   </header>
 
   <main id="contenido">
-    <section class="hero wrap" aria-labelledby="titulo">
-      <div class="hero-copy">
-        <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.6.0</b></p>
-        <h1 id="titulo">Tus mods.<br>Tus mundos.<br><em>Un solo launcher.</em></h1>
-        <p class="intro">Nova Launcher organiza tus instancias de Minecraft Java: instalá mods, revisá que todo funcione, guardá respaldos verificados y entrá a tus servidores.</p>
-        <div class="actions">
-          <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.6.0-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
-          <div class="windows-download" id="windows-download">
-            <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.6.0/nova-launcher-1.6.0-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
+    <section class="hero" aria-labelledby="titulo">
+      <canvas class="sky" data-sky aria-hidden="true"></canvas>
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.6.0</b></p>
+          <h1 id="titulo">Tus mods.<br>Tus mundos.<br><em>Un solo launcher.</em></h1>
+          <p class="intro">Nova Launcher organiza tus instancias de Minecraft Java: instalá mods, importá los que ya tenés, revisá que todo funcione, guardá respaldos verificados y entrá a tus servidores.</p>
+          <div class="actions">
+            <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.6.0-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
+            <div class="windows-download" id="windows-download">
+              <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.6.0/nova-launcher-1.6.0-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
+            </div>
           </div>
+          <p class="download-meta">Comprobá cada archivo con su suma:
+            <a id="release-checksum" href="descargas/nova-launcher-1.6.0-1.noarch.rpm.sha256" download>SHA-256 del RPM</a> ·
+            <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.6.0/nova-launcher-1.6.0-windows-x64-setup.exe.sha256">SHA-256 del instalador</a>
+          </p>
         </div>
-        <p class="download-meta">Comprobá cada archivo con su suma:
-          <a id="release-checksum" href="descargas/nova-launcher-1.6.0-1.noarch.rpm.sha256" download>SHA-256 del RPM</a> ·
-          <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.6.0/nova-launcher-1.6.0-windows-x64-setup.exe.sha256">SHA-256 del instalador</a>
-        </p>
+        <figure class="shot hero-shot">
+          <img src="assets/nova-biblioteca.webp" width="1280" height="820" alt="Biblioteca de Nova Launcher con el banner de una instancia, el botón Jugar, los estantes de mods, shaders y texturas y la lista de instancias">
+          <figcaption>La biblioteca de Nova. Captura real con datos de ejemplo.</figcaption>
+        </figure>
       </div>
-      <figure class="shot hero-shot">
-        <img src="assets/nova-biblioteca.webp" width="1150" height="800" alt="Biblioteca de Nova con la portada de una instancia, el botón Jugar, estadísticas de contenido y la lista de instancias">
-        <figcaption>La biblioteca de Nova. Captura real con datos de ejemplo.</figcaption>
-      </figure>
+      <svg class="curve" viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 100H760L790 94 806 26 818 14 832 32C850 60 900 80 960 86S1120 96 1180 98 1340 101 1440 100"/></svg>
     </section>
 
     <section class="strip wrap" aria-label="Resumen">
       <ul>
         <li><b>Vanilla, Fabric, Forge, NeoForge y Quilt</b><span>una instancia para cada partida</span></li>
-        <li><b>Modrinth y CurseForge</b><span>mods, modpacks, shaders y texturas</span></li>
+        <li><b>Modrinth, CurseForge y tu equipo</b><span>mods, modpacks, shaders y texturas</span></li>
         <li><b>Windows x64 y Fedora</b><span>instaladores con SHA-256</span></li>
       </ul>
     </section>
 
     <section class="section wrap" id="funciones" aria-labelledby="funciones-titulo">
-      <p class="eyebrow">Lo que hace Nova</p>
       <h2 id="funciones-titulo">Todo lo que necesitás para jugar, en un solo lugar</h2>
-      <div class="feature-grid">
-        <article class="reveal">
+      <ul class="rows">
+        <li class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Zm0 9 8-4.5M12 12 4 7.5m8 4.5v9"/></svg>
           <h3>Instancias separadas</h3>
           <p>Cada partida con su versión, cargador, RAM y Java. Plantillas para empezar rápido y perfiles que podés exportar e importar.</p>
-        </article>
-        <article class="reveal">
+        </li>
+        <li class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 3h6m-3-3v6"/></svg>
           <h3>Mods sin vueltas</h3>
           <p>Buscá en Modrinth y, con tu propia clave, en CurseForge. Nova revisa dependencias, actualiza en lote y deja volver a la versión anterior.</p>
-        </article>
-        <article class="reveal">
+        </li>
+        <li class="reveal">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 20h16"/></svg>
+          <h3>Importá lo que ya tenés</h3>
+          <p>Sumá mods, texturas, shaders y paquetes de datos desde archivos de tu equipo, o abrí un modpack. Nova revisa cada archivo antes de copiarlo.</p>
+        </li>
+        <li class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.2 7.8 8 9 4.8-1.2 8-4.5 8-9V6l-8-3Zm-3.5 9 2.5 2.5 4.5-5"/></svg>
           <h3>Salud y mods</h3>
           <p>Lee los metadatos de tus mods y avisa de dependencias faltantes, cargador o versión incorrectos y duplicados. Solo marca lo que puede comprobar.</p>
-        </article>
-        <article class="reveal">
+        </li>
+        <li class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16v13H4zM3 4h18v3H3zm6 8h6"/></svg>
           <h3>Respaldos verificados</h3>
           <p>Copias manuales o automáticas con suma SHA-256 por archivo. Verificá su integridad y restaurá como una instancia separada.</p>
-        </article>
-        <article class="reveal">
+        </li>
+        <li class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h16v6H4zm0 10h16v6H4zM8 7h.01M8 17h.01"/></svg>
           <h3>Servidores</h3>
           <p>Entrá directo con la versión y los mods de la instancia, y comprobá si el servidor responde antes de abrir el juego.</p>
-        </article>
-        <article class="reveal">
+        </li>
+        <li class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 20 1-4L16.5 4.5a2 2 0 0 1 3 3L8 19l-4 1Z"/></svg>
           <h3>Editor de skins</h3>
           <p>Importá un PNG o dibujá por partes y capas. Equipá la skin en una instancia compatible.</p>
-        </article>
+        </li>
+      </ul>
+    </section>
+
+    <section class="section wrap import" id="importar" aria-labelledby="importar-titulo">
+      <div class="copy reveal">
+        <h2 id="importar-titulo">Importá lo que ya tenés en tu equipo</h2>
+        <p>Elegí los archivos o arrastralos a la ventana. Nova mira dentro de cada uno, te dice qué es y a qué instancia va, y solo entonces lo copia.</p>
+        <dl class="kinds">
+          <div><dt>Mods</dt><dd><code>.jar</code> de Fabric, Quilt, Forge o NeoForge</dd></div>
+          <div><dt>Texturas</dt><dd><code>.zip</code> con <code>pack.mcmeta</code></dd></div>
+          <div><dt>Shaders</dt><dd><code>.zip</code> con la carpeta <code>shaders</code></dd></div>
+          <div><dt>Datos</dt><dd>paquetes de datos para un mundo de la instancia</dd></div>
+          <div><dt>Modpacks</dt><dd><code>.mrpack</code> o ZIP de CurseForge, como instancia nueva</dd></div>
+        </dl>
+        <ul class="checks">
+          <li>Avisa si un mod es de otro cargador o si la instancia es Vanilla.</li>
+          <li>Nunca pisa un archivo: si ya está, lo omite; si cambió, guarda una copia numerada.</li>
+          <li>Copia por pasos, así que una interrupción no deja archivos a medias.</li>
+        </ul>
       </div>
+      <figure class="shot reveal">
+        <img src="assets/nova-importar.webp" width="580" height="643" loading="lazy" alt="Ventana Revisar archivos con un shader, un pack de texturas y dos mods listados con su tipo y tamaño, una advertencia de cargador y un archivo que no se puede importar">
+        <figcaption>Revisión antes de importar. Archivos de ejemplo.</figcaption>
+      </figure>
     </section>
 
     <section class="section wrap" id="detalle" aria-labelledby="detalle-titulo">
-      <p class="eyebrow">En detalle</p>
       <h2 id="detalle-titulo">Capturas reales de Nova</h2>
       <div class="showcase">
         <div class="row reveal">
           <div class="copy">
-            <h3>Sabé qué falla antes de jugar</h3>
-            <p><strong>Salud y mods</strong> revisa cada mod y la instalación. Cada hallazgo dice qué es, qué consecuencia tiene y cómo solucionarlo, y distingue lo confirmado de lo posible.</p>
-            <p>Lo único automático es desactivar un duplicado, con confirmación y sin borrar nada.</p>
+            <h3>Arrastrá y soltá</h3>
+            <p>Soltá archivos sobre la ventana y Nova los revisa en el momento. También podés usar el botón <strong>Importar</strong> de cada estante, o <kbd>Ctrl</kbd> + <kbd>O</kbd>.</p>
           </div>
-          <figure class="shot"><img src="assets/nova-salud.webp" width="1150" height="800" loading="lazy" alt="Página Salud y mods con hallazgos de dependencias faltantes, mod duplicado y archivo dañado"><figcaption>Ejemplo con mods de prueba</figcaption></figure>
+          <figure class="shot"><img src="assets/nova-soltar.webp" width="1280" height="820" loading="lazy" alt="Biblioteca de Nova oscurecida con el aviso Soltá los archivos para importarlos"><figcaption>Arrastrar y soltar</figcaption></figure>
         </div>
         <div class="row flip reveal">
           <div class="copy">
-            <h3>Tus respaldos, comprobados</h3>
-            <p>Cada respaldo guarda una suma de sus archivos y muestra fecha, tamaño, mundos y mods. El botón <strong>Verificar</strong> confirma que nada cambió.</p>
-            <p>Las copias automáticas son opcionales y vienen apagadas.</p>
+            <h3>Ajustes claros, sin pestañas</h3>
+            <p>Nombre, portada, versión, memoria y Java en secciones. El formulario se desplaza solo y los botones Guardar y Cancelar quedan siempre a la vista.</p>
           </div>
-          <figure class="shot"><img src="assets/nova-respaldos.webp" width="1150" height="800" loading="lazy" alt="Lista de respaldos con fecha, tamaño, cantidad de mundos y mods y botones Verificar y Restaurar"><figcaption>Lista de respaldos</figcaption></figure>
+          <figure class="shot"><img src="assets/nova-editar.webp" width="1280" height="940" loading="lazy" alt="Formulario Editar instancia dividido en secciones Instancia, Minecraft, Rendimiento y Java"><figcaption>Editar instancia</figcaption></figure>
         </div>
         <div class="row reveal">
-          <div class="copy">
-            <h3>Estadísticas que quedan en tu PC</h3>
-            <p>Tiempo jugado por instancia, arranque promedio y últimas sesiones. No hay telemetría: todo se guarda localmente y podés borrarlo cuando quieras.</p>
-          </div>
-          <figure class="shot"><img src="assets/nova-estadisticas.webp" width="1150" height="800" loading="lazy" alt="Página de estadísticas con resumen de sesiones, memoria del sistema y tiempo por instancia"><figcaption>Estadísticas locales con datos de ejemplo</figcaption></figure>
-        </div>
-        <div class="row flip reveal">
           <div class="copy">
             <h3>Empezá desde una plantilla</h3>
             <p>Supervivencia, PvP, rendimiento, creativo y más. Completan el formulario con ajustes razonables y no asignan más de la mitad de tu RAM.</p>
           </div>
-          <figure class="shot"><img src="assets/nova-plantillas.webp" width="1150" height="804" loading="lazy" alt="Lista de plantillas de instancia: Vanilla, Supervivencia, PvP, Modpacks, Rendimiento, Creativo y Experimentación"><figcaption>Plantillas de instancia</figcaption></figure>
-        </div>
-        <div class="row reveal">
-          <div class="copy">
-            <h3>Tu skin, a tu manera</h3>
-            <p>Usá el <strong>modo fácil</strong> para importar un PNG y probarlo, o el <strong>modo avanzado</strong> para dibujar por partes y capas.</p>
-          </div>
-          <figure class="shot"><img src="assets/nova-skins-150.webp" width="1150" height="800" loading="lazy" alt="Editor de skins de Nova con vista previa del modelo"><figcaption>Editor de skins</figcaption></figure>
+          <figure class="shot"><img src="assets/nova-plantillas.webp" width="1280" height="820" loading="lazy" alt="Lista de plantillas de instancia: Vanilla, Supervivencia, PvP, Modpacks, Rendimiento, Creativo y Experimentación"><figcaption>Plantillas de instancia</figcaption></figure>
         </div>
         <div class="row flip reveal">
           <div class="copy">
             <h3>Oscuro por defecto, claro si lo preferís</h3>
             <p>Elegí el tema en Ajustes. Las animaciones respetan la configuración de tu escritorio.</p>
           </div>
-          <figure class="shot"><img src="assets/nova-claro.webp" width="1150" height="800" loading="lazy" alt="Biblioteca de Nova con el tema claro"><figcaption>Tema claro</figcaption></figure>
+          <figure class="shot"><img src="assets/nova-claro.webp" width="1280" height="820" loading="lazy" alt="Biblioteca de Nova con el tema claro"><figcaption>Tema claro</figcaption></figure>
         </div>
       </div>
     </section>
 
     <section class="section wrap install" id="instalacion" aria-labelledby="instalacion-titulo">
       <div>
-        <p class="eyebrow">Instalación</p>
         <h2 id="instalacion-titulo">Instalá Nova</h2>
         <h3>Fedora</h3>
         <p>Descargá el RPM y ejecutá este comando donde lo guardaste. Después abrí <strong>Nova Launcher</strong> desde el menú de aplicaciones.</p>
@@ -176,7 +194,6 @@
     </section>
 
     <section class="section wrap faq" id="preguntas" aria-labelledby="preguntas-titulo">
-      <p class="eyebrow">Preguntas frecuentes</p>
       <h2 id="preguntas-titulo">Lo que suelen preguntar</h2>
       <details>
         <summary>¿Es un launcher oficial de Minecraft?</summary>
@@ -185,6 +202,14 @@
       <details>
         <summary>¿Puedo jugar sin cuenta de Microsoft?</summary>
         <p>Sí, con perfiles sin conexión. El inicio de sesión con Microsoft necesita un ID de aplicación aprobado para Minecraft Services; todavía no se probó de punta a punta.</p>
+      </details>
+      <details>
+        <summary>¿Qué es la cuenta Nova?</summary>
+        <p>Es la cuenta de Nova Studios, la misma de Nova Music. Desde el menú Cuentas podés iniciar sesión con Nova: se abre el navegador, aprobás un código y volvés. La contraseña nunca pasa por el launcher. No es una cuenta de Minecraft y el launcher no tiene planes de pago.</p>
+      </details>
+      <details>
+        <summary>¿Qué pasa con los archivos que importo?</summary>
+        <p>Nova los copia tal cual a la carpeta de la instancia; no los modifica ni los descomprime. Si un archivo no se reconoce o no es compatible, te lo dice y no lo copia. Lo que ya estaba instalado nunca se pisa.</p>
       </details>
       <details>
         <summary>¿Dónde se guardan mis datos?</summary>
@@ -207,8 +232,8 @@
   </main>
 
   <footer class="wrap footer">
-    <a class="brand" href="./"><img src="assets/nova.svg" width="30" height="30" alt=""> Nova Launcher</a>
-    <p>Proyecto de terceros para Minecraft Java Edition, sin afiliación ni aprobación de Mojang o Microsoft.</p>
+    <a class="brand" href="./" aria-label="Nova Launcher, volver al inicio"><img src="assets/nova.svg" width="30" height="30" alt=""><span>Nova Launcher</span></a>
+    <p>Un proyecto de <a href="https://studiosnova.vercel.app/">Nova Studios</a>. Launcher de terceros para Minecraft Java Edition, sin afiliación ni aprobación de Mojang o Microsoft.</p>
     <nav aria-label="Información del proyecto">
       <a href="terminos.html">Términos y condiciones</a>
       <a href="terminos.html#privacidad">Privacidad</a>
