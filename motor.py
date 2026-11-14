@@ -2,8 +2,10 @@
 from contextlib import contextmanager, nullcontext
 import hashlib
 import json
+import functools
 import os
 from pathlib import Path
+import platform
 import re
 import shlex
 import shutil
@@ -14,6 +16,11 @@ import requests
 
 import servidores
 from nova_version import NOVA_VERSION
+
+# minecraft_launcher_lib asks platform.architecture() once per library, and on Linux each call starts the
+# `file` command (about 95 processes, ~0.25 s, for a large modpack). The answer cannot change while Nova runs.
+if not hasattr(platform.architecture, "cache_info"):
+    platform.architecture = functools.lru_cache(maxsize=None)(platform.architecture)
 
 if os.name == "nt":
     import msvcrt
