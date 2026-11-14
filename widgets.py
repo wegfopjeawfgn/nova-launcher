@@ -35,11 +35,15 @@ def cover_texture(path, width, height):
 DEFAULT_COVERS = ((303, 311, 376, 216), (713, 311, 370, 216), (1116, 311, 377, 216))  # inset: skip the sheet's frame
 
 
-@lru_cache(maxsize=8)
-def default_cover(index):
-    x, y, width, height = DEFAULT_COVERS[index % len(DEFAULT_COVERS)]
+@lru_cache(maxsize=1)
+def _default_covers():
+    """Decode the sheet once and cut all the covers from it, instead of decoding it again for each cover."""
     sheet = GdkPixbuf.Pixbuf.new_from_file(str(HERE / "referencia.png"))
-    return Gdk.Texture.new_for_pixbuf(sheet.new_subpixbuf(x, y, width, height))
+    return tuple(Gdk.Texture.new_for_pixbuf(sheet.new_subpixbuf(*box)) for box in DEFAULT_COVERS)
+
+
+def default_cover(index):
+    return _default_covers()[index % len(DEFAULT_COVERS)]
 
 
 def hero_art(instance, height=260):

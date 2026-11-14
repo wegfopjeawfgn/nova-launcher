@@ -1,5 +1,11 @@
 # Cambios
 
+## Sin publicar
+- **Más rápido al abrir**: preparar el comando de Minecraft ya no lanza un proceso `file` por cada biblioteca del juego
+  (unos 95 en un modpack grande): la arquitectura del sistema se consulta una sola vez. En una instancia NeoForge con
+  93 bibliotecas pasa de 230 ms a menos de 5 ms, con el mismo comando exacto. Además, las portadas incluidas se decodifican
+  de una sola vez y el launcher abre unos 60 ms antes. No cambia ninguna función ni ajuste.
+
 ## 1.8.0
 - **Pomme (experimental)**: cada instancia puede usar el cliente **Pomme**, un cliente de Minecraft Java no oficial
   escrito en Rust, en lugar de Java (que sigue siendo lo normal). Se elige en Editar instancia > Cliente. La primera vez,
