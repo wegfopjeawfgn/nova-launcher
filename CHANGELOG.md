@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar
+## 1.8.1
 - **Más rápido al abrir**: preparar el comando de Minecraft ya no lanza un proceso `file` por cada biblioteca del juego
   (unos 95 en un modpack grande): la arquitectura del sistema se consulta una sola vez. En una instancia NeoForge con
   93 bibliotecas pasa de 230 ms a menos de 5 ms, con el mismo comando exacto. Además, las portadas incluidas se decodifican

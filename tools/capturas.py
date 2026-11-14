@@ -27,7 +27,7 @@ import gi  # noqa: E402
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 gi.require_version("Graphene", "1.0")
-from gi.repository import GLib, Graphene, Gtk  # noqa: E402
+from gi.repository import Gio, GLib, Graphene, Gtk  # noqa: E402
 
 FABRIC_MODS = ("Sodium", "Lithium", "Iris Shaders", "Mod Menu", "Fabric API", "Xaero's Minimap", "Sound Physics")
 FAKE_INSTANCES = (
@@ -115,6 +115,8 @@ def main():
     import nova
 
     app = nova.Nova()
+    # Independent instance: without this a running Nova Launcher would receive the "activate" instead.
+    app.set_flags(app.get_flags() | Gio.ApplicationFlags.NON_UNIQUE)
     app.check_release = lambda: None
     nova.motor.versions = lambda: []
     state = {"index": 0, "popover": None}
