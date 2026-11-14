@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.8.0
+- **Pomme (experimental)**: cada instancia puede usar el cliente **Pomme**, un cliente de Minecraft Java no oficial
+  escrito en Rust, en lugar de Java (que sigue siendo lo normal). Se elige en Editar instancia > Cliente. La primera vez,
+  Nova pregunta y lo descarga desde la release oficial de `PommeMC/Client`, comprueba el tamaño y la suma SHA-256 que
+  publica GitHub y lo abre; el tiempo jugado se registra igual. Pomme no usa mods de Java y tiene su propio inicio de
+  sesión de Microsoft. Disponible en Linux x64 y Windows x64. "Actualizar o reinstalar Pomme" está en el menú ⋮.
+
 ## 1.7.0
 - **Rediseño**: nueva identidad alineada con Nova Studios. Fondo de cielo nocturno, tinta clara y un único acento cian
   (ion) propio del launcher, con un logo nuevo (estrella de cuatro puntas dentro de una órbita). La fila de estado

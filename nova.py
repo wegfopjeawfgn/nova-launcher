@@ -37,6 +37,7 @@ from vistas_curseforge import CurseForgeMixin
 from vistas_estadisticas import EstadisticasMixin
 from vistas_importar import ImportarMixin
 from vistas_archivos import ArchivosMixin
+from vistas_pomme import PommeMixin
 from vistas_servidores import ServidoresMixin
 from vistas_descargas import DescargasMixin
 from vistas_sesiones import SesionesMixin
@@ -53,6 +54,7 @@ class Nova(
     CuentasMixin,
     ImportarMixin,
     ArchivosMixin,
+    PommeMixin,
     ServidoresMixin,
     DescargasMixin,
     SesionesMixin,
@@ -566,6 +568,11 @@ class Nova(
         cover_controls.append(cover_buttons)
         row(identity, "Portada", cover_controls, hint="Se ve en la biblioteca y en el banner.")
 
+        client = row(game, "Cliente", Gtk.ComboBoxText(), width=300,
+                     hint="Pomme es no oficial y está hecho en Rust: no usa mods de Java y tiene su propio inicio de sesión.")
+        client.append("java", "Java (Minecraft normal)")
+        client.append("pomme", "Pomme · cliente Rust (experimental)")
+        client.set_active_id("pomme" if values.get("client") == "pomme" else "java")
         versions = row(game, "Versión de Minecraft", Gtk.ComboBoxText.new_with_entry(), width=300)
         for item in self.versions:
             versions.append(item["id"], item["id"])
@@ -710,7 +717,7 @@ class Nova(
                     java_path = self.java_path(java.get_text())
                     extra_args = jvm_args.get_text().strip()
                     motor.parse_jvm_args(extra_args)
-                    settings = {"version": version, "loader": loader.get_active_id(),
+                    settings = {"version": version, "loader": loader.get_active_id(), "client": client.get_active_id(),
                                 "loader_version": build, "java": java_path, "cover": cover,
                                 "jvm_args": extra_args,
                                 "notes": notes.get_text().strip(),
@@ -951,7 +958,7 @@ class Nova(
             title.set_ellipsize(Pango.EllipsizeMode.END)
             card.append(title)
             played = tiempo.of(self.library, folder.name)
-            meta = f"{instance['version']} · {motor.LOADERS[instance['loader']]}"
+            meta = f"{instance['version']} · {'Pomme' if instance.get('client') == 'pomme' else motor.LOADERS[instance['loader']]}"
             card.append(label(meta + (f" · {tiempo.short(played)}" if played else ""), "card-meta"))
             tile = button("", lambda selected=folder: self.select(selected), "card")
             tile.set_child(card)
@@ -978,7 +985,7 @@ class Nova(
         name.set_hexpand(True)
         name.set_ellipsize(Pango.EllipsizeMode.END)
         row.append(name)
-        row.append(label(f"{instance['version']} · {motor.LOADERS[instance['loader']]}", "muted"))
+        row.append(label(f"{instance['version']} · {'Pomme' if instance.get('client') == 'pomme' else motor.LOADERS[instance['loader']]}", "muted"))
         arrow = Gtk.Image.new_from_icon_name("pan-end-symbolic")
         row.append(arrow)
         tile = button("", lambda: self.select(folder), "compact-instance")
@@ -1070,7 +1077,8 @@ class Nova(
         loader_name = motor.LOADERS[instance["loader"]]
         played = tiempo.of(self.library, folder.name)
         for text, accent in ((instance["version"], True),
-                             (f"{loader_name} {instance['loader_version']}".strip(), False),
+                             ("Pomme · Rust" if instance.get("client") == "pomme"
+                              else f"{loader_name} {instance['loader_version']}".strip(), False),
                              (f"{instance['memory']} GB", False),
                              (f"⏱ {tiempo.short(played)}", False)):
             chips.append(Gtk.Label(label=text, css_classes=["chip", "chip-accent"] if accent else ["chip"]))
@@ -1106,19 +1114,25 @@ class Nova(
         content.append(actions)
         details.append(hero)
         enter(hero)
-        details.append(label("Contenido", "section-title"))
-        tiles = Gtk.Box(spacing=12, homogeneous=True)
-        for category, title in (("mod", "Mods"), ("shader", "Shaders"), ("resourcepack", "Texturas")):
-            count = len(biblioteca.content_files(folder, category))
-            tile = content_tile(
-                title, count,
-                lambda kind=category: biblioteca.open_installed(self, folder, kind),
-                lambda kind=category: biblioteca.Browser(self, folder, instance, kind),
-                lambda kind=category: self.import_files(category=kind, folder=folder))
-            tile.set_sensitive(not self.busy)
-            tiles.append(tile)
-        tiles.append(stat_tile("Tiempo jugado", tiempo.short(played)))
-        details.append(tiles)
+        if instance.get("client") == "pomme":
+            about = label("Pomme es un cliente aparte: no usa los mods, shaders ni texturas de Java de esta instancia. "
+                          "Se inicia con Jugar y tiene su propio inicio de sesión.", "muted")
+            about.set_wrap(True)
+            details.append(about)
+        else:
+            details.append(label("Contenido", "section-title"))
+            tiles = Gtk.Box(spacing=12, homogeneous=True)
+            for category, title in (("mod", "Mods"), ("shader", "Shaders"), ("resourcepack", "Texturas")):
+                count = len(biblioteca.content_files(folder, category))
+                tile = content_tile(
+                    title, count,
+                    lambda kind=category: biblioteca.open_installed(self, folder, kind),
+                    lambda kind=category: biblioteca.Browser(self, folder, instance, kind),
+                    lambda kind=category: self.import_files(category=kind, folder=folder))
+                tile.set_sensitive(not self.busy)
+                tiles.append(tile)
+            tiles.append(stat_tile("Tiempo jugado", tiempo.short(played)))
+            details.append(tiles)
         if instance.get("notes"):
             note = label(instance["notes"], "muted")
             note.set_wrap(True)
@@ -1148,6 +1162,8 @@ class Nova(
         group("JUGAR")
         add_action("Quitar de favoritas" if favorite else "Marcar como favorita",
                    lambda: self.toggle_favorite(folder))
+        if instance.get("client") == "pomme":
+            add_action("Actualizar o reinstalar Pomme", self.install_pomme)
         alternate = button("Jugar con otra cuenta", lambda: (popover.popdown(), self.play_parallel(folder)))
         alternate.set_sensitive(not self.parallel and (not self.busy or
                                 (self.running and self.running[0] == folder)))
@@ -1293,6 +1309,9 @@ class Nova(
 
     def play(self, server=None, *, offline=False):
         if self.busy or self.parallel or self.selected is None:
+            return
+        if self.instances[self.selected].get("client") == "pomme":
+            self.play_pomme()
             return
         if not self.profile and (offline or not self.microsoft_active):
             self.edit_profile(after_save=lambda: self.play(server, offline=offline))
