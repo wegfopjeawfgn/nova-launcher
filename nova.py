@@ -146,6 +146,8 @@ class Nova(
         self.profiles = accounts["profiles"]
         import credenciales
         self.microsoft = credenciales.load_session()
+        import nova_cuenta
+        self.nova_account = nova_cuenta.load()
         titlebar = Gtk.HeaderBar(decoration_layout=":minimize,maximize,close")
         titlebar.add_css_class("nova-titlebar")
         self.library_query = Gtk.SearchEntry(placeholder_text="Buscar instancias", width_chars=34,
@@ -290,6 +292,7 @@ class Nova(
         self.refresh()
         self.apply_theme()
         self.window.present()
+        self.refresh_nova()
         GLib.timeout_add_seconds(30, self.auto_backup)
         self.versions = motor.read(motor.ROOT / "versions.json", [])
         threading.Thread(target=self.load_versions, daemon=True).start()

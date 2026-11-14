@@ -1,5 +1,11 @@
 # Cambios
 
+## 1.6.0
+- **Cuenta Nova**: «Iniciar sesión con Nova» en el menú de Cuentas conecta el launcher con la misma cuenta que Nova
+  Music. Se aprueba un código en `studiosnova.vercel.app/conectar`; la contraseña nunca pasa por el launcher. El acceso
+  se guarda en `nova-cuenta.json` (solo legible por el usuario) y se revoca al cerrar sesión. Solo muestra el nombre y
+  el avatar: el launcher no tiene plan. Las cuentas de Minecraft (Microsoft y offline) no cambian.
+
 ## 1.5.3
 - **Licencia**: Nova Launcher pasa a ser software libre bajo GPL-3.0-or-later. El repositorio incluye `LICENSE` y
   `THIRD_PARTY_LICENSES.md` (con el aviso BSD-2-Clause de minecraft-launcher-lib), y los dos se distribuyen con el RPM, el
