@@ -31,10 +31,11 @@ from gi.repository import Gio, GLib, Graphene, Gtk  # noqa: E402
 
 FABRIC_MODS = ("Sodium", "Lithium", "Iris Shaders", "Mod Menu", "Fabric API", "Xaero's Minimap", "Sound Physics")
 FAKE_INSTANCES = (
-    ("Supervivencia", "1.21.11", "fabric", "0.19.3", 4, 6, 42_300, 1),
-    ("Create Nova", "1.21.1", "neoforge", "21.1.231", 8, 14, 15_400, 2),
-    ("Servidor de amigos", "1.20.1", "forge", "47.3.0", 6, 5, 7_900, 3),
-    ("Vanilla limpio", "1.21.4", "vanilla", "", 3, 0, 900, 4),
+    ("Supervivencia", "1.21.11", "fabric", "0.19.3", 4, 6, 42_300, 1, "java"),
+    ("Create Nova", "1.21.1", "neoforge", "21.1.231", 8, 14, 15_400, 2, "java"),
+    ("Servidor de amigos", "1.20.1", "forge", "47.3.0", 6, 5, 7_900, 3, "java"),
+    ("Vanilla limpio", "1.21.4", "vanilla", "", 3, 0, 900, 4, "java"),
+    ("Prueba en Rust", "1.21.11", "vanilla", "", 4, 0, 5_400, 0, "pomme"),
 )
 
 
@@ -49,12 +50,12 @@ def build_demo():
     root = DATA / "nova-launcher"
     library = {"selected": "", "recent": {}, "playtime": {}, "favorites": []}
     now = time.time()
-    for number, (name, version, loader, loader_version, memory, mods, seconds, artwork) in enumerate(FAKE_INSTANCES):
+    for number, (name, version, loader, loader_version, memory, mods, seconds, artwork, client) in enumerate(FAKE_INSTANCES):
         folder = root / "instances" / f"demo{number}"
         (folder / "game").mkdir(parents=True)
         (folder / "instance.json").write_text(json.dumps({
             "version": version, "loader": loader, "loader_version": loader_version, "java": "", "jvm_args": "",
-            "memory_min": 0, "name": name, "memory": memory, "artwork": artwork, "pack": False, "cover": "",
+            "memory_min": 0, "name": name, "memory": memory, "artwork": artwork, "pack": False, "cover": "", "client": client,
             "notes": "", "resolution": "default"}), encoding="utf-8")
         for index in range(mods):
             title = FABRIC_MODS[index % len(FABRIC_MODS)].lower().replace(" ", "-").replace("'", "")
@@ -223,6 +224,15 @@ def scene_list(app, state):
         app.leave_page()
         app.show_health(app.selected)
 
+    def pomme():
+        app.leave_page()
+        app.selected = DATA / "nova-launcher" / "instances" / "demo4"
+        app.refresh()
+
+    def pomme_download():
+        pomme()
+        app.confirm_pomme_install()
+
     def drop():
         hint = app.window.get_child().get_last_child()
         hint.set_visible(True)
@@ -234,6 +244,8 @@ def scene_list(app, state):
         ("principal", nothing, 400),
         ("biblioteca", tall, 900),
         ("soltar", drop, 400),
+        ("pomme", pomme, 700),
+        ("pomme-descarga", pomme_download, 900),
         ("salud", health, 1500),
         ("plantillas", page("show_templates"), 900),
         ("estadisticas", page("show_statistics"), 900),

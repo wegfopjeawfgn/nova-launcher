@@ -1,7 +1,31 @@
-// Nova Launcher · sitio. Cielo de estrellas, barra con fondo al desplazarse y entrada suave de las secciones.
-// Sin JavaScript o con "menos movimiento" todo se ve de inmediato y el cielo queda quieto.
+// Nova Launcher · sitio. Entrada suave de las secciones, barra con fondo al desplazarse y cielo de estrellas.
+// Cada parte va aparte: si una falla, el contenido nunca queda oculto. Sin JavaScript o con "menos movimiento"
+// todo se ve de inmediato y el cielo queda quieto.
 (() => {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function reveal() {
+    const items = document.querySelectorAll(".reveal");
+    const showAll = () => items.forEach((item) => item.classList.add("visible"));
+    if (!("IntersectionObserver" in window) || reduce) return showAll();
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("visible");
+          observer.unobserve(entry.target);
+        }
+      }
+    }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+    items.forEach((item) => observer.observe(item));
+  }
+
+  function bar() {
+    const header = document.querySelector("[data-bar]");
+    if (!header) return;
+    const update = () => header.classList.toggle("is-scrolled", scrollY > 24);
+    update();
+    addEventListener("scroll", update, { passive: true });
+  }
 
   // Generador determinista: el cielo es idéntico en cada visita.
   function rng(seed) {
@@ -15,15 +39,9 @@
     };
   }
 
-  const bar = document.querySelector("[data-bar]");
-  if (bar) {
-    const update = () => bar.classList.toggle("is-scrolled", scrollY > 24);
-    update();
-    addEventListener("scroll", update, { passive: true });
-  }
-
-  const canvas = document.querySelector("[data-sky]");
-  if (canvas && canvas.getContext) {
+  function sky() {
+    const canvas = document.querySelector("[data-sky]");
+    if (!canvas || !canvas.getContext) return;
     const random = rng(1987);
     const count = innerWidth < 700 ? 130 : 300;
     const stars = Array.from({ length: count }, () => {
@@ -84,7 +102,7 @@
     }
 
     size();
-    if (reduce) {
+    if (reduce || !("IntersectionObserver" in window)) {
       draw(0);
     } else {
       const play = () => { if (!running) { running = true; frame = requestAnimationFrame(loop); } };
@@ -102,19 +120,9 @@
     addEventListener("resize", () => { clearTimeout(timer); timer = setTimeout(() => { size(); if (reduce) draw(0); }, 120); });
   }
 
-  const items = document.querySelectorAll(".reveal");
-  if (!items.length) return;
-  if (!("IntersectionObserver" in window) || reduce) {
-    items.forEach((item) => item.classList.add("visible"));
-    return;
+  // El contenido primero; lo decorativo después y sin poder romperlo.
+  try { reveal(); } catch { document.querySelectorAll(".reveal").forEach((item) => item.classList.add("visible")); }
+  for (const part of [bar, sky]) {
+    try { part(); } catch { /* decoración: si falla, la página sigue igual */ }
   }
-  const observer = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (entry.isIntersecting) {
-        entry.target.classList.add("visible");
-        observer.unobserve(entry.target);
-      }
-    }
-  }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
-  items.forEach((item) => observer.observe(item));
 })();
