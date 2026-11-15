@@ -93,6 +93,170 @@ class FilesTests(Base):
             sl.write_text(path, "a.yml", "x" * (sl.MAX_TEXT + 1))
 
 
+class ForgeTests(Base):
+    PROMOS = {"promos": {"1.21.1-latest": "52.1.21", "1.21.1-recommended": "52.1.20", "1.20.1-latest": "47.4.0", "1.16.5-latest": "36.2.42"}}
+
+    def test_builds_prefer_recommended_and_versions_follow_forge_support(self):
+        manifest = {"versions": [{"id": v, "type": "release", "url": "u"} for v in ("26.3", "1.21.1", "1.20.1")]}
+        with mock.patch.object(sl, "_get", lambda url, **k: mock.Mock(json=lambda: self.PROMOS if "promotions" in url else manifest)):
+            self.assertEqual(sl.forge_builds()["1.21.1"], "52.1.20")
+            self.assertEqual(sl.forge_builds()["1.20.1"], "47.4.0")
+            self.assertEqual(sl.release_versions("forge"), ["1.21.1", "1.20.1"])
+            self.assertEqual(sl.release_versions(), ["26.3", "1.21.1", "1.20.1"])
+
+    def test_resolve_builds_the_maven_url_and_checks_the_sidecar_hash(self):
+        manifest = {"versions": [{"id": "1.21.1", "type": "release", "url": "https://piston-meta.mojang.com/v.json"}]}
+        version = {"javaVersion": {"component": "java-runtime-delta", "majorVersion": 21}, "downloads": {}}
+        digest = "ab" * 32
+
+        def get(url, **kwargs):
+            if url.endswith(".sha256"):
+                return mock.Mock(text=digest + "  forge.jar\n")
+            return mock.Mock(json=lambda: self.PROMOS if "promotions" in url else manifest if url == sl.MANIFEST else version)
+        with mock.patch.object(sl, "_get", get):
+            info = sl.resolve("forge", "1.21.1")
+            self.assertEqual(info["url"], "https://maven.minecraftforge.net/net/minecraftforge/forge/1.21.1-52.1.20/forge-1.21.1-52.1.20-installer.jar")
+            self.assertEqual((info["algo"], info["digest"], info["forge_build"]), ("sha256", digest, "52.1.20"))
+            with self.assertRaises(ValueError):
+                sl.resolve("forge", "1.2.3")
+
+    def test_launch_command_modern_legacy_and_missing(self):
+        sid, path = self.make(kind="forge", memory=3)
+        with self.assertRaises(RuntimeError):
+            sl.launch_command(sl.load(sid), path, "java")
+        (path / "forge-1.16.5-36.2.42.jar").write_bytes(b"x")
+        (path / "forge-installer.jar").write_bytes(b"x")
+        legacy = sl.launch_command(sl.load(sid), path, "java")
+        self.assertEqual(legacy, ["java", "-Xmx3G", "-Xms2G", "-jar", "forge-1.16.5-36.2.42.jar", "nogui"])
+        args = path / "libraries/net/minecraftforge/forge/1.21.1-52.1.20"
+        args.mkdir(parents=True)
+        (args / "unix_args.txt").write_text("x")
+        (args / "win_args.txt").write_text("x")
+        modern = sl.launch_command(sl.load(sid), path, "java")
+        self.assertEqual(modern[:2], ["java", "@user_jvm_args.txt"])
+        self.assertTrue(modern[2].startswith("@libraries/net/minecraftforge/forge/1.21.1-52.1.20/") and modern[3] == "nogui")
+        self.assertIn("-Xmx3G", (path / "user_jvm_args.txt").read_text())
+
+    def test_installer_success_cleans_up_and_failure_explains(self):
+        sid, path = self.make(kind="forge")
+        (path / "forge-installer.jar").write_bytes(b"x")
+        with mock.patch.object(sl.subprocess, "run", return_value=mock.Mock(returncode=0, stdout="", stderr="")) as run:
+            sl.install_forge(path, "java")
+        self.assertEqual(run.call_args.args[0], ["java", "-jar", "forge-installer.jar", "--installServer"])
+        self.assertFalse((path / "forge-installer.jar").exists())
+        (path / "forge-installer.jar").write_bytes(b"x")
+        with mock.patch.object(sl.subprocess, "run", return_value=mock.Mock(returncode=1, stdout="", stderr="boom\nNo internet")):
+            with self.assertRaises(RuntimeError) as caught:
+                sl.install_forge(path, "java")
+        self.assertIn("No internet", str(caught.exception))
+
+    def test_full_java_skips_mojangs_runtime_and_picks_the_lowest_fitting_version(self):
+        bundled = str(motor.ROOT / "minecraft" / "runtime" / "x" / "bin" / "java")
+        found = [{"path": "/usr/lib/jvm/j25/bin/java", "major": 25}, {"path": bundled, "major": 21},
+                 {"path": "/usr/lib/jvm/j21/bin/java", "major": 21}, {"path": "/usr/lib/jvm/j17/bin/java", "major": 17}]
+        with mock.patch("java_detect.find_java", return_value=found):
+            self.assertEqual(sl.full_java(21), "/usr/lib/jvm/j21/bin/java")
+            self.assertEqual(sl.full_java(25), "/usr/lib/jvm/j25/bin/java")
+            self.assertIsNone(sl.full_java(26))
+
+    def test_create_fails_clearly_when_there_is_no_full_java(self):
+        info = {"url": "https://x", "size": None, "algo": None, "digest": None, "component": "c", "major": 21, "forge_build": "1"}
+        with mock.patch.object(sl, "resolve", return_value=info), \
+                mock.patch.object(sl, "download", lambda url, target, **k: target.write_bytes(b"i" * 2000)), \
+                mock.patch.object(sl, "ensure_java", return_value="mojang-java"), mock.patch.object(sl, "full_java", return_value=None):
+            with self.assertRaises(RuntimeError) as caught:
+                sl.create("Mods", "forge", "1.21.1", 4, 25581, eula=False)
+        self.assertIn("Java completo", str(caught.exception))
+        self.assertEqual(sl.all_servers(), [])
+
+    def test_create_runs_the_installer_and_leaves_no_server_jar(self):
+        info = {"url": "https://x", "size": None, "algo": None, "digest": None, "component": "c", "major": 21, "forge_build": "52.1.20"}
+        ran = []
+        with mock.patch.object(sl, "resolve", return_value=info), \
+                mock.patch.object(sl, "download", lambda url, target, **k: target.write_bytes(b"i" * 2000)), \
+                mock.patch.object(sl, "ensure_java", return_value="mojang-java"), \
+                mock.patch.object(sl, "full_java", return_value="/usr/bin/java"), \
+                mock.patch.object(sl, "install_forge", lambda path, java: ran.append((path.name, java))):
+            meta = sl.create("Mods", "forge", "1.21.1", 4, 25580, eula=False)
+        self.assertEqual(meta["forge_build"], "52.1.20")
+        self.assertEqual(ran, [(meta["id"], "/usr/bin/java")])  # the installer runs on a full Java, not Mojang's runtime
+        self.assertTrue((sl.folder(meta["id"]) / "forge-installer.jar").exists())
+        self.assertFalse((sl.folder(meta["id"]) / "server.jar").exists())
+
+
+class CatalogTests(Base):
+    def test_search_filters_by_version_type_and_side(self):
+        import json
+        seen = {}
+
+        def get(url, params=None, **k):
+            seen.update(params)
+            return mock.Mock(json=lambda: {"hits": [{"project_id": "AAAAAAAA", "title": "T", "description": "d", "downloads": 5}], "total_hits": 1})
+        sid, path = self.make(kind="fabric", version="1.21.1")
+        with mock.patch.object(sl, "_get", get):
+            result = sl.catalog_search(sl.load(sid), "")
+            facets = json.loads(seen["facets"])
+            self.assertIn(["versions:1.21.1"], facets)
+            self.assertIn(["project_type:mod"], facets)
+            self.assertIn(["categories:fabric"], facets)
+            self.assertIn(["server_side:required", "server_side:optional"], facets)
+            self.assertEqual(seen["index"], "downloads")
+            self.assertEqual(result["hits"][0]["title"], "T")
+            sl.save({**sl.load(sid), "kind": "paper"})
+            sl.catalog_search(sl.load(sid), "vault")
+            facets = json.loads(seen["facets"])
+            self.assertIn(["categories:paper", "categories:spigot", "categories:bukkit"], facets)
+            self.assertIn(["project_type:plugin", "project_type:mod"], facets)
+            self.assertNotIn(["server_side:required", "server_side:optional"], facets)
+            self.assertEqual(seen["index"], "relevance")
+            sl.save({**sl.load(sid), "kind": "vanilla"})
+            with self.assertRaises(ValueError):
+                sl.catalog_search(sl.load(sid))
+
+    def release(self, name, deps=(), url=None, sha="ab" * 64, version_type="release"):
+        return {"version_type": version_type, "version_number": "1.0", "dependencies": list(deps), "files": [
+            {"primary": True, "filename": name, "url": url or "https://cdn.modrinth.com/data/x/versions/y/" + name, "size": 10,
+             "hashes": {"sha512": sha}}]}
+
+    def test_install_downloads_with_hash_follows_dependencies_and_records(self):
+        sid, path = self.make(kind="fabric", version="1.21.1")
+        data = {"MAINMAIN": [self.release("main.jar", deps=[{"dependency_type": "required", "project_id": "DEPDEPDE"},
+                                                             {"dependency_type": "optional", "project_id": "OPTOPTOP"}])],
+                "DEPDEPDE": [self.release("dep.jar", deps=[{"dependency_type": "required", "project_id": "MAINMAIN"}])]}
+        calls = []
+
+        def get(url, **k):
+            return mock.Mock(json=lambda: data[url.split("/")[-2]])
+
+        def fake_download(url, target, **k):
+            calls.append((target.name, k["algo"], k["digest"]))
+            target.write_bytes(b"j" * 2000)
+        with mock.patch.object(sl, "_get", get), mock.patch.object(sl, "download", fake_download):
+            installed = sl.catalog_install(path, sl.load(sid), "MAINMAIN", title="Principal")
+        self.assertEqual(sorted(installed), ["dep.jar", "main.jar"])
+        self.assertEqual(calls[0], ("main.jar", "sha512", "ab" * 64))
+        self.assertTrue((path / "mods" / "dep.jar").exists())
+        self.assertEqual(sl.catalog_installed(path)["MAINMAIN"]["title"], "Principal")
+        self.assertNotIn("OPTOPTOP", sl.catalog_installed(path))
+        sl.catalog_remove(path, sl.load(sid), "MAINMAIN")
+        self.assertFalse((path / "mods" / "main.jar").exists())
+        self.assertNotIn("MAINMAIN", sl.catalog_installed(path))
+
+    def test_install_refuses_foreign_hosts_unsafe_names_and_missing_hash(self):
+        sid, path = self.make(kind="paper", version="1.21.1")
+        for bad in (self.release("a.jar", url="https://evil.example/a.jar"), self.release("../a.jar"), self.release("a.exe"),
+                    self.release("a.jar", sha="")):
+            with mock.patch.object(sl, "_get", lambda url, **k: mock.Mock(json=lambda: [bad])):
+                with self.assertRaises(ValueError):
+                    sl.catalog_install(path, sl.load(sid), "ABCDEFGH")
+        with mock.patch.object(sl, "_get", lambda url, **k: mock.Mock(json=lambda: [])):
+            with self.assertRaises(ValueError):
+                sl.catalog_install(path, sl.load(sid), "ABCDEFGH")
+        with self.assertRaises(ValueError):
+            sl.catalog_install(path, sl.load(sid), "../etc")
+        self.assertFalse((path / "plugins").exists() and any((path / "plugins").iterdir()))
+
+
 class FilesExtraTests(Base):
     def test_disable_and_enable_a_plugin(self):
         sid, path = self.make()

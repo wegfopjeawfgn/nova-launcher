@@ -375,3 +375,9 @@ combobox arrow, dropdown arrow {
 }
 combobox button.combo { padding: 4px 10px; }
 spinbutton text, entry text { color: @nova_text; }
+
+/* Mi servidor: navegación por secciones */
+.seg { padding: 3px; background: @nova_control; border-radius: 12px; }
+.seg button.seg-button { background: transparent; border-color: transparent; color: @nova_muted; padding: 6px 16px; }
+.seg button.seg-button:hover { color: @nova_text; }
+.seg button.seg-button.seg-active { background: @nova_accent_dim; color: @nova_accent_hover; border-color: @nova_accent_line; }

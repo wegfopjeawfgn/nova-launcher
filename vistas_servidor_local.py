@@ -230,8 +230,11 @@ class ServidorLocalMixin:
             kind.append(key, title)
         kind.set_active_id("paper")
         box.append(kind)
-        hint = label("Paper es rápido y acepta plugins (lo más usado para jugar con amigos). Fabric acepta mods. "
-                     "Vanilla es el servidor oficial, sin extras. El servidor es local: corre en tu computadora.", "opt-hint")
+        hints = {"paper": "Paper es rápido y acepta plugins: lo más usado para jugar con amigos.",
+                 "fabric": "Fabric es liviano y acepta mods modernos.",
+                 "forge": "Forge acepta mods y modpacks clásicos. Crearlo tarda unos minutos: ejecuta su instalador.",
+                 "vanilla": "Vanilla es el servidor oficial de Mojang, sin mods ni plugins."}
+        hint = label(hints["paper"] + " El servidor es local: corre en tu computadora.", "opt-hint")
         hint.set_wrap(True)
         box.append(hint)
         box.append(label("Versión de Minecraft", "form-label"))
@@ -262,19 +265,32 @@ class ServidorLocalMixin:
         box.append(error)
         working = {"on": False}
 
-        def versions():
+        loading = {"token": 0}
+
+        def versions(chosen_kind, token):
             try:
-                found = sl.release_versions()
+                found = sl.release_versions(chosen_kind)
             except Exception as problem:
                 GLib.idle_add(error.set_text, f"No se pudieron cargar las versiones: {problem}")
                 return
-            GLib.idle_add(fill, found)
+            GLib.idle_add(fill, found, token)
 
-        def fill(found):
+        def fill(found, token):
+            if token != loading["token"]:
+                return  # the type changed while this list was loading
             version.remove_all()
             for item in found[:60]:
                 version.append(item, item)
             version.set_active(0)
+
+        def kind_changed(*_):
+            loading["token"] += 1
+            error.set_text("")
+            hint.set_text(hints.get(kind.get_active_id(), "") + " El servidor es local: corre en tu computadora.")
+            version.remove_all()
+            version.append("", "Cargando versiones…")
+            version.set_active(0)
+            threading.Thread(target=versions, args=(kind.get_active_id(), loading["token"]), daemon=True).start()
 
         def run(_):
             if working["on"]:
@@ -326,7 +342,8 @@ class ServidorLocalMixin:
         make.connect("clicked", run)
         cancel.connect("clicked", lambda _: None if working["on"] else dialog.destroy())
         dialog.connect("close-request", lambda _: working["on"])
-        threading.Thread(target=versions, daemon=True).start()
+        kind.connect("changed", kind_changed)
+        kind_changed()
         dialog.present()
 
     # ------------------------------------------------------------ detalle de un servidor
@@ -334,7 +351,7 @@ class ServidorLocalMixin:
         meta = sl.load(sid)
         path = sl.folder(sid)
         runner = sl.runner(sid)
-        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"], vexpand=True)
         subs = []
 
         def teardown():
@@ -343,7 +360,8 @@ class ServidorLocalMixin:
                     runner.listeners.remove(listener)
             subs.clear()
 
-        top = Gtk.Box(spacing=10)
+        # ---- cabecera: nombre, estado y acciones en una sola fila
+        top = Gtk.Box(spacing=8)
         top.append(button("‹ Servidores", back, "quiet-button"))
         title = label(meta["name"], "subheading")
         title.set_hexpand(True)
@@ -351,26 +369,36 @@ class ServidorLocalMixin:
         top.append(title)
         state_slot = Gtk.Box()
         top.append(state_slot)
-        root.append(top)
-        root.append(local_notice(short=True))
         message = label("", "muted")
         message.set_wrap(True)
         message.set_visible(False)
         message.connect("notify::label", lambda w, _p: w.set_visible(bool(w.get_label())))
-
-        # ---- botones de control
-        controls = Gtk.Box(spacing=8)
         b_start = button("Encender", lambda: do_start(), "primary")
         b_stop = button("Apagar", lambda: runner.stop())
         b_restart = button("Reiniciar", lambda: do_restart())
-        b_folder = button("Abrir carpeta", lambda: motor.open_folder(path))
-        b_delete = button("Eliminar", lambda: do_delete(), "danger")
         b_play = button("Jugar con Nova", lambda: play(sl.read_properties(path).get("server-port", meta["port"])), "primary")
-        b_play.set_hexpand(True)
-        b_play.set_halign(Gtk.Align.END)
-        for widget in (b_start, b_stop, b_restart, b_folder, b_delete, b_play):
-            controls.append(widget)
-        root.append(controls)
+        more = Gtk.MenuButton(icon_name="view-more-symbolic", tooltip_text="Más acciones")
+        more.update_property([Gtk.AccessibleProperty.LABEL], ["Más acciones del servidor"])
+        more_pop = Gtk.Popover()
+        more_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, css_classes=["action-menu"])
+        more_pop.set_child(more_box)
+        more.set_popover(more_pop)
+        more_box.append(button("Abrir carpeta del servidor", lambda: (more_pop.popdown(), motor.open_folder(path))))
+        b_delete = button("Eliminar servidor…", lambda: (more_pop.popdown(), do_delete()), "danger")
+        more_box.append(b_delete)
+        for widget in (b_start, b_stop, b_restart, b_play, more):
+            top.append(widget)
+        root.append(top)
+
+        # ---- tarjeta de información: aviso de servidor local y direcciones
+        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["catalog-row"])
+        notice = Gtk.Box(spacing=8)
+        notice.append(icon("network-server-symbolic"))
+        notice.append(label("Servidor local · corre en tu computadora: si la apagás o cerrás Nova, se apaga.", "muted"))
+        info.append(notice)
+        addr_slot = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        info.append(addr_slot)
+        root.append(info)
         root.append(message)
 
         def say(text):
@@ -430,12 +458,6 @@ class ServidorLocalMixin:
             confirm.connect("response", respond)
             confirm.present()
 
-        # ---- direcciones
-        addr = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4, css_classes=["catalog-row"])
-        addr_slot = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        addr.append(addr_slot)
-        root.append(addr)
-
         def build_addresses():
             while child := addr_slot.get_first_child():
                 addr_slot.remove(child)
@@ -467,13 +489,32 @@ class ServidorLocalMixin:
             self.leave_page()
             self.play(f"localhost:{port}")
 
-        # ---- pestañas
-        tabs = Gtk.Notebook(vexpand=True)
-        tabs.set_size_request(-1, 430)
-        root.append(tabs)
-        tabs.append_page(self.local_console_tab(runner, subs, message), Gtk.Label(label="Consola"))
-        tabs.append_page(self.local_settings_tab(sid, runner, message, build_addresses, title), Gtk.Label(label="Ajustes"))
-        tabs.append_page(self.local_files_tab(parent, sid, message), Gtk.Label(label="Archivos"))
+        # ---- navegación por secciones (cada una se desplaza por su cuenta)
+        pages = Gtk.Stack(vexpand=True, hexpand=True, transition_type=Gtk.StackTransitionType.CROSSFADE, transition_duration=150)
+        nav = Gtk.Box(spacing=4, css_classes=["seg"])
+        seg = {}
+
+        def show(key):
+            pages.set_visible_child_name(key)
+            loader = getattr(pages.get_child_by_name(key), "load_once", None)
+            if loader:
+                pages.get_child_by_name(key).load_once = None
+                loader()
+            for name, widget in seg.items():
+                (widget.add_css_class if name == key else widget.remove_css_class)("seg-active")
+
+        sections = (("console", "Consola", self.local_console_tab(runner, subs, message)),
+                    ("settings", "Ajustes", self.local_settings_tab(sid, runner, message, build_addresses, title)),
+                    ("files", "Archivos", self.local_files_tab(parent, sid, message)))
+        catalog_text = "Plugins" if meta["kind"] == "paper" else "Mods" if sl.catalog_available(meta) else "Catálogo"
+        sections += (("catalog", catalog_text, self.local_catalog_tab(sid, runner, message)),)
+        for key, text, widget in sections:
+            pages.add_named(widget, key)
+            seg[key] = button(text, lambda k=key: show(k), "seg-button")
+            nav.append(seg[key])
+        root.append(nav)
+        root.append(pages)
+        show("console")
 
         def sync(*_):
             current = runner.state
@@ -483,8 +524,8 @@ class ServidorLocalMixin:
             b_start.set_visible(current == "stopped")
             b_stop.set_visible(current in ("starting", "running"))
             b_restart.set_visible(current in ("starting", "running"))
-            b_delete.set_visible(current == "stopped")
             b_play.set_visible(current == "running")
+            b_delete.set_sensitive(current == "stopped")
             return False
 
         def listener(kind, payload):
@@ -497,9 +538,7 @@ class ServidorLocalMixin:
         subs.append(listener)
         build_addresses()
         sync()
-        view = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vexpand=True)
-        view.set_child(root)
-        return view, teardown
+        return root, teardown
 
     # ---- consola
     def local_console_tab(self, runner, subs, message):
@@ -570,68 +609,92 @@ class ServidorLocalMixin:
         meta = sl.load(sid)
         path = sl.folder(sid)
         props = sl.read_properties(path)
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_top=8)
         scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_top=8, margin_start=4, margin_end=8)
-        scroll.set_child(box)
-        box.append(label("General", "settings-heading"))
-        box.append(label("Nombre", "form-label"))
+        grid = Gtk.Grid(column_spacing=12, row_spacing=12, column_homogeneous=True, margin_end=6)
+        scroll.set_child(grid)
+        outer.append(scroll)
+
+        def card(heading, column, row, rows=1):
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["catalog-row"], valign=Gtk.Align.START)
+            box.append(label(heading, "settings-heading"))
+            grid.attach(box, column, row, 1, rows)
+            return box
+
+        def field(box, text, widget, hint=None):
+            """Label on the left, control on the right (stacked for wide controls like text entries)."""
+            row = Gtk.Box(spacing=12)
+            caption = label(text, "form-label")
+            caption.set_hexpand(True)
+            caption.set_wrap(True)
+            row.append(caption)
+            widget.set_halign(Gtk.Align.END)
+            row.append(widget)
+            box.append(row)
+            if hint:
+                note = label(hint, "opt-hint")
+                note.set_wrap(True)
+                box.append(note)
+
+        def wide(box, text, widget):
+            box.append(label(text, "form-label"))
+            box.append(widget)
+
+        general = card("General", 0, 0)
         name = Gtk.Entry(text=meta["name"])
-        box.append(name)
-        box.append(label("Mensaje que se ve en la lista de servidores", "form-label"))
+        wide(general, "Nombre", name)
         motd = Gtk.Entry(text=props.get("motd", ""))
-        box.append(motd)
-        box.append(label("Memoria (GB)", "form-label"))
+        wide(general, "Mensaje en la lista de servidores", motd)
         memory = Gtk.SpinButton.new_with_range(1, 64, 1)
         memory.set_value(meta["memory"])
-        box.append(memory)
-        box.append(label("Puerto", "form-label"))
+        field(general, "Memoria (GB)", memory)
         port = Gtk.SpinButton.new_with_range(1024, 65535, 1)
         port.set_value(int(props.get("server-port", meta["port"])))
-        box.append(port)
-        box.append(label("Juego", "settings-heading"))
-        box.append(label("Modo de juego", "form-label"))
+        field(general, "Puerto", port, "Si lo cambiás, tus amigos tienen que usar el puerto nuevo.")
+
+        game = card("Juego", 1, 0)
         mode = Gtk.ComboBoxText()
         for key, text in GAMEMODES:
             mode.append(key, text)
         mode.set_active_id(props.get("gamemode", "survival") if props.get("gamemode") in dict(GAMEMODES) else "survival")
-        box.append(mode)
-        box.append(label("Dificultad", "form-label"))
+        field(game, "Modo de juego", mode)
         difficulty = Gtk.ComboBoxText()
         for key, text in DIFFICULTIES:
             difficulty.append(key, text)
         difficulty.set_active_id(props.get("difficulty", "easy") if props.get("difficulty") in dict(DIFFICULTIES) else "easy")
-        box.append(difficulty)
-        box.append(label("Máximo de jugadores", "form-label"))
+        field(game, "Dificultad", difficulty)
         players = Gtk.SpinButton.new_with_range(1, 1000, 1)
         players.set_value(int(props.get("max-players", 20)) if props.get("max-players", "20").isdigit() else 20)
-        box.append(players)
-        box.append(label("Distancia de visión (chunks)", "form-label"))
+        field(game, "Máximo de jugadores", players)
         distance = Gtk.SpinButton.new_with_range(2, 32, 1)
         distance.set_value(int(props.get("view-distance", 10)) if props.get("view-distance", "10").isdigit() else 10)
-        box.append(distance)
+        field(game, "Distancia de visión", distance, "En chunks. Más alta se ve mejor y gasta más memoria.")
+
+        rules = card("Reglas y seguridad", 0, 1, 2)
         switches = {}
         for key, text, hint, default in (
-                ("pvp", "Jugadores pueden pelear entre sí", "PvP.", "true"),
-                ("white-list", "Solo jugadores de la lista blanca", "Agregás a cada amigo con «whitelist add nombre» en la consola.", "false"),
-                ("online-mode", "Solo cuentas originales de Minecraft", "Si lo apagás entra cualquiera con cualquier nombre. No lo hagas en un servidor público.", "true")):
+                ("pvp", "PvP", "Los jugadores pueden pelear entre sí.", "true"),
+                ("white-list", "Lista blanca", "Solo entran los que agregues con «whitelist add nombre» en la consola.", "false"),
+                ("online-mode", "Solo cuentas originales de Minecraft", "Si lo apagás, entra cualquiera con cualquier nombre. No lo hagas si el servidor es público.", "true")):
             control = Gtk.Switch(active=props.get(key, default) == "true", valign=Gtk.Align.CENTER)
             control.update_property([Gtk.AccessibleProperty.LABEL], [text])
             switches[key] = control
-            row = Gtk.Box(spacing=12, css_classes=["opt-row"])
-            col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
-            col.append(label(text, "form-label"))
-            note = label(hint, "opt-hint")
-            note.set_wrap(True)
-            col.append(note)
-            row.append(col)
-            row.append(control)
-            box.append(row)
-        box.append(label("EULA de Mojang", "settings-heading"))
+            field(rules, text, control, hint)
+        eula = card("EULA de Mojang", 1, 1)
         accepted = sl.eula_accepted(path)
-        box.append(label("Aceptado." if accepted else "Todavía no lo aceptaste: se te va a pedir al encender el servidor.", "opt-hint"))
+        note = label("Aceptado." if accepted else "Todavía no lo aceptaste: se te pide al encender el servidor.", "opt-hint")
+        note.set_wrap(True)
+        eula.append(note)
+        link = Gtk.LinkButton.new_with_label(sl.EULA_URL, "Leer el EULA de Minecraft")
+        link.set_halign(Gtk.Align.START)
+        eula.append(link)
+
+        # barra de guardado fija: siempre a la vista, sin tener que desplazarse
+        bar = Gtk.Box(spacing=10, css_classes=["catalog-row"])
         error = label("", "form-error")
         error.set_wrap(True)
-        box.append(error)
+        error.set_hexpand(True)
+        bar.append(error)
 
         def save(*_):
             try:
@@ -655,8 +718,148 @@ class ServidorLocalMixin:
             rebuild()
             message.set_text("Ajustes guardados." + (" Se aplican al reiniciar el servidor." if runner.state != "stopped" else ""))
 
-        box.append(button("Guardar ajustes", save, "primary"))
-        return scroll
+        bar.append(button("Guardar ajustes", save, "primary"))
+        outer.append(bar)
+        return outer
+
+    # ---- catálogo de mods y plugins
+    def local_catalog_tab(self, sid, runner, message):
+        meta = sl.load(sid)
+        base = sl.folder(sid)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_top=8)
+        if not sl.catalog_available(meta):
+            card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["catalog-row"])
+            card.append(label("Un servidor Vanilla no admite mods ni plugins", "form-label"))
+            text = label("Creá un servidor Paper (plugins), Fabric o Forge (mods) para usar el catálogo.", "muted")
+            text.set_wrap(True)
+            card.append(text)
+            box.append(card)
+            return box
+        noun = "plugins" if meta["kind"] == "paper" else "mods"
+        head = Gtk.Box(spacing=8)
+        search = Gtk.SearchEntry(placeholder_text=f"Buscar {noun} en Modrinth", hexpand=True)
+        search.update_property([Gtk.AccessibleProperty.LABEL], [f"Buscar {noun}"])
+        head.append(search)
+        head.append(button("Buscar", lambda: run(0)))
+        box.append(head)
+        info = label(f"Solo se muestran {noun} compatibles con Minecraft {meta['version']} y {sl.KINDS[meta['kind']].split(' ')[0]}. "
+                     "Los descarga Nova desde Modrinth y comprueba su SHA-512.", "opt-hint")
+        info.set_wrap(True)
+        box.append(info)
+        scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        scroll.set_child(rows)
+        box.append(scroll)
+        foot = Gtk.Box(spacing=8)
+        count = label("", "muted")
+        count.set_hexpand(True)
+        foot.append(count)
+        more = button("Cargar más", lambda: run(state["offset"], append=True), "quiet-button")
+        more.set_visible(False)
+        foot.append(more)
+        box.append(foot)
+        state = {"offset": 0, "busy": False, "token": 0}
+
+        def downloads(n):
+            return f"{n / 1_000_000:.1f} M" if n >= 1_000_000 else f"{n / 1000:.0f} mil" if n >= 10_000 else str(n)
+
+        def render(hits, append):
+            if not append:
+                while old := rows.get_first_child():
+                    rows.remove(old)
+            installed = sl.catalog_installed(base)
+            if not hits and not append:
+                rows.append(label("No se encontró nada compatible. Probá con otra búsqueda.", "muted"))
+            for hit in hits:
+                rows.append(build_row(hit, hit["project_id"] in installed))
+
+        def build_row(hit, is_installed):
+            row = Gtk.Box(spacing=10, css_classes=["catalog-row"])
+            text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, hexpand=True)
+            title = label(hit["title"], "form-label")
+            title.set_ellipsize(Pango.EllipsizeMode.END)
+            text.append(title)
+            description = label(hit["description"], "muted")
+            description.set_ellipsize(Pango.EllipsizeMode.END)
+            description.set_tooltip_text(hit["description"])
+            text.append(description)
+            row.append(text)
+            row.append(label(f"{downloads(hit['downloads'])} descargas", "muted"))
+            if is_installed:
+                row.append(Gtk.Label(label="Instalado", css_classes=["chip", "chip-accent"]))
+                row.append(button("Quitar", lambda h=hit: remove(h), "quiet-button"))
+            else:
+                row.append(button("Instalar", lambda h=hit, r=row: install(h, r), "primary"))
+            return row
+
+        def run(offset, append=False):
+            if state["busy"]:
+                return
+            state["busy"] = True
+            state["token"] += 1
+            token = state["token"]
+            count.set_text("Buscando…")
+            query = search.get_text()
+
+            def worker():
+                try:
+                    result = sl.catalog_search(meta, query, offset=offset)
+                except Exception as error:
+                    GLib.idle_add(finish, None, str(error), append, offset, token)
+                else:
+                    GLib.idle_add(finish, result, "", append, offset, token)
+            threading.Thread(target=worker, daemon=True).start()
+
+        def finish(result, problem, append, offset, token):
+            state["busy"] = False
+            if token != state["token"]:
+                return
+            if result is None:
+                count.set_text(f"No se pudo buscar: {problem}")
+                return
+            render(result["hits"], append)
+            state["offset"] = offset + len(result["hits"])
+            more.set_visible(state["offset"] < result["total"])
+            count.set_text(f"{state['offset']} de {result['total']} resultados")
+
+        def install(hit, row):
+            for child_button in (row.get_last_child(),):
+                child_button.set_sensitive(False)
+                child_button.set_label("Instalando…")
+
+            def worker():
+                try:
+                    installed = sl.catalog_install(base, sl.load(sid) or meta, hit["project_id"], title=hit["title"])
+                except Exception as error:
+                    GLib.idle_add(done, f"No se pudo instalar «{hit['title']}»: {error}", row, hit, False)
+                else:
+                    extra = [name for name in installed[1:]]
+                    text = f"Instalado «{hit['title']}»" + (f" y sus dependencias ({', '.join(extra)})" if extra else "")
+                    GLib.idle_add(done, text + ". Reiniciá el servidor para cargarlo.", row, hit, True)
+            threading.Thread(target=worker, daemon=True).start()
+
+        def done(text, row, hit, ok):
+            message.set_text(text)
+            parent = row.get_parent()
+            if parent is None:
+                return
+            replacement = build_row(hit, ok)
+            parent.insert_child_after(replacement, row)
+            parent.remove(row)
+
+        def remove(hit):
+            try:
+                sl.catalog_remove(base, sl.load(sid) or meta, hit["project_id"])
+            except (OSError, ValueError) as error:
+                message.set_text(str(error))
+                return
+            message.set_text(f"«{hit['title']}» quitado. Reiniciá el servidor para aplicarlo.")
+            run(0)
+
+        search.connect("activate", lambda _: run(0))
+        search.connect("search-changed", lambda _: None)
+        box.load_once = lambda: run(0)
+        return box
 
     # ---- archivos
     def local_files_tab(self, parent, sid, message):

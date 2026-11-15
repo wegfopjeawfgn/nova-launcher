@@ -1,5 +1,17 @@
 # Cambios
 
+## 1.9.1
+- **Forge en Mi servidor**: además de Paper, Fabric y Vanilla, ahora podés crear servidores **Forge**. Nova descarga el instalador
+  desde el Maven oficial de Forge, comprueba su SHA-256, usa el Java que pide esa versión y ejecuta el instalador por vos
+  (tarda unos minutos). Para instalar Forge hace falta un Java completo en tu equipo (OpenJDK o Temurin): con el Java recortado
+  de Mojang el instalador de Forge falla, y Nova te lo explica. Solo se ofrecen las versiones de Minecraft que Forge soporta.
+- **Catálogo de mods y plugins**: cada servidor tiene una sección nueva (Plugins en Paper, Mods en Fabric y Forge) con el catálogo
+  de Modrinth. Solo muestra lo compatible con la versión y el tipo de tu servidor; instala con un clic en `plugins/` o `mods/`,
+  comprueba el SHA-512, suma las dependencias obligatorias y permite quitar lo instalado. Un servidor Vanilla lo explica.
+- **Pantalla del servidor rediseñada**: acciones arriba (encender, apagar, reiniciar, jugar y un menú con abrir carpeta y eliminar),
+  direcciones y aviso de «servidor local» en una sola tarjeta, secciones por pestañas (Consola, Ajustes, Archivos, Plugins o Mods)
+  que se desplazan por su cuenta, y Ajustes en tarjetas con el botón de guardar siempre a la vista.
+
 ## 1.9.0
 - **Mi servidor**: creá y manejá servidores de Minecraft Java en tu computadora, sin salir de Nova. Elegís Paper (plugins),
   Fabric (mods) o Vanilla y la versión; Nova descarga el servidor y el Java que necesita (comprobando el hash cuando el

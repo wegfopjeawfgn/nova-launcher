@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        1.9.0
+Version:        1.9.1
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        GPL-3.0-or-later AND BSD-2-Clause
@@ -44,6 +44,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Sun Nov 15 2026 Nova Launcher <nova@localhost> - 1.9.1-1
+- Mi servidor: Forge servers, a Modrinth catalog of mods and plugins for each server, and a redesigned server screen.
+
 * Sun Nov 15 2026 Nova Launcher <nova@localhost> - 1.9.0-1
 - Mi servidor: create and manage local Minecraft servers (Paper, Fabric, Vanilla) with console, settings and a file manager.
 
