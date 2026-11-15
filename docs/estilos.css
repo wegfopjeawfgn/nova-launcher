@@ -105,6 +105,10 @@ h3 { font-size: 1.15rem; font-weight: 620; letter-spacing: -0.01em; font-variati
 .checks li { padding-left: 24px; position: relative; }
 .checks li::before { content: ""; position: absolute; left: 2px; top: 0.62em; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
 .import .shot { max-width: 540px; justify-self: end; }
+.lead { margin-top: 22px; color: var(--ink2); max-width: 44em; text-wrap: pretty; }
+.shot.narrow { max-width: 420px; justify-self: center; }
+.import .shots { display: grid; gap: 20px; justify-items: end; }
+.import .shots .shot { max-width: none; width: 100%; }
 .rust .shots { display: grid; gap: 20px; justify-items: end; }
 .rust .shot { max-width: none; width: 100%; }
 .rust .shot.small { max-width: 340px; }

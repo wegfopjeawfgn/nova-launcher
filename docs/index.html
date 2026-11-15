@@ -5,14 +5,14 @@
   <meta name="google-site-verification" content="f-KJBeJi-TfsEfmEEZ4IR44FSGLed9uF5Enj_0-LfIo" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Nova Launcher — Launcher de Minecraft Java para Windows y Fedora</title>
-  <meta name="description" content="Nova Launcher organiza tus instancias de Minecraft Java: mods de Modrinth y CurseForge, importación de mods, texturas y shaders desde tu equipo, respaldos verificados, skins, servidores y un cliente Rust experimental (Pomme). Para Windows y Fedora.">
+  <meta name="description" content="Nova Launcher organiza tus instancias de Minecraft Java: mods de Modrinth y CurseForge, importación desde tu equipo, respaldos verificados, skins, tu propio servidor local con plugins y respaldos, y Roblox en el mismo launcher. Para Windows y Fedora.">
   <meta name="theme-color" content="#07080b">
   <meta name="color-scheme" content="dark">
   <link rel="canonical" href="https://novalaunchermc.vercel.app/">
   <link rel="icon" type="image/svg+xml" href="assets/nova.svg">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Nova Launcher — Tus mods. Tus mundos. Un solo launcher.">
-  <meta property="og:description" content="Instancias, mods, texturas y shaders desde tu equipo, respaldos verificados, skins y servidores para Minecraft Java en Windows y Fedora.">
+  <meta property="og:description" content="Instancias y mods de Minecraft Java, tu propio servidor local y Roblox en un solo launcher, para Windows y Fedora.">
   <meta property="og:url" content="https://novalaunchermc.vercel.app/">
   <meta property="og:image" content="https://novalaunchermc.vercel.app/assets/nova-biblioteca.webp">
   <meta property="og:image:width" content="1280">
@@ -24,7 +24,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&family=Martian+Mono:wdth,wght@87.5,400;87.5,500&display=swap">
   <link rel="stylesheet" href="estilos.css">
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Nova Launcher","applicationCategory":"GameApplication","operatingSystem":"Windows, Fedora Linux","url":"https://novalaunchermc.vercel.app/","downloadUrl":"https://github.com/wegfopjeawfgn/nova-launcher/releases/latest","description":"Launcher de terceros para Minecraft Java Edition: instancias, mods, respaldos, skins y servidores.","inLanguage":"es","publisher":{"@type":"Organization","name":"Nova Studios","url":"https://studiosnova.vercel.app/"}}
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Nova Launcher","applicationCategory":"GameApplication","operatingSystem":"Windows, Fedora Linux","url":"https://novalaunchermc.vercel.app/","downloadUrl":"https://github.com/wegfopjeawfgn/nova-launcher/releases/latest","description":"Launcher de terceros para Minecraft Java Edition: instancias, mods, respaldos, skins, servidor local y acceso a Roblox.","inLanguage":"es","publisher":{"@type":"Organization","name":"Nova Studios","url":"https://studiosnova.vercel.app/"}}
   </script>
 </head>
 <body>
@@ -34,6 +34,8 @@
       <a class="brand" href="./" aria-label="Nova Launcher, ir al inicio"><img src="assets/nova.svg" width="32" height="32" alt=""><span>Nova Launcher</span></a>
       <nav aria-label="Navegación">
         <a href="#funciones">Funciones</a>
+        <a href="#roblox">Roblox</a>
+        <a href="#servidor">Mi servidor</a>
         <a href="#rust">Rust</a>
         <a href="#importar">Importar</a>
         <a href="#detalle">En detalle</a>
@@ -51,10 +53,11 @@
         <div class="hero-copy">
           <div class="badge-row">
             <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.11.0</b></p>
-          <a class="badge badge-link" href="#rust"><span aria-hidden="true"></span> Nuevo · Cliente Rust (experimental)</a>
+          <a class="badge badge-link" href="#roblox"><span aria-hidden="true"></span> Nuevo · Roblox</a>
+          <a class="badge badge-link" href="#servidor"><span aria-hidden="true"></span> Nuevo · Mi servidor</a>
           </div>
           <h1 id="titulo">Tus mods.<br>Tus mundos.<br><em>Un solo launcher.</em></h1>
-          <p class="intro">Nova Launcher organiza tus instancias de Minecraft Java: instalá mods, importá los que ya tenés, revisá que todo funcione, guardá respaldos verificados y entrá a tus servidores.</p>
+          <p class="intro">Nova Launcher organiza tus instancias de Minecraft Java: instalá mods, importá los que ya tenés, guardá respaldos verificados y armá tu propio servidor para jugar con amigos. Y si también jugás Roblox, lo abrís desde el mismo lugar.</p>
           <div class="actions">
             <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.11.0-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
             <div class="windows-download" id="windows-download">
@@ -76,11 +79,93 @@
 
     <section class="strip wrap" aria-label="Resumen">
       <ul>
-        <li><b>Java o Pomme (Rust)</b><span>elegís el cliente de cada instancia</span></li>
-        <li><b>Vanilla, Fabric, Forge, NeoForge y Quilt</b><span>una instancia para cada partida</span></li>
+        <li><b>Minecraft y Roblox</b><span>elegís a qué jugar al abrir</span></li>
+        <li><b>Tu propio servidor</b><span>Vanilla, Paper, Fabric o Forge, gratis</span></li>
         <li><b>Modrinth, CurseForge y tu equipo</b><span>mods, modpacks, shaders y texturas</span></li>
         <li><b>Windows x64 y Fedora</b><span>instaladores con SHA-256</span></li>
       </ul>
+    </section>
+
+    <section class="section wrap import" id="roblox" aria-labelledby="roblox-titulo">
+      <div class="copy reveal">
+        <h2 id="roblox-titulo">Minecraft y Roblox, en un solo launcher</h2>
+        <p>Al abrir Nova elegís a qué querés jugar. Con Roblox explorás los juegos del momento y entrás directo al que elijas, sin pasar por el navegador.</p>
+        <dl class="kinds">
+          <div><dt>Explorar</dt><dd>Tendencias, Más jugados, Emergentes y Con amigos</dd></div>
+          <div><dt>Buscar</dt><dd>por nombre, o pegando el enlace de un juego de roblox.com</dd></div>
+          <div><dt>Jugar</dt><dd>abre ese juego con Sober en Linux, o con el cliente oficial en Windows y Mac</dd></div>
+          <div><dt>Tuyos</dt><dd>favoritos con una estrella y los últimos juegos que abriste</dd></div>
+        </dl>
+        <ul class="checks">
+          <li>Nova no pide ni ve tu contraseña de Roblox: iniciás sesión en Sober o en el cliente oficial.</li>
+          <li>No muestra tus amigos ni quién está conectado, porque eso necesita tu sesión de Roblox.</li>
+          <li>En Linux hace falta Sober, un cliente no oficial; Nova te avisa si no lo encuentra.</li>
+          <li>Probado en Fedora con Sober. En Windows y Mac todavía no se probó de punta a punta.</li>
+        </ul>
+      </div>
+      <div class="shots">
+        <figure class="shot reveal">
+          <img src="assets/nova-juegos.webp" width="1280" height="820" loading="lazy" alt="Pantalla inicial de Nova con dos tarjetas con portada: Minecraft y Roblox, y la opción Recordar mi elección">
+          <figcaption>La pantalla de inicio. Podés recordar tu elección.</figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <img src="assets/nova-roblox.webp" width="1280" height="820" loading="lazy" alt="Pantalla de Roblox en Nova con pestañas Tendencias, Más jugados, Emergentes, Con amigos, Favoritos y Recientes, un buscador y una grilla de juegos con botón Jugar">
+          <figcaption>Juegos reales de Roblox al momento de la captura.</figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <img src="assets/nova-roblox-favoritos.webp" width="1280" height="820" loading="lazy" alt="Pestaña Favoritos de Roblox en Nova con seis juegos marcados con una estrella">
+          <figcaption>Favoritos con estrella. Juegos reales de Roblox.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section wrap" id="servidor" aria-labelledby="servidor-titulo">
+      <h2 id="servidor-titulo">Tu propio servidor de Minecraft, gratis y desde Nova</h2>
+      <p class="lead">Creá un servidor en tu PC para jugar con amigos: Vanilla, Paper, Fabric o Forge. Corre en tu computadora, no en la nube: solo está disponible mientras tu PC y el servidor estén encendidos. Nova no ofrece alojamiento.</p>
+      <div class="showcase">
+        <div class="row reveal">
+          <div class="copy">
+            <h3>Encendelo, mirá la consola y compartí la dirección</h3>
+            <p>Encender, apagar y reiniciar con un clic, consola con comandos y la dirección lista para copiar: la de este equipo y la de tu red local, la que usan tus amigos si están en tu mismo wifi.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-servidor-consola.webp" width="1280" height="820" loading="lazy" alt="Servidor Los pibes encendido, con las direcciones localhost y de la red local, las pestañas Consola, Estado, Jugadores, Archivos, Plugins, Respaldos, Amigos y Ajustes, y la consola del servidor"><figcaption>Consola y direcciones. La IP es un ejemplo.</figcaption></figure>
+        </div>
+        <div class="row flip reveal">
+          <div class="copy">
+            <h3>Plugins y mods con un clic</h3>
+            <p>Un catálogo dentro de cada servidor. En Paper, plugins de Modrinth, de Hangar (con su suma SHA-256) y de SpigotMC; en Fabric y Forge, mods de Modrinth. Forge baja su propio Java verificado si tu PC no tiene uno.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-servidor-hangar.webp" width="1280" height="1080" loading="lazy" alt="Catálogo de plugins de un servidor Paper con el selector de fuente en Hangar y una lista de plugins con botón Instalar"><figcaption>Catálogo de plugins</figcaption></figure>
+        </div>
+        <div class="row reveal">
+          <div class="copy">
+            <h3>Respaldos y actualizaciones sin perder el mundo</h3>
+            <p>Respaldos automáticos cada tantas horas, al apagar si querés, y restaurar cuando quieras. Al actualizar el servidor a otra versión, Nova guarda un respaldo antes.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-servidor-respaldos.webp" width="1280" height="820" loading="lazy" alt="Pestaña Respaldos del servidor con los respaldos automáticos, cada cuántas horas, cuántos guardar y el botón Crear respaldo ahora"><figcaption>Respaldos del mundo</figcaption></figure>
+        </div>
+        <div class="row flip reveal">
+          <div class="copy">
+            <h3>Quién juega y cómo va el servidor</h3>
+            <p>Mirá quién está conectado y expulsalo si hace falta, dale permisos de operador y administrá la lista blanca. En Estado ves la memoria y el procesador en vivo.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-servidor-jugadores.webp" width="1280" height="1080" loading="lazy" alt="Pestaña Jugadores con los conectados ahora, los operadores y la lista blanca"><figcaption>Jugadores, operadores y lista blanca</figcaption></figure>
+        </div>
+        <div class="row reveal">
+          <div class="copy">
+            <h3>Amigos fuera de tu red, con un túnel opcional</h3>
+            <p>Para que entren desde otra red podés abrir el puerto en tu router o usar el túnel de playit.gg. Es un servicio externo de terceros, con sus propias condiciones: Nova te lo explica y te pide aceptarlo antes de descargar su agente.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-servidor-amigos.webp" width="1280" height="820" loading="lazy" alt="Pestaña Amigos con la explicación del túnel de playit.gg y el paso para descargar su agente"><figcaption>Túnel opcional con playit.gg</figcaption></figure>
+        </div>
+        <div class="row flip reveal">
+          <div class="copy">
+            <h3>Importá el servidor que ya tenés</h3>
+            <p>Nova detecta el tipo, la versión, el puerto y la memoria de una carpeta existente y la copia: la original no se toca. Después se maneja como cualquier servidor de Nova.</p>
+          </div>
+          <figure class="shot narrow"><img src="assets/nova-servidor-importar.webp" width="520" height="814" loading="lazy" alt="Ventana Importar servidor con la carpeta elegida y el tipo, la versión, la memoria y el puerto detectados"><figcaption>Importar un servidor. Carpeta de ejemplo.</figcaption></figure>
+        </div>
+      </div>
     </section>
 
     <section class="section wrap import rust" id="rust" aria-labelledby="rust-titulo">
@@ -149,6 +234,16 @@
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h16v6H4zm0 10h16v6H4zM8 7h.01M8 17h.01"/></svg>
           <h3>Servidores</h3>
           <p>Entrá directo con la versión y los mods de la instancia, y comprobá si el servidor responde antes de abrir el juego.</p>
+        </li>
+        <li class="reveal">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16v6H4zm0 8h16v6H4zM8 8h.01M8 16h.01M14 8h3M14 16h3"/></svg>
+          <h3>Mi servidor</h3>
+          <p>Creá un servidor en tu PC con plugins o mods, respaldos automáticos, lista de jugadores y túnel opcional. Gratis y sin cuentas.</p>
+        </li>
+        <li class="reveal">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5h14v14H5zm4 4h6v6H9z"/></svg>
+          <h3>Roblox</h3>
+          <p>Elegí a qué jugar al abrir, explorá juegos y abrilos directo con Sober en Linux o el cliente oficial en Windows y Mac.</p>
         </li>
         <li class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 20 1-4L16.5 4.5a2 2 0 0 1 3 3L8 19l-4 1Z"/></svg>
@@ -239,7 +334,15 @@
       <h2 id="preguntas-titulo">Lo que suelen preguntar</h2>
       <details>
         <summary>¿Es un launcher oficial de Minecraft?</summary>
-        <p>No. Nova es un proyecto de terceros, sin afiliación ni aprobación de Mojang o Microsoft. Minecraft es una marca de sus titulares.</p>
+        <p>No. Nova es un proyecto de terceros, sin afiliación ni aprobación de Mojang, Microsoft ni Roblox. Minecraft y Roblox son marcas de sus titulares.</p>
+      </details>
+      <details>
+        <summary>¿Puedo jugar Roblox desde Nova?</summary>
+        <p>Nova abre el juego que elijas con el cliente de Roblox; no corre Roblox por su cuenta. En Linux usa Sober, un cliente no oficial que tenés que instalar; en Windows y Mac usa el cliente oficial. Iniciás sesión ahí: Nova no pide ni ve tu contraseña. Todavía solo se probó en Fedora con Sober.</p>
+      </details>
+      <details>
+        <summary>¿«Mi servidor» es un hosting gratis?</summary>
+        <p>No. El servidor corre en tu computadora: si la apagás o cerrás Nova, se apaga. Gasta memoria y procesador mientras se juega. Tus amigos entran por tu red local, abriendo el puerto en tu router o con el túnel opcional de playit.gg, un servicio de terceros con sus propias condiciones.</p>
       </details>
       <details>
         <summary>¿Puedo jugar sin cuenta de Microsoft?</summary>
@@ -279,7 +382,7 @@
 
   <footer class="wrap footer">
     <a class="brand" href="./" aria-label="Nova Launcher, volver al inicio"><img src="assets/nova.svg" width="30" height="30" alt=""><span>Nova Launcher</span></a>
-    <p>Un proyecto de <a href="https://studiosnova.vercel.app/">Nova Studios</a>. Launcher de terceros para Minecraft Java Edition, sin afiliación ni aprobación de Mojang o Microsoft.</p>
+    <p>Un proyecto de <a href="https://studiosnova.vercel.app/">Nova Studios</a>. Launcher de terceros para Minecraft Java Edition, sin afiliación ni aprobación de Mojang, Microsoft ni Roblox.</p>
     <nav aria-label="Información del proyecto">
       <a href="terminos.html">Términos y condiciones</a>
       <a href="terminos.html#privacidad">Privacidad</a>
