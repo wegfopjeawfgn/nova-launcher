@@ -1,5 +1,19 @@
 # Cambios
 
+## 1.9.2
+- **Reiniciar un servidor ya no falla**: Nova lo encendía de nuevo apenas se apagaba y a veces el puerto seguía «ocupado» por
+  conexiones recién cerradas (el sistema las retiene hasta un minuto), así que decía que no se podía. Ahora esas conexiones no
+  cuentan como puerto ocupado y, si el puerto tarda en liberarse, Nova reintenta unos segundos antes de rendirse.
+- **Servidores que siguen encendidos cuando Nova se cierra**: Nova guarda el proceso de cada servidor (su número y su hora de
+  inicio, para no confundirlo con otro programa) y, al abrirse, lo reconoce como «Encendido». Mostrás su registro, lo apagás con
+  calma (guarda el mundo) o lo reiniciás desde Nova. Un servidor reconectado no acepta comandos hasta reiniciarlo.
+- **Nova ya no se cierra con un servidor encendido**: con «Cerrar Nova» al iniciar Minecraft, si hay un servidor corriendo se
+  minimiza en vez de cerrarse, para no dejarlo sin control.
+- **Túnel para amigos de otras redes (experimental, Linux de 64 bits)**: sección **Amigos** en cada servidor. Usa el agente
+  oficial de playit.gg, un servicio externo y gratuito con sus propias condiciones, y Nova lo avisa. Descarga el agente
+  comprobando su SHA-256, vincula tu cuenta en el navegador (Nova nunca ve tu contraseña), enciende y apaga el túnel (se
+  cierra junto con Nova) y guarda la dirección pública que creás en tu panel de playit para copiarla.
+
 ## 1.9.1
 - **Forge en Mi servidor**: además de Paper, Fabric y Vanilla, ahora podés crear servidores **Forge**. Nova descarga el instalador
   desde el Maven oficial de Forge, comprueba su SHA-256, usa el Java que pide esa versión y ejecuta el instalador por vos

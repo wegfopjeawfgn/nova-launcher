@@ -7,11 +7,12 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk, GLib, Gtk, Pango
+from gi.repository import Gdk, GLib, Gio, Gtk, Pango
 
 import errores
 import motor
 import servidor_local as sl
+import tunel_playit as tp
 from widgets import button, label
 
 STATES = {"stopped": "Apagado", "starting": "Encendiendo…", "running": "Encendido", "stopping": "Apagando…"}
@@ -471,9 +472,20 @@ class ServidorLocalMixin:
                 line.append(value)
                 line.append(button("Copiar", lambda t=target: (Gdk.Display.get_default().get_clipboard().set(t), message.set_text(f"Copiado: {t}")), "quiet-button"))
             addr_slot.append(line)
-            note = label("Para entrar desde otra red hace falta un túnel o abrir el puerto en tu router.", "opt-hint")
-            note.set_wrap(True)
-            addr_slot.append(note)
+            public = (sl.load(sid) or meta).get("tunnel_address")
+            if public:
+                net = Gtk.Box(spacing=10)
+                net.append(label("Por internet", "muted"))
+                shown = label(public, "form-label")
+                shown.set_selectable(True)
+                net.append(shown)
+                net.append(button("Copiar", lambda t=public: (Gdk.Display.get_default().get_clipboard().set(t), message.set_text(f"Copiado: {t}")), "quiet-button"))
+                net.append(Gtk.Label(label="Túnel encendido" if tp.AGENT.running else "Túnel apagado", css_classes=["chip"] + (["chip-accent"] if tp.AGENT.running else [])))
+                addr_slot.append(net)
+            else:
+                note = label("Para entrar desde otra red usá la sección «Amigos» (túnel) o abrí el puerto en tu router.", "opt-hint")
+                note.set_wrap(True)
+                addr_slot.append(note)
 
         def play(port):
             current = sl.load(sid) or meta
@@ -507,7 +519,8 @@ class ServidorLocalMixin:
                     ("settings", "Ajustes", self.local_settings_tab(sid, runner, message, build_addresses, title)),
                     ("files", "Archivos", self.local_files_tab(parent, sid, message)))
         catalog_text = "Plugins" if meta["kind"] == "paper" else "Mods" if sl.catalog_available(meta) else "Catálogo"
-        sections += (("catalog", catalog_text, self.local_catalog_tab(sid, runner, message)),)
+        sections += (("catalog", catalog_text, self.local_catalog_tab(sid, runner, message)),
+                     ("friends", "Amigos", self.local_tunnel_tab(sid, runner, message, build_addresses, subs)))
         for key, text, widget in sections:
             pages.add_named(widget, key)
             seg[key] = button(text, lambda k=key: show(k), "seg-button")
@@ -860,6 +873,209 @@ class ServidorLocalMixin:
         search.connect("search-changed", lambda _: None)
         box.load_once = lambda: run(0)
         return box
+
+    # ---- amigos: túnel con playit.gg
+    def local_tunnel_tab(self, sid, runner, message, rebuild, subs):
+        scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=8, margin_end=6)
+        scroll.set_child(box)
+        state = {"busy": False}
+
+        def card(heading):
+            block = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, css_classes=["catalog-row"])
+            block.append(label(heading, "settings-heading"))
+            box.append(block)
+            return block
+
+        def text(block, value, style="muted"):
+            widget = label(value, style)
+            widget.set_wrap(True)
+            block.append(widget)
+            return widget
+
+        def open_url(url):
+            Gio.AppInfo.launch_default_for_uri(url, None)
+
+        def note(value):
+            GLib.idle_add(message.set_text, value)
+
+        def render():
+            for undo in cleanup:
+                undo()
+            cleanup.clear()
+            while old := box.get_first_child():
+                box.remove(old)
+            intro = card("Entrar desde otra red")
+            text(intro, "Sin esto, solo entran personas que estén en tu misma red (WiFi o cable). Con un túnel, tus amigos entran "
+                        "desde cualquier lugar por una dirección pública, sin abrir puertos en tu router.")
+            external = card("Servicio externo: playit.gg")
+            text(external, "El túnel lo da playit.gg, un servicio gratuito que no es de Nova ni de Mojang: tiene sus propias condiciones, "
+                           "límites y política de privacidad, y puede cambiarlas. El tráfico de tus amigos pasa por sus servidores. "
+                           "Nova usa su agente oficial (código abierto), comprueba su SHA-256 y se cierra junto con Nova.")
+            link = Gtk.LinkButton.new_with_label(tp.SITE, "Ver playit.gg")
+            link.set_halign(Gtk.Align.START)
+            external.append(link)
+            if tp.supported() is None:
+                manual = card("En este sistema")
+                text(manual, "El túnel integrado funciona por ahora solo en Linux de 64 bits. Podés usar playit.gg a mano: instalás su "
+                             "programa, creás un túnel «Minecraft Java» hacia localhost:25565 y pasás la dirección a tus amigos.")
+                return
+            if tp.installed() is None:
+                step = card("Paso 1 · Descargar el agente")
+                consent = Gtk.CheckButton(label="Entiendo que playit.gg es un servicio externo con sus propias condiciones")
+                step.append(consent)
+                progress = text(step, "", "muted")
+                go = button("Descargar el agente de playit", lambda: download(consent, go, progress), "primary")
+                go.set_halign(Gtk.Align.START)
+                go.set_sensitive(False)
+                consent.connect("toggled", lambda c: go.set_sensitive(c.get_active() and not state["busy"]))
+                step.append(go)
+                return
+            if not tp.has_secret():
+                step = card("Paso 2 · Vincular tu cuenta de playit")
+                text(step, "Se abre playit.gg en tu navegador para que inicies sesión (o crees una cuenta gratis) y apruebes a Nova. "
+                           "Tu contraseña nunca pasa por Nova.")
+                info = text(step, "", "opt-hint")
+                go = button("Vincular en el navegador", lambda: link_account(go, info), "primary")
+                go.set_halign(Gtk.Align.START)
+                step.append(go)
+                return
+            running = Gtk.Box(spacing=12, css_classes=["opt-row"])
+            col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
+            col.append(label("Túnel", "form-label"))
+            status = label("Encendido: tus amigos pueden entrar." if tp.AGENT.running else "Apagado.", "opt-hint")
+            col.append(status)
+            running.append(col)
+            toggle = Gtk.Switch(active=tp.AGENT.running, valign=Gtk.Align.CENTER)
+            toggle.update_property([Gtk.AccessibleProperty.LABEL], ["Encender el túnel"])
+            running.append(toggle)
+            panel = card("Paso 3 · Encender el túnel")
+            panel.append(running)
+
+            def switched(widget, _state):
+                if widget.get_active() and not tp.AGENT.running:
+                    try:
+                        tp.AGENT.start()
+                    except (OSError, RuntimeError) as error:
+                        message.set_text(str(error))
+                        widget.set_active(False)
+                        return True
+                elif not widget.get_active() and tp.AGENT.running:
+                    threading.Thread(target=tp.AGENT.stop, daemon=True).start()
+                GLib.timeout_add(600, lambda: (rebuild(), render(), False)[2])
+                return False
+
+            toggle.connect("state-set", switched)
+            view = Gtk.TextView(editable=False, monospace=True, wrap_mode=Gtk.WrapMode.WORD_CHAR, cursor_visible=False, height_request=90,
+                                left_margin=6, top_margin=4)
+            view.get_buffer().set_text("\n".join(list(tp.AGENT.lines)[-30:]))
+            holder = Gtk.ScrolledWindow(min_content_height=90)
+            holder.set_child(view)
+            panel.append(holder)
+            create = card("Paso 4 · Crear el túnel y guardar su dirección")
+            current = (sl.load(sid) or {}).get("port", 25565)
+            port = sl.read_properties(sl.folder(sid)).get("server-port", current)
+            text(create, f"En tu panel de playit creá un túnel de tipo «Minecraft Java» (TCP) hacia 127.0.0.1 puerto {port}. "
+                         "Playit te da una dirección (por ejemplo algo.joinmc.link): pegala acá para tenerla a mano.")
+            create.append(button("Abrir mi panel de playit", lambda: open_url(tp.TUNNELS_URL), "quiet-button"))
+            row = Gtk.Box(spacing=8)
+            entry = Gtk.Entry(hexpand=True, placeholder_text="algo.joinmc.link", text=(sl.load(sid) or {}).get("tunnel_address", ""))
+            entry.update_property([Gtk.AccessibleProperty.LABEL], ["Dirección pública del túnel"])
+            row.append(entry)
+            error = label("", "form-error")
+
+            def save_address(*_):
+                value = entry.get_text().strip()
+                clean = tp.valid_address(value) if value else ""
+                if clean is None:
+                    error.set_text("Pegá solo la dirección, sin http:// ni espacios (por ejemplo algo.joinmc.link o algo.gl.at.ply.gg:12345).")
+                    return
+                error.set_text("")
+                try:
+                    meta = {**(sl.load(sid) or {})}
+                    if clean:
+                        meta["tunnel_address"] = clean
+                    else:
+                        meta.pop("tunnel_address", None)
+                    sl.save(meta)
+                except OSError as problem:
+                    error.set_text(str(problem))
+                    return
+                rebuild()
+                message.set_text("Dirección guardada." if clean else "Dirección quitada.")
+
+            entry.connect("activate", save_address)
+            row.append(button("Guardar", save_address, "primary"))
+            create.append(row)
+            create.append(error)
+            account = card("Cuenta")
+            account.append(button("Desvincular mi cuenta de playit", lambda: unlink(), "danger"))
+
+            def on_agent(kind, payload):
+                if kind == "line":
+                    GLib.idle_add(lambda: (view.get_buffer().insert(view.get_buffer().get_end_iter(), payload + "\n"), False)[1])
+            tp.AGENT.listeners.append(on_agent)
+            cleanup.append(lambda: tp.AGENT.listeners.remove(on_agent) if on_agent in tp.AGENT.listeners else None)
+
+        def unlink():
+            threading.Thread(target=tp.AGENT.stop, daemon=True).start()
+            tp.forget_account()
+            render()
+            message.set_text("Cuenta de playit desvinculada de este equipo.")
+
+        def download(consent, go, progress):
+            if state["busy"] or not consent.get_active():
+                return
+            state["busy"] = True
+            go.set_sensitive(False)
+            progress.set_text("Descargando el agente de playit…")
+
+            def worker():
+                try:
+                    tp.install(lambda done, total: GLib.idle_add(progress.set_text, f"Descargando el agente de playit… {done * 100 // total}%"))
+                except Exception as error:
+                    state["busy"] = False
+                    GLib.idle_add(progress.set_text, f"No se pudo descargar: {error}")
+                    GLib.idle_add(go.set_sensitive, True)
+                else:
+                    state["busy"] = False
+                    GLib.idle_add(render)
+            threading.Thread(target=worker, daemon=True).start()
+
+        def link_account(go, info):
+            if state["busy"]:
+                return
+            state["busy"] = True
+            go.set_sensitive(False)
+            info.set_text("Preparando…")
+
+            def worker():
+                try:
+                    code, url = tp.claim_start()
+                except tp.ClaimError as error:
+                    state["busy"] = False
+                    GLib.idle_add(info.set_text, str(error))
+                    GLib.idle_add(go.set_sensitive, True)
+                    return
+                GLib.idle_add(open_url, url)
+                GLib.idle_add(info.set_text, f"Se abrió {url} en tu navegador. Iniciá sesión y aprobá a Nova; esperando… "
+                                             "(si no se abrió, copiá ese enlace.)")
+                try:
+                    tp.claim_finish(code)
+                except tp.ClaimError as error:
+                    state["busy"] = False
+                    GLib.idle_add(info.set_text, str(error))
+                    GLib.idle_add(go.set_sensitive, True)
+                    return
+                state["busy"] = False
+                GLib.idle_add(render)
+                note("Cuenta de playit vinculada.")
+            threading.Thread(target=worker, daemon=True).start()
+
+        cleanup = []
+        scroll.connect("destroy", lambda *_: [fn() for fn in cleanup])
+        render()
+        return scroll
 
     # ---- archivos
     def local_files_tab(self, parent, sid, message):
