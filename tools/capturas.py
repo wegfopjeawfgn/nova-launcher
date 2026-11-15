@@ -325,6 +325,18 @@ def scene_list(app, state):
         import biblioteca
         biblioteca.Browser(app, None, None, "modpack")
 
+    def roblox_friends_scene():
+        people = [(156, "builderman", "builderman"), (1, "Roblox", "Roblox")]
+        app.preferences = {**app.preferences, "roblox_friend_list": [{"id": i, "name": n, "display": d} for i, n, d in people]}
+        app.choose_game("roblox", save=False)
+        app.roblox_open_tab("top-trending")
+        app.roblox_render_friends()
+
+    def roblox_paid_scene():
+        app.choose_game("roblox", save=False)
+        app.roblox_open_tab("fun-with-friends")
+        GLib.timeout_add(2500, lambda: app.roblox_scroll.get_vadjustment().set_value(app.roblox_scroll.get_vadjustment().get_upper()) or False)
+
     def roblox_favs():
         games = app.roblox_data.get("top-trending", [])
         app.preferences = {**app.preferences, "roblox_favs": games[:6], "roblox_recent": games[6:12]}
@@ -379,7 +391,8 @@ def scene_list(app, state):
         ("juegos", app.show_games, 3500),
         ("roblox", lambda: app.choose_game("roblox", save=False), 4000),
         ("roblox-favoritos", roblox_favs, 4000),
-        ("roblox-amigos", lambda: (app.choose_game("roblox", save=False), app.roblox_open_tab("fun-with-friends")), 4000),
+        ("roblox-amigos", roblox_friends_scene, 4000),
+        ("roblox-pago", roblox_paid_scene, 5000),
         ("principal", lambda: app.choose_game("minecraft", save=False), 400),
         ("biblioteca", tall, 900),
         ("soltar", drop, 400),

@@ -12,6 +12,9 @@ import requests
 
 SOBER = "org.vinegarhq.Sober"
 SORTS = "https://apis.roblox.com/explore-api/v1/get-sorts"
+USERS = "https://users.roblox.com/v1/usernames/users"
+HEADSHOTS = "https://thumbnails.roblox.com/v1/users/avatar-headshot"
+GAMES = "https://games.roblox.com/v1/games"
 SEARCH = "https://apis.roblox.com/search-api/omni-search"
 THUMBS = "https://thumbnails.roblox.com/v1/games/multiget/thumbnails"
 ICONS = "https://thumbnails.roblox.com/v1/games/icons"
@@ -23,6 +26,13 @@ def parse_place(text):
     """A place id from a bare number or a roblox.com/games/<id>/... link, else None."""
     found = _PLACE.match((text or "").strip())
     return int(found.group(1)) if found and int(found.group(1)) > 0 else None
+
+
+def follow_uri(user_id):
+    """Roblox's own link to join a player: the client checks, with your session, if you may join them."""
+    if not isinstance(user_id, int) or isinstance(user_id, bool) or user_id <= 0:
+        raise ValueError("Identificador de usuario no válido")
+    return f"roblox://experiences/start?userId={user_id}"
 
 
 def place_uri(place_id):
@@ -49,7 +59,14 @@ def launcher_state():
 
 def play(place_id):
     """Open the game in the client. Returns the process or None when the OS handles the link."""
-    uri = place_uri(place_id)
+    return _open(place_uri(place_id))
+
+
+def join_friend(user_id):
+    return _open(follow_uri(user_id))
+
+
+def _open(uri):
     if sys.platform.startswith("linux"):
         if not sober_installed():
             raise RuntimeError("Sober no está instalado")
@@ -68,17 +85,49 @@ def _get(url, **params):
     return response.json()
 
 
+def find_user(name):
+    """{'id', 'name', 'display'} for a Roblox username, or None. Public data only."""
+    name = (name or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_]{3,20}", name):
+        return None
+    response = requests.post(USERS, json={"usernames": [name], "excludeBannedUsers": True},
+                             headers={"User-Agent": USER_AGENT}, timeout=20)
+    response.raise_for_status()
+    found = response.json().get("data", [])
+    if not found or not isinstance(found[0].get("id"), int):
+        return None
+    return {"id": found[0]["id"], "name": found[0].get("name", name), "display": found[0].get("displayName", name)}
+
+
+def headshots(user_ids):
+    """{userId: image url} avatar pictures."""
+    ids = ",".join(str(u) for u in user_ids if isinstance(u, int))
+    if not ids:
+        return {}
+    data = _get(HEADSHOTS, userIds=ids, size="150x150", format="Png", isCircular="false")
+    return {item["targetId"]: item["imageUrl"] for item in data.get("data", [])
+            if item.get("state") == "Completed" and str(item.get("imageUrl", "")).startswith("https://")}
+
+
+def _rating(raw):
+    up, down = raw.get("totalUpVotes"), raw.get("totalDownVotes")
+    if isinstance(up, int) and isinstance(down, int) and up + down >= 100:
+        return round(up * 100 / (up + down))
+    return None
+
+
 def _game(raw):
     place = raw.get("rootPlaceId")
     name = str(raw.get("name") or "").strip()
     if not isinstance(place, int) or place <= 0 or not name:
         return None
     return {"place": place, "universe": raw.get("universeId"), "name": name[:80],
-            "players": raw.get("playerCount") if isinstance(raw.get("playerCount"), int) else 0}
+            "players": raw.get("playerCount") if isinstance(raw.get("playerCount"), int) else 0,
+            "rating": _rating(raw)}
 
 
 CATEGORIES = (("top-trending", "Tendencias"), ("top-playing-now", "Más jugados"),
-              ("up-and-coming", "Emergentes"), ("fun-with-friends", "Con amigos"))
+              ("up-and-coming", "Emergentes"), ("fun-with-friends", "En grupo"))
 
 
 def categories(limit=30):
@@ -119,3 +168,15 @@ def icons(universes):
     data = _get(ICONS, universeIds=ids, size="150x150", format="Png", returnPolicy="PlaceHolder")
     return {item["targetId"]: item["imageUrl"] for item in data.get("data", [])
             if item.get("state") == "Completed" and item.get("imageUrl", "").startswith("https://")}
+
+
+def prices(universes):
+    """{universeId: Robux} for games you must buy to play. Free games are left out.
+    Roblox does not say, without your session, whether you already own it."""
+    ids = list(dict.fromkeys(u for u in universes if isinstance(u, int)))
+    found = {}
+    for start in range(0, len(ids), 50):  # the API refuses long lists
+        data = _get(GAMES, universeIds=",".join(map(str, ids[start:start + 50])))
+        found.update({item["id"]: item["price"] for item in data.get("data", [])
+                      if isinstance(item.get("id"), int) and isinstance(item.get("price"), int) and item["price"] > 0})
+    return found

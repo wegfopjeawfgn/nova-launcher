@@ -63,3 +63,46 @@ class RobloxTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FriendsTests(unittest.TestCase):
+    def test_follow_uri(self):
+        self.assertEqual(roblox.follow_uri(156), "roblox://experiences/start?userId=156")
+        for bad in (0, "1", True, None):
+            with self.assertRaises(ValueError):
+                roblox.follow_uri(bad)
+
+    def test_find_user_validates_before_asking(self):
+        with mock.patch.object(roblox.requests, "post") as post:
+            for bad in ("", "ab", "con espacio", "x" * 21, "a;b"):
+                self.assertIsNone(roblox.find_user(bad))
+            post.assert_not_called()
+
+    def test_find_user(self):
+        reply = mock.Mock(json=lambda: {"data": [{"id": 7, "name": "Pepe", "displayName": "Pepito"}]})
+        with mock.patch.object(roblox.requests, "post", return_value=reply):
+            self.assertEqual(roblox.find_user("Pepe"), {"id": 7, "name": "Pepe", "display": "Pepito"})
+        with mock.patch.object(roblox.requests, "post", return_value=mock.Mock(json=lambda: {"data": []})):
+            self.assertIsNone(roblox.find_user("Nadie"))
+
+    def test_headshots_and_rating(self):
+        data = {"data": [{"targetId": 7, "state": "Completed", "imageUrl": "https://tr.rbxcdn.com/h"},
+                         {"targetId": 8, "state": "Blocked", "imageUrl": ""}]}
+        with mock.patch.object(roblox, "_get", return_value=data):
+            self.assertEqual(roblox.headshots([7, 8]), {7: "https://tr.rbxcdn.com/h"})
+        self.assertEqual(roblox._rating({"totalUpVotes": 90, "totalDownVotes": 10}), 90)
+        self.assertIsNone(roblox._rating({"totalUpVotes": 3, "totalDownVotes": 1}))
+        self.assertIsNone(roblox._rating({}))
+
+    def test_prices_only_paid_games(self):
+        data = {"data": [{"id": 1, "price": 100}, {"id": 2, "price": None}, {"id": 3, "price": 0}, {"id": "x", "price": 5}]}
+        with mock.patch.object(roblox, "_get", return_value=data):
+            self.assertEqual(roblox.prices([1, 2, 3]), {1: 100})
+        self.assertEqual(roblox.prices([]), {})
+
+    def test_join_friend_opens_the_link(self):
+        with mock.patch.object(roblox.sys, "platform", "linux"), \
+                mock.patch.object(roblox, "sober_installed", return_value=True), \
+                mock.patch.object(roblox.subprocess, "Popen") as popen:
+            roblox.join_friend(156)
+            self.assertEqual(popen.call_args[0][0][-1], "roblox://experiences/start?userId=156")
