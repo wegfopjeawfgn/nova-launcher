@@ -1,5 +1,15 @@
 # Cambios
 
+## 1.11.0
+- **Elegí a qué jugar**: al abrir Nova aparece «¿A qué querés jugar?» con **Minecraft** y **Roblox**, cada uno con su portada. Con
+  «Recordar mi elección» entra directo la próxima vez, y «Cambiar de juego» vuelve a la pantalla de selección. Todo lo de Minecraft
+  (instancias, mods, Mi servidor) queda igual.
+- **Roblox**: explorá los juegos del momento (Tendencias, Más jugados, Emergentes y Con amigos), buscá por nombre o pegá el enlace
+  de un juego de roblox.com. «Jugar» abre el juego directo: en **Linux con Sober** (si no lo tenés, Nova te dice cómo instalarlo) y
+  en Windows y Mac con el cliente oficial de Roblox. Podés marcar favoritos con la estrella y ver los últimos juegos que abriste.
+- Nova no ve ni pide tu contraseña de Roblox: iniciás sesión en Sober o en el cliente oficial. Tampoco muestra tus amigos ni
+  quién está conectado, porque eso exige tu sesión de Roblox. Nova no está afiliado a Roblox.
+
 ## 1.10.0
 - **Java propio para Forge**: Forge necesita un Java completo, no el recortado de Mojang. Si no tenés uno instalado, Nova ahora baja
   **Eclipse Temurin** desde Adoptium (comprueba su SHA-256 y lo extrae sin salirse de su carpeta) y lo guarda en sus datos, sin tocar

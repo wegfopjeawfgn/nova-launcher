@@ -329,8 +329,10 @@ def scene_list(app, state):
         app.leave_page()
         app.show_local_servers()
 
-    def local_detail(tab=0, folder=None):
+    def local_detail(tab=0, folder=None, tall=False, source=None):
         def run():
+            if tall:
+                app.window.set_default_size(1280, 1100)
             local_demo()
             app.leave_page()
             app.show_local_servers()
@@ -341,6 +343,9 @@ def scene_list(app, state):
             no_animations(window)
             section = ("Consola", "Estado", "Jugadores", "Archivos", "Plugins", "Respaldos", "Amigos", "Ajustes")[tab]
             find_widget(window, lambda w: isinstance(w, Gtk.Button) and w.get_label() == section).emit("clicked")
+            if source:   # switch the catalog to another source, as a person would with the selector
+                chooser = find_widget(window, lambda w: isinstance(w, Gtk.ComboBoxText) and w.get_active_id() == "modrinth")
+                chooser.set_active_id(source)
             if folder:
                 go = find_widget(window, lambda w: isinstance(w, Gtk.Button) and w.get_label() == folder)
                 go.emit("clicked")
@@ -364,7 +369,10 @@ def scene_list(app, state):
         app.window.set_default_size(1280, 1180)
 
     return [
-        ("principal", nothing, 400),
+        ("juegos", app.show_games, 500),
+        ("roblox", lambda: app.choose_game("roblox", save=False), 4000),
+        ("roblox-amigos", lambda: (app.choose_game("roblox", save=False), app.roblox_open_tab("fun-with-friends")), 4000),
+        ("principal", lambda: app.choose_game("minecraft", save=False), 400),
         ("biblioteca", tall, 900),
         ("soltar", drop, 400),
         ("pomme", pomme, 700),
@@ -390,6 +398,11 @@ def scene_list(app, state):
         ("servidor-jugadores", local_detail(2), 2500),
         ("servidor-respaldos", local_detail(5), 2500),
         ("servidor-importar", local_import, 2500),
+        ("v-estado", local_detail(1, tall=True), 4500),
+        ("v-jugadores", local_detail(2, tall=True), 2500),
+        ("v-respaldos", local_detail(5, tall=True), 2500),
+        ("v-ajustes", local_detail(7, tall=True), 2500),
+        ("v-hangar", local_detail(4, tall=True, source="hangar"), 7000),
         ("servidor-crear", local_create, 3500),
         ("mods", mods, 700),
         ("nueva", add, 700),

@@ -33,6 +33,7 @@ from widgets import (resolution_field, instance_art, hero_art, enter, label, but
                      content_tile, stat_tile, default_cover, HERE)
 from vistas_cuentas import CuentasMixin
 from vistas_paginas import PaginasMixin
+from vistas_juegos import JuegosMixin
 from vistas_salud import SaludMixin
 from vistas_java import java_picker
 from vistas_perfiles import PerfilesMixin
@@ -52,6 +53,7 @@ from vistas_respaldos import RespaldosMixin
 
 class Nova(
     PaginasMixin,
+    JuegosMixin,
     SaludMixin,
     PerfilesMixin,
     CurseForgeMixin,
@@ -107,6 +109,7 @@ class Nova(
         elif self.busy or self.parallel:
             self.status.set_text("Nova está ocupada. Esperá a que termine la operación actual.")
         else:
+            self.choose_game("minecraft", save=False)
             self.selected = folder
             self.refresh()
             self.play()
@@ -193,6 +196,7 @@ class Nova(
         self.nav_box = nav
         nav_scroll.set_child(nav)
         sidebar.append(nav_scroll)
+        nav.append(self.nav_button("Cambiar de juego", "go-previous-symbolic", self.show_games))
         nav.append(label(i18n.tr("BIBLIOTECA"), "nav-caption"))
         nav.append(self.nav_button("Instancias", "view-grid-symbolic",
                                    lambda: (self.leave_page(), scroll.get_vadjustment().set_value(0)), active=True))
@@ -239,6 +243,7 @@ class Nova(
         self.release_card.append(gear)
         footer = self.release_card
         sidebar.append(footer)
+        self.sidebar = sidebar
         sidebar.set_hexpand(False)  # the footer card expands; the sidebar must not
         shell.append(sidebar)
         scroll = Gtk.ScrolledWindow(hexpand=True, vexpand=True)
@@ -314,6 +319,7 @@ class Nova(
         self.update_accounts()
         self.refresh()
         self.apply_theme()
+        self.setup_games()
         self.window.present()
         servidor_local.adopt_all()
         servidor_local.STOP_HOOKS.append(lambda sid: threading.Thread(target=servidor_gestion.on_stopped, args=(sid,), daemon=True).start())
