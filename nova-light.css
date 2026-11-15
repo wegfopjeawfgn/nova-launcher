@@ -57,3 +57,5 @@ button.play-button { box-shadow: 0 8px 22px rgba(14, 116, 144, 0.3); }
 .hero popover button:not(.primary) label, .hero popover button:not(.primary) image { color: @nova_text; }
 .hero popover button.danger label { color: @nova_danger; }
 .form-status { color: @nova_warm; }
+
+.seg button.seg-button.seg-active { color: #0b5f77; }

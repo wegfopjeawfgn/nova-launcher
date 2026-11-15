@@ -303,8 +303,8 @@ def scene_list(app, state):
             window = app.current_page[1]
             opener = find_widget(window, lambda w: isinstance(w, Gtk.Button) and w.get_label() == "Abrir")
             opener.emit("clicked")
-            book = find_widget(window, lambda w: isinstance(w, Gtk.Notebook))
-            book.set_current_page(tab)
+            section = ("Consola", "Ajustes", "Archivos")[tab]
+            find_widget(window, lambda w: isinstance(w, Gtk.Button) and w.get_label() == section).emit("clicked")
             if folder:
                 go = find_widget(window, lambda w: isinstance(w, Gtk.Button) and w.get_label() == folder)
                 go.emit("clicked")
