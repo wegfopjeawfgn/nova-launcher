@@ -10,6 +10,9 @@ import errores
 import seguridad
 
 REDIRECT = "http://localhost:8765"
+# Nova's own Azure application (public client). Once Mojang approves it, put its Application (client) ID here and everyone
+# can connect with one click. Empty until then: Nova asks for a personal ID and explains how to get one.
+DEFAULT_CLIENT_ID = ""
 PAGE = ("<!doctype html><meta charset=utf-8><title>Nova Launcher</title>"
         "<body style='font-family:sans-serif;background:#10121a;color:#eee;text-align:center;padding-top:20vh'>"
         "<h2>Listo, podés volver a Nova Launcher.</h2><p>Esta pestaña ya se puede cerrar.</p>")
@@ -52,7 +55,16 @@ def wait_for_callback(state, timeout=180):
     return lambda: (done.wait(timeout + 5), result.get("url"))[1]
 
 
-def connect(app):
+def default_client_id():
+    """Nova's built-in application ID, or None when there is not one (a malformed value counts as none)."""
+    try:
+        return str(uuid.UUID(DEFAULT_CLIENT_ID)) if DEFAULT_CLIENT_ID else None
+    except ValueError:
+        return None
+
+
+def connect(app, own=False):
+    """Sign in with Microsoft. Uses Nova's own application unless there is none or ``own`` asks for a personal ID."""
     app.accounts.popdown()
 
     def configure(value, _):
@@ -106,7 +118,11 @@ def connect(app):
         app.form("Completar inicio de sesión", "Pegá la URL a la que te envió el navegador", "",
                  lambda callback, _: finish_login(client_id, state, verifier, callback))
 
-    app.form("Conectar Microsoft", "ID de aplicación aprobada · Redirección " + REDIRECT, "", configure)
+    built_in = None if own else default_client_id()
+    if built_in:
+        configure(built_in, None)
+    else:
+        app.microsoft_guide(lambda: app.form("Conectar Microsoft", "ID de aplicación aprobada · Redirección " + REDIRECT, "", configure))
 
 
 def refresh(client_id, session):

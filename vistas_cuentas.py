@@ -59,6 +59,9 @@ class CuentasMixin:
             options.append(button("Quitar cuenta Microsoft", self.disconnect_microsoft, "quiet-button"))
         else:
             options.append(button("+  Conectar Microsoft", self.connect_microsoft))
+            import cuentas
+            if cuentas.default_client_id():
+                options.append(button("Conectar con mi propio ID…", lambda: self.connect_microsoft(own=True), "quiet-button"))
         options.append(button("+  Agregar cuenta offline", self.edit_profile))
         popover.set_child(options)
         self.accounts.set_popover(popover)
@@ -233,9 +236,42 @@ class CuentasMixin:
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def connect_microsoft(self):
+    def connect_microsoft(self, own=False):
         import cuentas
-        cuentas.connect(self)
+        cuentas.connect(self, own=own)
+
+    def microsoft_guide(self, then):
+        """Explain how to get an application ID, then continue to the form that asks for it."""
+        import cuentas
+        dialog = Gtk.Dialog(title="Conectar Microsoft", transient_for=self.window, modal=True, default_width=520)
+        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Ya tengo el ID", Gtk.ResponseType.OK).add_css_class("primary")
+        box = dialog.get_content_area()
+        box.add_css_class("menu")
+        box.set_spacing(8)
+        box.append(label("Para conectar tu cuenta hace falta una aplicación de Microsoft", "subheading"))
+        steps = ("1. Entrá a Azure con tu cuenta Microsoft (es gratis) y abrí «Registros de aplicaciones» → «Nuevo registro».",
+                 "2. Tipos de cuenta: cuentas personales de Microsoft.",
+                 f"3. URI de redirección: plataforma «Cliente público / nativo» y exactamente {cuentas.REDIRECT}",
+                 "4. Registrá y copiá el «ID de aplicación (cliente)».",
+                 "5. En «Autenticación» activá «Permitir flujos de cliente público».",
+                 "6. Mojang tiene que aprobar la aplicación para usar los servicios de Minecraft; sin esa aprobación el inicio de sesión falla.")
+        for step in steps:
+            line = label(step, "muted")
+            line.set_wrap(True)
+            box.append(line)
+        link = Gtk.LinkButton.new_with_label("https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade",
+                                             "Abrir los registros de aplicaciones de Azure")
+        link.set_halign(Gtk.Align.START)
+        box.append(link)
+
+        def respond(_, response):
+            dialog.destroy()
+            if response == Gtk.ResponseType.OK:
+                then()
+
+        dialog.connect("response", respond)
+        dialog.present()
 
     def use_microsoft(self, client_id, session):
         self.microsoft = (client_id, session)
