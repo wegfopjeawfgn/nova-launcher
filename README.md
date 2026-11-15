@@ -29,7 +29,7 @@ El instalador de Windows todavía no tiene firma de código, así que Windows Sm
 Get-FileHash .\nova-launcher-1.9.4-windows-x64-setup.exe -Algorithm SHA256
 ```
 
-El resultado tiene que coincidir con el contenido del archivo `.sha256` de la release. Si coincide, elegí **Más información → Ejecutar de todos modos**. La situación de la firma está en [`packaging/windows/FIRMA.md`](packaging/windows/FIRMA.md). Estamos pidiendo la firma gratuita de SignPath Foundation; su política está en [`CODE_SIGNING_POLICY.md`](CODE_SIGNING_POLICY.md).
+El resultado tiene que coincidir con el contenido del archivo `.sha256` de la release. Si coincide, elegí **Más información → Ejecutar de todos modos**. La situación de la firma está en [`packaging/windows/FIRMA.md`](packaging/windows/FIRMA.md).
 
 La web está en `docs/`. En GitHub Pages, seleccioná **Deploy from a branch**, rama `main` y carpeta `/docs`. La página consulta la última release estable de GitHub y actualiza la descarga, el SHA-256 y los comandos de instalación. Si GitHub no está disponible, ofrece el RPM 1.9.4 incluido con la web.
 
