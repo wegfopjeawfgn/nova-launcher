@@ -230,8 +230,11 @@ class ServidorLocalMixin:
             kind.append(key, title)
         kind.set_active_id("paper")
         box.append(kind)
-        hint = label("Paper es rápido y acepta plugins (lo más usado para jugar con amigos). Fabric acepta mods. "
-                     "Vanilla es el servidor oficial, sin extras. El servidor es local: corre en tu computadora.", "opt-hint")
+        hints = {"paper": "Paper es rápido y acepta plugins: lo más usado para jugar con amigos.",
+                 "fabric": "Fabric es liviano y acepta mods modernos.",
+                 "forge": "Forge acepta mods y modpacks clásicos. Crearlo tarda unos minutos: ejecuta su instalador.",
+                 "vanilla": "Vanilla es el servidor oficial de Mojang, sin mods ni plugins."}
+        hint = label(hints["paper"] + " El servidor es local: corre en tu computadora.", "opt-hint")
         hint.set_wrap(True)
         box.append(hint)
         box.append(label("Versión de Minecraft", "form-label"))
@@ -262,19 +265,32 @@ class ServidorLocalMixin:
         box.append(error)
         working = {"on": False}
 
-        def versions():
+        loading = {"token": 0}
+
+        def versions(chosen_kind, token):
             try:
-                found = sl.release_versions()
+                found = sl.release_versions(chosen_kind)
             except Exception as problem:
                 GLib.idle_add(error.set_text, f"No se pudieron cargar las versiones: {problem}")
                 return
-            GLib.idle_add(fill, found)
+            GLib.idle_add(fill, found, token)
 
-        def fill(found):
+        def fill(found, token):
+            if token != loading["token"]:
+                return  # the type changed while this list was loading
             version.remove_all()
             for item in found[:60]:
                 version.append(item, item)
             version.set_active(0)
+
+        def kind_changed(*_):
+            loading["token"] += 1
+            error.set_text("")
+            hint.set_text(hints.get(kind.get_active_id(), "") + " El servidor es local: corre en tu computadora.")
+            version.remove_all()
+            version.append("", "Cargando versiones…")
+            version.set_active(0)
+            threading.Thread(target=versions, args=(kind.get_active_id(), loading["token"]), daemon=True).start()
 
         def run(_):
             if working["on"]:
@@ -326,7 +342,8 @@ class ServidorLocalMixin:
         make.connect("clicked", run)
         cancel.connect("clicked", lambda _: None if working["on"] else dialog.destroy())
         dialog.connect("close-request", lambda _: working["on"])
-        threading.Thread(target=versions, daemon=True).start()
+        kind.connect("changed", kind_changed)
+        kind_changed()
         dialog.present()
 
     # ------------------------------------------------------------ detalle de un servidor
@@ -479,12 +496,18 @@ class ServidorLocalMixin:
 
         def show(key):
             pages.set_visible_child_name(key)
+            loader = getattr(pages.get_child_by_name(key), "load_once", None)
+            if loader:
+                pages.get_child_by_name(key).load_once = None
+                loader()
             for name, widget in seg.items():
                 (widget.add_css_class if name == key else widget.remove_css_class)("seg-active")
 
         sections = (("console", "Consola", self.local_console_tab(runner, subs, message)),
                     ("settings", "Ajustes", self.local_settings_tab(sid, runner, message, build_addresses, title)),
                     ("files", "Archivos", self.local_files_tab(parent, sid, message)))
+        catalog_text = "Plugins" if meta["kind"] == "paper" else "Mods" if sl.catalog_available(meta) else "Catálogo"
+        sections += (("catalog", catalog_text, self.local_catalog_tab(sid, runner, message)),)
         for key, text, widget in sections:
             pages.add_named(widget, key)
             seg[key] = button(text, lambda k=key: show(k), "seg-button")
@@ -698,6 +721,145 @@ class ServidorLocalMixin:
         bar.append(button("Guardar ajustes", save, "primary"))
         outer.append(bar)
         return outer
+
+    # ---- catálogo de mods y plugins
+    def local_catalog_tab(self, sid, runner, message):
+        meta = sl.load(sid)
+        base = sl.folder(sid)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, margin_top=8)
+        if not sl.catalog_available(meta):
+            card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["catalog-row"])
+            card.append(label("Un servidor Vanilla no admite mods ni plugins", "form-label"))
+            text = label("Creá un servidor Paper (plugins), Fabric o Forge (mods) para usar el catálogo.", "muted")
+            text.set_wrap(True)
+            card.append(text)
+            box.append(card)
+            return box
+        noun = "plugins" if meta["kind"] == "paper" else "mods"
+        head = Gtk.Box(spacing=8)
+        search = Gtk.SearchEntry(placeholder_text=f"Buscar {noun} en Modrinth", hexpand=True)
+        search.update_property([Gtk.AccessibleProperty.LABEL], [f"Buscar {noun}"])
+        head.append(search)
+        head.append(button("Buscar", lambda: run(0)))
+        box.append(head)
+        info = label(f"Solo se muestran {noun} compatibles con Minecraft {meta['version']} y {sl.KINDS[meta['kind']].split(' ')[0]}. "
+                     "Los descarga Nova desde Modrinth y comprueba su SHA-512.", "opt-hint")
+        info.set_wrap(True)
+        box.append(info)
+        scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        scroll.set_child(rows)
+        box.append(scroll)
+        foot = Gtk.Box(spacing=8)
+        count = label("", "muted")
+        count.set_hexpand(True)
+        foot.append(count)
+        more = button("Cargar más", lambda: run(state["offset"], append=True), "quiet-button")
+        more.set_visible(False)
+        foot.append(more)
+        box.append(foot)
+        state = {"offset": 0, "busy": False, "token": 0}
+
+        def downloads(n):
+            return f"{n / 1_000_000:.1f} M" if n >= 1_000_000 else f"{n / 1000:.0f} mil" if n >= 10_000 else str(n)
+
+        def render(hits, append):
+            if not append:
+                while old := rows.get_first_child():
+                    rows.remove(old)
+            installed = sl.catalog_installed(base)
+            if not hits and not append:
+                rows.append(label("No se encontró nada compatible. Probá con otra búsqueda.", "muted"))
+            for hit in hits:
+                rows.append(build_row(hit, hit["project_id"] in installed))
+
+        def build_row(hit, is_installed):
+            row = Gtk.Box(spacing=10, css_classes=["catalog-row"])
+            text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, hexpand=True)
+            title = label(hit["title"], "form-label")
+            title.set_ellipsize(Pango.EllipsizeMode.END)
+            text.append(title)
+            description = label(hit["description"], "muted")
+            description.set_ellipsize(Pango.EllipsizeMode.END)
+            description.set_tooltip_text(hit["description"])
+            text.append(description)
+            row.append(text)
+            row.append(label(f"{downloads(hit['downloads'])} descargas", "muted"))
+            if is_installed:
+                row.append(Gtk.Label(label="Instalado", css_classes=["chip", "chip-accent"]))
+                row.append(button("Quitar", lambda h=hit: remove(h), "quiet-button"))
+            else:
+                row.append(button("Instalar", lambda h=hit, r=row: install(h, r), "primary"))
+            return row
+
+        def run(offset, append=False):
+            if state["busy"]:
+                return
+            state["busy"] = True
+            state["token"] += 1
+            token = state["token"]
+            count.set_text("Buscando…")
+            query = search.get_text()
+
+            def worker():
+                try:
+                    result = sl.catalog_search(meta, query, offset=offset)
+                except Exception as error:
+                    GLib.idle_add(finish, None, str(error), append, offset, token)
+                else:
+                    GLib.idle_add(finish, result, "", append, offset, token)
+            threading.Thread(target=worker, daemon=True).start()
+
+        def finish(result, problem, append, offset, token):
+            state["busy"] = False
+            if token != state["token"]:
+                return
+            if result is None:
+                count.set_text(f"No se pudo buscar: {problem}")
+                return
+            render(result["hits"], append)
+            state["offset"] = offset + len(result["hits"])
+            more.set_visible(state["offset"] < result["total"])
+            count.set_text(f"{state['offset']} de {result['total']} resultados")
+
+        def install(hit, row):
+            for child_button in (row.get_last_child(),):
+                child_button.set_sensitive(False)
+                child_button.set_label("Instalando…")
+
+            def worker():
+                try:
+                    installed = sl.catalog_install(base, sl.load(sid) or meta, hit["project_id"], title=hit["title"])
+                except Exception as error:
+                    GLib.idle_add(done, f"No se pudo instalar «{hit['title']}»: {error}", row, hit, False)
+                else:
+                    extra = [name for name in installed[1:]]
+                    text = f"Instalado «{hit['title']}»" + (f" y sus dependencias ({', '.join(extra)})" if extra else "")
+                    GLib.idle_add(done, text + ". Reiniciá el servidor para cargarlo.", row, hit, True)
+            threading.Thread(target=worker, daemon=True).start()
+
+        def done(text, row, hit, ok):
+            message.set_text(text)
+            parent = row.get_parent()
+            if parent is None:
+                return
+            replacement = build_row(hit, ok)
+            parent.insert_child_after(replacement, row)
+            parent.remove(row)
+
+        def remove(hit):
+            try:
+                sl.catalog_remove(base, sl.load(sid) or meta, hit["project_id"])
+            except (OSError, ValueError) as error:
+                message.set_text(str(error))
+                return
+            message.set_text(f"«{hit['title']}» quitado. Reiniciá el servidor para aplicarlo.")
+            run(0)
+
+        search.connect("activate", lambda _: run(0))
+        search.connect("search-changed", lambda _: None)
+        box.load_once = lambda: run(0)
+        return box
 
     # ---- archivos
     def local_files_tab(self, parent, sid, message):

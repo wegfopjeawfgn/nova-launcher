@@ -22,8 +22,10 @@ import requests
 import motor
 from nova_version import NOVA_VERSION
 
-KINDS = {"vanilla": "Vanilla (oficial)", "paper": "Paper (plugins)", "fabric": "Fabric (mods)"}
-UPLOAD_DIRS = {"vanilla": None, "paper": "plugins", "fabric": "mods"}
+KINDS = {"vanilla": "Vanilla (oficial)", "paper": "Paper (plugins)", "fabric": "Fabric (mods)", "forge": "Forge (mods)"}
+UPLOAD_DIRS = {"vanilla": None, "paper": "plugins", "fabric": "mods", "forge": "mods"}
+FORGE_PROMOS = "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json"
+FORGE_MAVEN = "https://maven.minecraftforge.net/net/minecraftforge/forge/"
 MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 USER_AGENT = f"NovaLauncher/{NOVA_VERSION} (https://github.com/wegfopjeawfgn/nova-launcher)"
 EULA_URL = "https://aka.ms/MinecraftEULA"
@@ -84,10 +86,26 @@ def _get(url, **kwargs):
     return response
 
 
-def release_versions():
-    """Release versions from Mojang's manifest, newest first."""
+def forge_builds():
+    """{minecraft version: forge build} using Forge's recommended build when there is one, else the latest."""
+    promos = _get(FORGE_PROMOS).json().get("promos", {})
+    builds = {}
+    for key, build in promos.items():
+        mc, _, channel = key.rpartition("-")
+        if channel in ("latest", "recommended") and VERSION_RE.fullmatch(mc) and VERSION_RE.fullmatch(str(build)):
+            if channel == "recommended" or mc not in builds:
+                builds[mc] = str(build)
+    return builds
+
+
+def release_versions(kind=None):
+    """Release versions from Mojang's manifest, newest first; for Forge only those it supports."""
     data = _get(MANIFEST).json()
-    return [item["id"] for item in data["versions"] if item.get("type") == "release" and VERSION_RE.fullmatch(item["id"])]
+    found = [item["id"] for item in data["versions"] if item.get("type") == "release" and VERSION_RE.fullmatch(item["id"])]
+    if kind == "forge":
+        supported = forge_builds()
+        found = [version for version in found if version in supported]
+    return found
 
 
 def mojang_info(version):
@@ -122,6 +140,15 @@ def resolve(kind, version):
             raise ValueError(f"Paper todavía no tiene una versión estable para {version}.")
         out.update(url=download["url"], size=download.get("size"), algo="sha256",
                    digest=(download.get("checksums") or {}).get("sha256"))
+    elif kind == "forge":
+        build = forge_builds().get(version)
+        if not build:
+            raise ValueError(f"Forge todavía no tiene una versión para {version}.")
+        base = f"{FORGE_MAVEN}{version}-{build}/forge-{version}-{build}-installer.jar"
+        digest = _get(base + ".sha256").text.split()[0].strip().lower()
+        if not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise ValueError("Forge devolvió una suma de verificación inesperada.")
+        out.update(url=base, algo="sha256", digest=digest, forge_build=build)
     else:
         loaders = _get(f"https://meta.fabricmc.net/v2/versions/loader/{version}").json()
         installers = _get("https://meta.fabricmc.net/v2/versions/installer").json()
@@ -225,12 +252,21 @@ def create(name, kind, version, memory, port, *, eula, progress=None, status=Non
     target.mkdir(parents=True)
     try:
         status("Descargando el servidor…")
-        download(info["url"], target / "server.jar", size=info["size"], algo=info["algo"], digest=info["digest"],
-                 progress=progress)
+        jar = "forge-installer.jar" if kind == "forge" else "server.jar"
+        download(info["url"], target / jar, size=info["size"], algo=info["algo"], digest=info["digest"], progress=progress)
         meta = {"id": sid, "name": name, "kind": kind, "version": version, "memory": int(memory), "port": int(port),
                 "java_component": info["component"], "java_major": info["major"], "created": int(time.time()),
                 "eula": bool(eula)}
-        ensure_java(meta, status)
+        if kind == "forge":
+            meta["forge_build"] = info["forge_build"]
+        java = ensure_java(meta, status)
+        if kind == "forge":
+            java = full_java(info["major"])
+            if java is None:
+                raise RuntimeError(f"Forge necesita un Java completo instalado en tu equipo (versión {info['major']} o más nueva), "
+                                   "no solo el que baja Nova. Instalá OpenJDK o Temurin y volvé a intentar.")
+            status("Instalando Forge… puede tardar unos minutos.")
+            install_forge(target, java)
         write_properties(target, {"server-port": str(int(port)), "motd": f"{name} · Nova Launcher",
                                   "query.port": str(int(port))})
         if eula:
@@ -309,7 +345,51 @@ def _write_atomic(file, text):
 
 
 # ---------------------------------------------------------------- proceso
+def full_java(required):
+    """A complete Java from this computer (not Mojang's trimmed runtime) of at least ``required``, or None.
+
+    Forge's installer produces files with a different checksum when it runs on Mojang's trimmed-down runtime, so Forge
+    needs a normal JDK or JRE. The lowest version that satisfies the request is preferred."""
+    import java_detect
+    bundled = str(motor.ROOT / "minecraft" / "runtime")
+    options = [info for info in java_detect.find_java() if info["major"] >= (required or 8) and not info["path"].startswith(bundled)]
+    return min(options, key=lambda info: (info["major"], info["path"]))["path"] if options else None
+
+
+def install_forge(path, java, timeout=1800):
+    """Run Forge's own installer in the server folder (it downloads Minecraft and the libraries it needs)."""
+    installer = path / "forge-installer.jar"
+    flags = {"creationflags": subprocess.CREATE_NO_WINDOW} if os.name == "nt" else {}
+    try:
+        result = subprocess.run([str(java), "-jar", installer.name, "--installServer"], cwd=path, capture_output=True,
+                                text=True, errors="replace", timeout=timeout, **flags)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("El instalador de Forge tardó demasiado.")
+    if result.returncode != 0:
+        tail = " ".join((result.stdout + result.stderr).strip().splitlines()[-3:])[:300]
+        raise RuntimeError(f"El instalador de Forge falló: {tail or 'sin detalles'}")
+    installer.unlink(missing_ok=True)
+    (path / "forge-installer.jar.log").unlink(missing_ok=True)
+
+
+def _forge_command(meta, path, java):
+    memory = int(meta["memory"])
+    args_name = "win_args.txt" if os.name == "nt" else "unix_args.txt"
+    modern = sorted(path.glob(f"libraries/net/minecraftforge/forge/*/{args_name}"))
+    if modern:
+        (path / "user_jvm_args.txt").write_text(
+            f"# Nova Launcher escribe esto cada vez que enciende el servidor.\n-Xmx{memory}G\n-Xms{min(memory, 2)}G\n",
+            encoding="utf-8")
+        return [str(java), "@user_jvm_args.txt", "@" + modern[-1].relative_to(path).as_posix(), "nogui"]
+    legacy = sorted(jar for jar in path.glob("forge-*.jar") if "installer" not in jar.name)
+    if legacy:
+        return [str(java), f"-Xmx{memory}G", f"-Xms{min(memory, 2)}G", "-jar", legacy[-1].name, "nogui"]
+    raise RuntimeError("Forge no está instalado en este servidor. Eliminalo y volvé a crearlo.")
+
+
 def launch_command(meta, path, java):
+    if meta.get("kind") == "forge":
+        return _forge_command(meta, path, java)
     return [str(java), f"-Xmx{int(meta['memory'])}G", f"-Xms{min(int(meta['memory']), 2)}G", "-jar", "server.jar", "nogui"]
 
 
@@ -627,3 +707,94 @@ def summary(base, relative=""):
     """(items, bytes of the files directly inside) for the status line."""
     entries = list_dir(base, relative)
     return len(entries), sum(entry["size"] for entry in entries if not entry["dir"])
+
+
+# ---------------------------------------------------------------- catálogo de mods y plugins (Modrinth)
+MODRINTH = "https://api.modrinth.com/v2"
+CDN = "https://cdn.modrinth.com/"
+LOADERS = {"paper": ("paper", "spigot", "bukkit"), "fabric": ("fabric",), "forge": ("forge",)}
+MAX_MOD = 200 * 1024**2
+FILE_RE = re.compile(r"[A-Za-z0-9._+() \-]{1,150}\.jar")
+
+
+def catalog_available(meta):
+    return meta.get("kind") in LOADERS
+
+
+def catalog_search(meta, query="", offset=0, limit=20):
+    """Mods or plugins that work on this server's Minecraft version and type, from Modrinth."""
+    if not catalog_available(meta):
+        raise ValueError("Un servidor Vanilla no admite mods ni plugins. Creá uno Paper, Fabric o Forge.")
+    import json
+    # Modrinth files most Paper plugins under the "plugin" project type and mods under "mod".
+    types = ["project_type:plugin", "project_type:mod"] if meta["kind"] == "paper" else ["project_type:mod"]
+    facets = [types, [f"versions:{meta['version']}"], [f"categories:{name}" for name in LOADERS[meta["kind"]]]]
+    if meta["kind"] != "paper":
+        facets.append(["server_side:required", "server_side:optional"])
+    data = _get(f"{MODRINTH}/search", params={"query": query.strip()[:80], "facets": json.dumps(facets), "limit": limit,
+                                              "offset": offset, "index": "relevance" if query.strip() else "downloads"}).json()
+    hits = [{"project_id": hit["project_id"], "title": hit["title"], "description": hit.get("description", ""),
+             "downloads": hit.get("downloads", 0), "author": hit.get("author", "")} for hit in data.get("hits", [])]
+    return {"hits": hits, "total": data.get("total_hits", len(hits))}
+
+
+def _catalog_path(base):
+    return base / "nova-catalogo.json"
+
+
+def catalog_installed(base):
+    data = motor.read(_catalog_path(base), {})
+    return data if isinstance(data, dict) else {}
+
+
+def catalog_install(base, meta, project_id, *, title="", progress=None, _seen=None, _depth=0):
+    """Install the newest compatible release (and its required dependencies) with its SHA-512 checked."""
+    import json
+    if not catalog_available(meta):
+        raise ValueError("Un servidor Vanilla no admite mods ni plugins.")
+    if not re.fullmatch(r"[A-Za-z0-9]{8}", project_id or ""):
+        raise ValueError("Proyecto no válido.")
+    seen = _seen if _seen is not None else set()
+    if project_id in seen:
+        return []
+    seen.add(project_id)
+    versions = _get(f"{MODRINTH}/project/{project_id}/version", params={
+        "loaders": json.dumps(list(LOADERS[meta["kind"]])), "game_versions": json.dumps([meta["version"]])}).json()
+    if not versions:
+        raise ValueError("Ese proyecto no tiene una versión para este servidor.")
+    release = next((item for item in versions if item.get("version_type") == "release"), versions[0])
+    file = next((item for item in release["files"] if item.get("primary")), release["files"][0])
+    if not file["url"].startswith(CDN) or not FILE_RE.fullmatch(file["filename"]) or not file.get("hashes", {}).get("sha512"):
+        raise ValueError("Modrinth devolvió datos inesperados para la descarga.")
+    folder_name = UPLOAD_DIRS[meta["kind"]]
+    destination = base / folder_name
+    destination.mkdir(exist_ok=True)
+    target = destination / file["filename"]
+    installed = []
+    if not target.exists():
+        download(file["url"], target, size=file.get("size"), algo="sha512", digest=file["hashes"]["sha512"], progress=progress)
+        installed.append(file["filename"])
+    records = catalog_installed(base)
+    records[project_id] = {"title": title or file["filename"], "file": file["filename"], "version": release.get("version_number", "")}
+    motor.save(_catalog_path(base), records)
+    if _depth < 3:
+        for dependency in release.get("dependencies", []):
+            if dependency.get("dependency_type") == "required" and dependency.get("project_id"):
+                try:
+                    installed += catalog_install(base, meta, dependency["project_id"], progress=progress, _seen=seen, _depth=_depth + 1)
+                except (ValueError, OSError, requests.RequestException):
+                    pass  # an optional-looking or unavailable dependency should not undo the main install
+    return installed
+
+
+def catalog_remove(base, meta, project_id):
+    records = catalog_installed(base)
+    record = records.pop(project_id, None)
+    if record is None:
+        raise ValueError("Eso no está instalado desde el catálogo.")
+    name = record.get("file", "")
+    if FILE_RE.fullmatch(name):
+        path = safe_path(base, f"{UPLOAD_DIRS[meta['kind']]}/{name}")
+        path.unlink(missing_ok=True)
+        path.with_name(path.name + ".disabled").unlink(missing_ok=True)
+    motor.save(_catalog_path(base), records)
