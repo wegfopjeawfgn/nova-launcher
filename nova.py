@@ -40,6 +40,7 @@ from vistas_importar import ImportarMixin
 from vistas_archivos import ArchivosMixin
 from vistas_pomme import PommeMixin
 from vistas_servidores import ServidoresMixin
+from vistas_servidor_local import ServidorLocalMixin
 from vistas_descargas import DescargasMixin
 from vistas_sesiones import SesionesMixin
 from vistas_actualizar import ActualizarMixin
@@ -57,6 +58,7 @@ class Nova(
     ArchivosMixin,
     PommeMixin,
     ServidoresMixin,
+    ServidorLocalMixin,
     DescargasMixin,
     SesionesMixin,
     ActualizarMixin,
@@ -136,7 +138,7 @@ class Nova(
             Gtk.CallbackAction.new(lambda *_: self.current_page is not None and self.leave_page()),
         ))
         self.window.add_controller(keys)
-        self.window.connect("close-request", lambda _: self.busy or self.parallel)
+        self.window.connect("close-request", lambda _: self.busy or self.parallel or self.servers_block_close())
         accounts = motor.read(motor.ROOT / "accounts.json", {"active": "", "profiles": []})
         self.preferences = {
             "memory": 4, "java": "", "resolution": "default", "console": False,
@@ -201,6 +203,7 @@ class Nova(
         nav.append(label(i18n.tr("HERRAMIENTAS"), "nav-caption"))
         nav.append(self.nav_button("Skins", "applications-graphics-symbolic", self.open_skins))
         nav.append(self.nav_button("Servidores", "network-server-symbolic", self.open_servers))
+        nav.append(self.nav_button("Mi servidor", "network-server-symbolic", self.show_local_servers))
         nav.append(self.nav_button("Respaldos", "document-open-symbolic", self.show_backups))
         nav.append(self.nav_button("Sesiones", "media-playback-start-symbolic", self.show_sessions))
         nav.append(self.nav_button("Descargas", "folder-download-symbolic", self.show_downloads))

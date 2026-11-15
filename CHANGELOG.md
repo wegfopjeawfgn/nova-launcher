@@ -1,5 +1,14 @@
 # Cambios
 
+## Próxima versión
+- **Mi servidor**: creá y manejá servidores de Minecraft Java en tu computadora, sin salir de Nova. Elegís Paper (plugins),
+  Fabric (mods) o Vanilla y la versión; Nova descarga el servidor y el Java que necesita (comprobando el hash cuando el
+  proveedor lo publica) y te pide aceptar el EULA de Mojang: nunca lo acepta por vos. Encender, apagar (con `stop`, que guarda
+  el mundo), reiniciar y eliminar; consola en vivo con comandos; ajustes (modo de juego, dificultad, jugadores, lista blanca,
+  puerto, memoria); y un administrador de archivos con filtro, orden, selección múltiple, edición de textos, activar o
+  desactivar mods y plugins, guardar copias, arrastrar y soltar, y respaldo del mundo. Es local: corre en tu PC mientras
+  esté encendida, y Nova lo avisa. Al cerrar Nova con servidores encendidos, los apaga con calma.
+
 ## 1.8.2
 - **Contar instalaciones (opcional)**: la primera vez, Nova pregunta si querés ayudar a contar cuánta gente lo usa. Si
   aceptás, una vez al día envía un número al azar, la versión y el sistema (Linux o Windows). Nada más. Se cambia en

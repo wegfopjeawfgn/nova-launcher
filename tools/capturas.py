@@ -131,7 +131,11 @@ def main():
             return False
         name, prepare, wait = scenes[state["index"]]
         state["index"] += 1
-        prepare()
+        try:
+            prepare()
+        except Exception:  # keep going: one broken scene must not stop the others
+            import traceback
+            traceback.print_exc()
 
         def shoot():
             target = app.window
@@ -163,6 +167,45 @@ def main():
 
     app.connect("activate", start)
     app.run([])
+
+
+
+def find_widget(root, test):
+    walk = [root]
+    while walk:
+        widget = walk.pop(0)
+        if test(widget):
+            return widget
+        child = widget.get_first_child()
+        while child:
+            walk.append(child)
+            child = child.get_next_sibling()
+    return None
+
+
+def local_demo():
+    """A made-up local server (no download) so the Mi servidor screens have something to show."""
+    import servidor_local as sl
+    sid = "0123456789ab"
+    path = sl.folder(sid)
+    (path / "plugins").mkdir(parents=True, exist_ok=True)
+    (path / "world").mkdir(exist_ok=True)
+    (path / "plugins" / "EssentialsX.jar").write_bytes(b"x" * 2_400_000)
+    (path / "plugins" / "WorldEdit.jar").write_bytes(b"x" * 4_100_000)
+    (path / "plugins" / "config.yml").write_text("spawn: true\n")
+    (path / "plugins" / "Dynmap.jar.disabled").write_bytes(b"x" * 9_800_000)
+    (path / "plugins" / "Vault").mkdir(exist_ok=True)
+    (path / "server.properties").write_text("motd=Los pibes - Nova Launcher\nserver-port=25565\ngamemode=survival\ndifficulty=normal\nmax-players=10\n")
+    sl.write_eula(path)
+    sl.save({"id": sid, "name": "Los pibes", "kind": "paper", "version": "1.21.11", "memory": 4, "port": 25565,
+             "java_component": "java-runtime-delta", "java_major": 21, "created": 1, "eula": True})
+    runner = sl.runner(sid)
+    runner.lines.clear()
+    runner.lines.extend(["[Nova] Encendiendo «Los pibes»…", "[10:32:01 INFO]: Starting minecraft server version 1.21.11",
+                         "[10:32:04 INFO]: Loading properties", "[10:32:09 INFO]: Done (7.842s)! For help, type \"help\"",
+                         "[10:33:12 INFO]: Alex joined the game", "> whitelist add Sofi", "[10:33:20 INFO]: Added Sofi to the whitelist"])
+    runner.state = "running"
+    return sid
 
 
 def scene_list(app, state):
@@ -242,6 +285,35 @@ def scene_list(app, state):
         import biblioteca
         biblioteca.Browser(app, app.selected, app.instances.get(app.selected), "mod")
 
+    def modpacks():
+        import biblioteca
+        biblioteca.Browser(app, None, None, "modpack")
+
+    def local_list():
+        local_demo()
+        app.leave_page()
+        app.show_local_servers()
+
+    def local_detail(tab=0, folder=None):
+        def run():
+            local_demo()
+            app.leave_page()
+            app.show_local_servers()
+            page = app.current_page[0].get_child() if app.current_page else None
+            window = app.current_page[1]
+            opener = find_widget(window, lambda w: isinstance(w, Gtk.Button) and w.get_label() == "Abrir")
+            opener.emit("clicked")
+            book = find_widget(window, lambda w: isinstance(w, Gtk.Notebook))
+            book.set_current_page(tab)
+            if folder:
+                go = find_widget(window, lambda w: isinstance(w, Gtk.Button) and w.get_label() == folder)
+                go.emit("clicked")
+        return run
+
+    def local_create():
+        app.leave_page()
+        app.create_local_server(app.window, lambda sid: None)
+
     def tall():
         app.window.set_default_size(1280, 1180)
 
@@ -261,6 +333,12 @@ def scene_list(app, state):
         ("menu", menu, 900),
         ("revisar", review, 900),
         ("modrinth", modrinth, 5000),
+        ("modpacks", modpacks, 5000),
+        ("servidor-lista", local_list, 900),
+        ("servidor-consola", local_detail(0), 900),
+        ("servidor-ajustes", local_detail(1), 900),
+        ("servidor-archivos", local_detail(2, "Plugins"), 900),
+        ("servidor-crear", local_create, 3500),
         ("mods", mods, 700),
         ("nueva", add, 700),
         ("importar", importing, 700),
