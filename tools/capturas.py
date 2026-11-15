@@ -211,6 +211,7 @@ def no_animations(root):
 def local_demo():
     """A made-up local server (no download) so the Mi servidor screens have something to show."""
     import servidor_local as sl
+    sl.local_address = lambda port: f"192.168.1.20:{port}"  # an example: never publish the real address of this PC
     sid = "0123456789ab"
     path = sl.folder(sid)
     (path / "plugins").mkdir(parents=True, exist_ok=True)
@@ -324,6 +325,12 @@ def scene_list(app, state):
         import biblioteca
         biblioteca.Browser(app, None, None, "modpack")
 
+    def roblox_favs():
+        games = app.roblox_data.get("top-trending", [])
+        app.preferences = {**app.preferences, "roblox_favs": games[:6], "roblox_recent": games[6:12]}
+        app.choose_game("roblox", save=False)
+        app.roblox_open_tab("favs")
+
     def local_list():
         local_demo()
         app.leave_page()
@@ -369,8 +376,9 @@ def scene_list(app, state):
         app.window.set_default_size(1280, 1180)
 
     return [
-        ("juegos", app.show_games, 500),
+        ("juegos", app.show_games, 3500),
         ("roblox", lambda: app.choose_game("roblox", save=False), 4000),
+        ("roblox-favoritos", roblox_favs, 4000),
         ("roblox-amigos", lambda: (app.choose_game("roblox", save=False), app.roblox_open_tab("fun-with-friends")), 4000),
         ("principal", lambda: app.choose_game("minecraft", save=False), 400),
         ("biblioteca", tall, 900),

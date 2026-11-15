@@ -135,9 +135,10 @@ class JuegosMixin:
         self.roblox_grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True,
                                        min_children_per_line=2, max_children_per_line=6, row_spacing=12,
                                        column_spacing=12, valign=Gtk.Align.START)
-        scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
-        scroll.set_child(self.roblox_grid)
-        page.append(scroll)
+        self.roblox_scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        self.roblox_scroll.set_child(self.roblox_grid)
+        self.roblox_shown = ()
+        page.append(self.roblox_scroll)
         return page
 
     def roblox_open_tab(self, key):
@@ -237,6 +238,10 @@ class JuegosMixin:
             self.roblox_grid.remove(child)
             child = nxt
         self.roblox_status.set_text("" if games else empty)
+        shown = tuple(g["place"] for g in games)
+        if shown != self.roblox_shown:  # a new list starts at the top; the same list gaining icons keeps its scroll
+            self.roblox_shown = shown
+            self.roblox_scroll.get_vadjustment().set_value(0)
         favs = {g.get("place") for g in self.preferences.get("roblox_favs", [])}
         for game in games:
             card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["game-card"], width_request=170)
