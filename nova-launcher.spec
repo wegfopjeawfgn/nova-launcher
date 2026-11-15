@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        1.10.0
+Version:        1.11.0
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        GPL-3.0-or-later AND BSD-2-Clause
@@ -44,6 +44,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Sun Nov 15 2026 Nova Launcher <nova@localhost> - 1.11.0-1
+- Game chooser (Minecraft or Roblox) and a Roblox screen that opens games straight into Sober on Linux.
+
 * Sun Nov 15 2026 Nova Launcher <nova@localhost> - 1.10.0-1
 - Own Java for Forge, Hangar and SpigotMC plugin sources, and importing an existing server.
 

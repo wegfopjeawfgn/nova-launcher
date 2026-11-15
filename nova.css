@@ -381,3 +381,16 @@ spinbutton text, entry text { color: @nova_text; }
 .seg button.seg-button { background: transparent; border-color: transparent; color: @nova_muted; padding: 6px 16px; }
 .seg button.seg-button:hover { color: @nova_text; }
 .seg button.seg-button.seg-active { background: @nova_accent_dim; color: @nova_accent_hover; border-color: @nova_accent_line; }
+
+/* Game chooser and Roblox screen */
+.game-tab { background: transparent; border: none; box-shadow: none; padding: 6px 12px; color: @nova_muted; border-radius: 8px; }
+.game-tab:hover { background: @nova_control; color: @nova_text; }
+.game-tab.active { color: @nova_accent; background: @nova_accent_dim; }
+.game-card { background: @nova_surface; border: 1px solid @nova_border; border-radius: 14px; padding: 10px 10px 12px; }
+.game-card:hover { border-color: @nova_border_strong; background: @nova_raised; }
+.game-card .card-label { padding: 6px 2px 0; font-size: 14px; }
+.game-card .card-meta { padding: 0 2px 4px; }
+.game-play { background: @nova_control; border: 1px solid @nova_border_strong; color: @nova_text; font-weight: 650; border-radius: 10px; padding: 7px 0; }
+.game-play:hover { background: @nova_accent; border-color: @nova_accent; color: #06161b; }
+.game-star { background: rgba(7, 8, 11, 0.72); border: none; border-radius: 999px; padding: 5px; margin: 6px; min-width: 28px; min-height: 28px; color: #eef0f5; }
+.game-star:hover { background: rgba(7, 8, 11, 0.9); }
