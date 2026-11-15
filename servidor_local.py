@@ -131,7 +131,7 @@ def resolve(kind, version):
         server = info["server"]
         if not server or not server["url"].startswith("https://piston-data.mojang.com/"):
             raise ValueError(f"Mojang no publica un servidor para {version}.")
-        out.update(url=server["url"], size=server.get("size"), algo="sha1", digest=server.get("sha1"))
+        out.update(url=server["url"], size=server.get("size"), algo="sha1", digest=server.get("sha1"), build=server.get("sha1"))
     elif kind == "paper":
         builds = _get(f"https://fill.papermc.io/v3/projects/paper/versions/{version}/builds").json()
         stable = next((item for item in builds if item.get("channel") == "STABLE"), None)
@@ -139,7 +139,7 @@ def resolve(kind, version):
         if not download or not download.get("url", "").startswith("https://fill-data.papermc.io/"):
             raise ValueError(f"Paper todavía no tiene una versión estable para {version}.")
         out.update(url=download["url"], size=download.get("size"), algo="sha256",
-                   digest=(download.get("checksums") or {}).get("sha256"))
+                   digest=(download.get("checksums") or {}).get("sha256"), build=str(stable.get("id")))
     elif kind == "forge":
         build = forge_builds().get(version)
         if not build:
@@ -148,7 +148,7 @@ def resolve(kind, version):
         digest = _get(base + ".sha256").text.split()[0].strip().lower()
         if not re.fullmatch(r"[0-9a-f]{64}", digest):
             raise ValueError("Forge devolvió una suma de verificación inesperada.")
-        out.update(url=base, algo="sha256", digest=digest, forge_build=build)
+        out.update(url=base, algo="sha256", digest=digest, forge_build=build, build=build)
     else:
         loaders = _get(f"https://meta.fabricmc.net/v2/versions/loader/{version}").json()
         installers = _get("https://meta.fabricmc.net/v2/versions/installer").json()
@@ -156,7 +156,8 @@ def resolve(kind, version):
         installer = next((item["version"] for item in installers if item.get("stable")), None)
         if not loader or not installer:
             raise ValueError(f"Fabric todavía no es compatible con {version}.")
-        out.update(url=f"https://meta.fabricmc.net/v2/versions/loader/{version}/{loader}/{installer}/server/jar")
+        out.update(url=f"https://meta.fabricmc.net/v2/versions/loader/{version}/{loader}/{installer}/server/jar",
+                   build=f"{loader}/{installer}")
     return out
 
 
@@ -260,7 +261,7 @@ def create(name, kind, version, memory, port, *, eula, progress=None, status=Non
         download(info["url"], target / jar, size=info["size"], algo=info["algo"], digest=info["digest"], progress=progress)
         meta = {"id": sid, "name": name, "kind": kind, "version": version, "memory": int(memory), "port": int(port),
                 "java_component": info["component"], "java_major": info["major"], "created": int(time.time()),
-                "eula": bool(eula)}
+                "eula": bool(eula), "build": info.get("build")}
         if kind == "forge":
             meta["forge_build"] = info["forge_build"]
         java = ensure_java(meta, status)
@@ -379,7 +380,8 @@ def install_forge(path, java, timeout=1800):
 def _forge_command(meta, path, java):
     memory = int(meta["memory"])
     args_name = "win_args.txt" if os.name == "nt" else "unix_args.txt"
-    modern = sorted(path.glob(f"libraries/net/minecraftforge/forge/*/{args_name}"))
+    exact = path / "libraries" / "net" / "minecraftforge" / "forge" / f"{meta.get('version')}-{meta.get('forge_build')}" / args_name
+    modern = [exact] if exact.is_file() else sorted(path.glob(f"libraries/net/minecraftforge/forge/*/{args_name}"))
     if modern:
         (path / "user_jvm_args.txt").write_text(
             f"# Nova Launcher escribe esto cada vez que enciende el servidor.\n-Xmx{memory}G\n-Xms{min(memory, 2)}G\n",
@@ -447,7 +449,7 @@ def _pid_file(path):
 def _write_pid(path, pid):
     start = process_start(pid)
     if start is not None:
-        motor.save(_pid_file(path), {"pid": pid, "start": start})
+        motor.save(_pid_file(path), {"pid": pid, "start": start, "started": time.time()})
 
 
 def _tail_lines(file, count=200):
@@ -460,6 +462,23 @@ def _tail_lines(file, count=200):
         return []
 
 
+JOIN_RE = re.compile(r": ([A-Za-z0-9_.]{2,20}) joined the game\s*$")
+LEAVE_RE = re.compile(r": ([A-Za-z0-9_.]{2,20}) left the game\s*$")
+LIST_RE = re.compile(r"There are (\d+) of a max of (\d+) players online:?\s*(.*)$")
+STOP_HOOKS = []   # called with the server id, outside any lock, after a server has stopped (used for backups)
+
+
+def track_players(online, line):
+    """Update the set of connected players from one console line."""
+    if match := JOIN_RE.search(line):
+        online.add(match.group(1))
+    elif match := LEAVE_RE.search(line):
+        online.discard(match.group(1))
+    elif match := LIST_RE.search(line):
+        online.clear()
+        online.update(name.strip() for name in match.group(3).split(",") if name.strip())
+
+
 class Runner:
     """One server process: start, command, stop, restart and a rolling copy of its console."""
 
@@ -470,6 +489,8 @@ class Runner:
         self.listeners = []              # called from worker threads: listener(kind, payload)
         self.process = None
         self.pid = None
+        self.started_at = None
+        self.online = set()              # player names seen joining and not yet leaving
         self.adopted = False             # True when the server was already running when Nova opened
         self.lock = threading.RLock()
         self._restart = False
@@ -508,6 +529,8 @@ class Runner:
                                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                                             encoding="utf-8", errors="replace", bufsize=1, **flags)
             self.pid = self.process.pid
+            self.started_at = time.time()
+            self.online = set()
             _write_pid(path, self.pid)
             self.lines.append(f"[Nova] Encendiendo «{meta['name']}»…")
             self._set("starting")
@@ -517,6 +540,7 @@ class Runner:
         for line in process.stdout:
             line = line.rstrip("\r\n")
             self.lines.append(line)
+            track_players(self.online, line)
             self._emit("line", line)
             if self.state == "starting" and re.search(r"\bDone \(", line):
                 self._set("running")
@@ -529,12 +553,14 @@ class Runner:
         with self.lock:
             self.process = None
             self.pid = None
+            self.online = set()
             _pid_file(folder(self.sid)).unlink(missing_ok=True)
             note = f"[Nova] El servidor se apagó (código {code})."
             self.lines.append(note)
             self._emit("line", note)
             self._set("stopped")
             again, self._restart = self._restart, False
+        _run_stop_hooks(self.sid)
         if again:
             self._start_again()
 
@@ -568,7 +594,11 @@ class Runner:
                 _pid_file(path).unlink(missing_ok=True)
                 return False
             self.pid, self.adopted = data["pid"], True
+            self.started_at = data.get("started") if isinstance(data.get("started"), (int, float)) else None
             self.lines.clear()
+            self.online = set()
+            for old in _tail_lines(path / "logs" / "latest.log", 5000):   # rebuild who is connected from this session's log
+                track_players(self.online, old)
             self.lines.extend(_tail_lines(path / "logs" / "latest.log"))
             self.lines.append("[Nova] Reconectado con un servidor que seguía encendido. Podés ver el registro y apagarlo; "
                               "para mandar comandos, reinicialo desde Nova.")
@@ -601,12 +631,14 @@ class Runner:
             time.sleep(0.6)
         with self.lock:
             self.pid, self.adopted = None, False
+            self.online = set()
             _pid_file(folder(self.sid)).unlink(missing_ok=True)
             note = "[Nova] El servidor se apagó."
             self.lines.append(note)
             self._emit("line", note)
             self._set("stopped")
             again, self._restart = self._restart, False
+        _run_stop_hooks(self.sid)
         if again:
             self._start_again()
 
@@ -692,6 +724,14 @@ RUNNERS = {}
 def runner(sid):
     folder(sid)  # validates the id
     return RUNNERS.setdefault(sid, Runner(sid))
+
+
+def _run_stop_hooks(sid):
+    for hook in list(STOP_HOOKS):
+        try:
+            hook(sid)
+        except Exception:
+            pass
 
 
 def adopt_all():

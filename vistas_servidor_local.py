@@ -11,6 +11,7 @@ from gi.repository import Gdk, GLib, Gio, Gtk, Pango
 
 import errores
 import motor
+import servidor_gestion as sg
 import servidor_local as sl
 import tunel_playit as tp
 from widgets import button, label
@@ -508,19 +509,26 @@ class ServidorLocalMixin:
 
         def show(key):
             pages.set_visible_child_name(key)
-            loader = getattr(pages.get_child_by_name(key), "load_once", None)
+            current = pages.get_child_by_name(key)
+            loader = getattr(current, "load_once", None)
             if loader:
-                pages.get_child_by_name(key).load_once = None
+                current.load_once = None
                 loader()
+            on_show = getattr(current, "on_show", None)
+            if on_show:
+                on_show()
             for name, widget in seg.items():
                 (widget.add_css_class if name == key else widget.remove_css_class)("seg-active")
 
-        sections = (("console", "Consola", self.local_console_tab(runner, subs, message)),
-                    ("settings", "Ajustes", self.local_settings_tab(sid, runner, message, build_addresses, title)),
-                    ("files", "Archivos", self.local_files_tab(parent, sid, message)))
         catalog_text = "Plugins" if meta["kind"] == "paper" else "Mods" if sl.catalog_available(meta) else "Catálogo"
-        sections += (("catalog", catalog_text, self.local_catalog_tab(sid, runner, message)),
-                     ("friends", "Amigos", self.local_tunnel_tab(sid, runner, message, build_addresses, subs)))
+        sections = (("console", "Consola", self.local_console_tab(runner, subs, message)),
+                    ("status", "Estado", self.local_status_tab(sid, runner, subs)),
+                    ("players", "Jugadores", self.local_players_tab(sid, runner, message)),
+                    ("files", "Archivos", self.local_files_tab(parent, sid, message)),
+                    ("catalog", catalog_text, self.local_catalog_tab(sid, runner, message)),
+                    ("backups", "Respaldos", self.local_backups_tab(sid, runner, message, parent)),
+                    ("friends", "Amigos", self.local_tunnel_tab(sid, runner, message, build_addresses, subs)),
+                    ("settings", "Ajustes", self.local_settings_tab(sid, runner, message, build_addresses, title)))
         for key, text, widget in sections:
             pages.add_named(widget, key)
             seg[key] = button(text, lambda k=key: show(k), "seg-button")
@@ -701,6 +709,9 @@ class ServidorLocalMixin:
         link = Gtk.LinkButton.new_with_label(sl.EULA_URL, "Leer el EULA de Minecraft")
         link.set_halign(Gtk.Align.START)
         eula.append(link)
+
+        self.local_version_card(sid, runner, message, self.window, lambda widget: grid.attach(widget, 1, 2, 1, 1),
+                                lambda new_name: (title.set_text(new_name), name.set_text(new_name)))
 
         # barra de guardado fija: siempre a la vista, sin tener que desplazarse
         bar = Gtk.Box(spacing=10, css_classes=["catalog-row"])
@@ -1392,10 +1403,7 @@ class ServidorLocalMixin:
 
             def worker():
                 try:
-                    if runner.state == "running":
-                        runner.send("save-all flush")
-                        time.sleep(3)
-                    target = sl.backup_world(base)
+                    target = sg.create_backup(sid)
                 except (OSError, ValueError, RuntimeError) as error:
                     GLib.idle_add(message.set_text, f"No se pudo respaldar: {error}")
                     return

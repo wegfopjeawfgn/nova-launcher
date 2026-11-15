@@ -25,6 +25,7 @@ import estadisticas
 import i18n
 import inicio
 import respaldos
+import servidor_gestion
 import servidor_local
 import tiempo
 import uso
@@ -42,6 +43,7 @@ from vistas_archivos import ArchivosMixin
 from vistas_pomme import PommeMixin
 from vistas_servidores import ServidoresMixin
 from vistas_servidor_local import ServidorLocalMixin
+from vistas_servidor_extra import ServidorExtraMixin
 from vistas_descargas import DescargasMixin
 from vistas_sesiones import SesionesMixin
 from vistas_actualizar import ActualizarMixin
@@ -60,6 +62,7 @@ class Nova(
     PommeMixin,
     ServidoresMixin,
     ServidorLocalMixin,
+    ServidorExtraMixin,
     DescargasMixin,
     SesionesMixin,
     ActualizarMixin,
@@ -313,6 +316,8 @@ class Nova(
         self.apply_theme()
         self.window.present()
         servidor_local.adopt_all()
+        servidor_local.STOP_HOOKS.append(lambda sid: threading.Thread(target=servidor_gestion.on_stopped, args=(sid,), daemon=True).start())
+        GLib.timeout_add_seconds(60, self.server_backups_tick)
         self.refresh_nova()
         GLib.timeout_add_seconds(30, self.auto_backup)
         self.versions = motor.read(motor.ROOT / "versions.json", [])
@@ -320,6 +325,11 @@ class Nova(
         if self.preferences.get("release_repo", self.release_repo):
             self.check_release()
         self.usage_count()
+
+    def server_backups_tick(self):
+        """Every minute, make the scheduled world backups of local servers that are running."""
+        threading.Thread(target=servidor_gestion.auto_backups, daemon=True).start()
+        return True
 
     def usage_count(self):
         """Ask once whether to join the anonymous usage count; if yes, send at most one ping a day."""
