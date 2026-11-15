@@ -119,6 +119,7 @@ def main():
     # Independent instance: without this a running Nova Launcher would receive the "activate" instead.
     app.set_flags(app.get_flags() | Gio.ApplicationFlags.NON_UNIQUE)
     app.check_release = lambda: None
+    app.ask_usage = lambda: False  # the first-run prompt would cover every shot
     nova.motor.versions = lambda: []
     state = {"index": 0, "popover": None}
     scenes = scene_list(app, state)
@@ -237,6 +238,10 @@ def scene_list(app, state):
         hint = app.window.get_child().get_last_child()
         hint.set_visible(True)
 
+    def modrinth():
+        import biblioteca
+        biblioteca.Browser(app, app.selected, app.instances.get(app.selected), "mod")
+
     def tall():
         app.window.set_default_size(1280, 1180)
 
@@ -255,6 +260,7 @@ def scene_list(app, state):
         ("nueva-instancia", new, 700),
         ("menu", menu, 900),
         ("revisar", review, 900),
+        ("modrinth", modrinth, 5000),
         ("mods", mods, 700),
         ("nueva", add, 700),
         ("importar", importing, 700),
