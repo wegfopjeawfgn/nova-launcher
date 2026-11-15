@@ -161,16 +161,22 @@ def resolve(kind, version):
     return out
 
 
-def download(url, target, *, size=None, algo=None, digest=None, progress=None):
-    """Download to a temporary file, check size and hash when known, then move into place."""
+def download(url, target, *, size=None, algo=None, digest=None, progress=None, allowed=None, magic=None):
+    """Download to a temporary file, check size and hash when known, then move into place.
+
+    ``allowed`` lists the only prefixes the final address may have after redirects; ``magic`` is what the file must start with."""
     temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex[:8]}.part")
     hasher = hashlib.new(algo) if algo else None
     done = 0
     try:
         with requests.get(url, stream=True, timeout=30, headers={"User-Agent": USER_AGENT}) as response:
             response.raise_for_status()
+            if allowed and not str(response.url).startswith(tuple(allowed)):
+                raise ValueError("La descarga se redirigió a un lugar inesperado.")
             with temporary.open("wb") as output:
                 for chunk in response.iter_content(1 << 20):
+                    if magic and done == 0 and not chunk.startswith(magic):
+                        raise ValueError("El archivo descargado no es del tipo esperado.")
                     done += len(chunk)
                     if done > MAX_JAR or (size and done > size):
                         raise ValueError("La descarga es más grande de lo esperado.")
@@ -266,10 +272,7 @@ def create(name, kind, version, memory, port, *, eula, progress=None, status=Non
             meta["forge_build"] = info["forge_build"]
         java = ensure_java(meta, status)
         if kind == "forge":
-            java = full_java(info["major"])
-            if java is None:
-                raise RuntimeError(f"Forge necesita un Java completo instalado en tu equipo (versión {info['major']} o más nueva), "
-                                   "no solo el que baja Nova. Instalá OpenJDK o Temurin y volvé a intentar.")
+            java = ensure_full_java(info["major"], status, progress)
             status("Instalando Forge… puede tardar unos minutos.")
             install_forge(target, java)
         write_properties(target, {"server-port": str(int(port)), "motd": f"{name} · Nova Launcher",
@@ -351,14 +354,33 @@ def _write_atomic(file, text):
 
 # ---------------------------------------------------------------- proceso
 def full_java(required):
-    """A complete Java from this computer (not Mojang's trimmed runtime) of at least ``required``, or None.
+    """A complete Java (not Mojang's trimmed runtime) of at least ``required``: one Nova downloaded before, else one on this computer.
 
     Forge's installer produces files with a different checksum when it runs on Mojang's trimmed-down runtime, so Forge
     needs a normal JDK or JRE. The lowest version that satisfies the request is preferred."""
     import java_detect
+    import java_propio
+    own = java_propio.installed(required)
+    if own:
+        return own
     bundled = str(motor.ROOT / "minecraft" / "runtime")
     options = [info for info in java_detect.find_java() if info["major"] >= (required or 8) and not info["path"].startswith(bundled)]
     return min(options, key=lambda info: (info["major"], info["path"]))["path"] if options else None
+
+
+def ensure_full_java(required, status=None, progress=None):
+    """Like ``full_java`` but downloads Nova's own Temurin when there is none. Raises a readable error if that fails too."""
+    found = full_java(required)
+    if found:
+        return found
+    import java_propio
+    if status:
+        status("Descargando un Java completo para Forge…")
+    try:
+        return java_propio.install(required, progress)
+    except (OSError, ValueError, requests.RequestException) as error:
+        raise RuntimeError(f"Forge necesita un Java completo y no se pudo bajar uno: {error}. Instalá OpenJDK o Temurin "
+                           f"(versión {required} o más nueva) y volvé a intentar.") from None
 
 
 def install_forge(path, java, timeout=1800):
@@ -396,7 +418,8 @@ def _forge_command(meta, path, java):
 def launch_command(meta, path, java):
     if meta.get("kind") == "forge":
         return _forge_command(meta, path, java)
-    return [str(java), f"-Xmx{int(meta['memory'])}G", f"-Xms{min(int(meta['memory']), 2)}G", "-jar", "server.jar", "nogui"]
+    jar = meta.get("jar") if isinstance(meta.get("jar"), str) and re.fullmatch(r"[A-Za-z0-9._+() -]{1,150}\.jar", meta["jar"]) else "server.jar"
+    return [str(java), f"-Xmx{int(meta['memory'])}G", f"-Xms{min(int(meta['memory']), 2)}G", "-jar", jar, "nogui"]
 
 
 # ---------------------------------------------------------------- procesos
@@ -942,10 +965,30 @@ def catalog_available(meta):
     return meta.get("kind") in LOADERS
 
 
-def catalog_search(meta, query="", offset=0, limit=20):
-    """Mods or plugins that work on this server's Minecraft version and type, from Modrinth."""
+SOURCE_NAMES = {"modrinth": "Modrinth", "hangar": "Hangar (PaperMC)", "spigot": "SpigotMC"}
+
+
+def catalog_sources(meta):
+    """Where this server can look for plugins or mods: Paper also has Hangar and SpigotMC; Fabric and Forge use Modrinth."""
+    if not catalog_available(meta):
+        return []
+    return ["modrinth", "hangar", "spigot"] if meta["kind"] == "paper" else ["modrinth"]
+
+
+def catalog_search(meta, query="", offset=0, limit=20, source="modrinth"):
+    """Mods or plugins that work on this server's Minecraft version and type.
+
+    Returns ``{"hits", "total", "next", "more"}``; each hit has a ``project_id`` that identifies it for install and remove."""
     if not catalog_available(meta):
         raise ValueError("Un servidor Vanilla no admite mods ni plugins. Creá uno Paper, Fabric o Forge.")
+    if source not in catalog_sources(meta):
+        raise ValueError("Esa fuente no está disponible para este tipo de servidor.")
+    if source == "hangar":
+        import fuentes_plugins
+        return fuentes_plugins.hangar_search(meta, query, offset, limit)
+    if source == "spigot":
+        import fuentes_plugins
+        return fuentes_plugins.spigot_search(meta, query, offset, limit)
     import json
     # Modrinth files most Paper plugins under the "plugin" project type and mods under "mod".
     types = ["project_type:plugin", "project_type:mod"] if meta["kind"] == "paper" else ["project_type:mod"]
@@ -955,8 +998,9 @@ def catalog_search(meta, query="", offset=0, limit=20):
     data = _get(f"{MODRINTH}/search", params={"query": query.strip()[:80], "facets": json.dumps(facets), "limit": limit,
                                               "offset": offset, "index": "relevance" if query.strip() else "downloads"}).json()
     hits = [{"project_id": hit["project_id"], "title": hit["title"], "description": hit.get("description", ""),
-             "downloads": hit.get("downloads", 0), "author": hit.get("author", "")} for hit in data.get("hits", [])]
-    return {"hits": hits, "total": data.get("total_hits", len(hits))}
+             "downloads": hit.get("downloads", 0), "author": hit.get("author", ""), "source": "modrinth"} for hit in data.get("hits", [])]
+    total = data.get("total_hits", len(hits))
+    return {"hits": hits, "total": total, "next": offset + len(hits), "more": offset + len(hits) < total}
 
 
 def _catalog_path(base):
@@ -969,10 +1013,15 @@ def catalog_installed(base):
 
 
 def catalog_install(base, meta, project_id, *, title="", progress=None, _seen=None, _depth=0):
-    """Install the newest compatible release (and its required dependencies) with its SHA-512 checked."""
+    """Install the newest compatible release (and its required dependencies); the hash is checked wherever the source gives one."""
     import json
     if not catalog_available(meta):
         raise ValueError("Un servidor Vanilla no admite mods ni plugins.")
+    if isinstance(project_id, str) and project_id.startswith(("hangar:", "spigot:")):
+        import fuentes_plugins
+        source, _, ident = project_id.partition(":")
+        install = fuentes_plugins.hangar_install if source == "hangar" else fuentes_plugins.spigot_install
+        return install(base, meta, ident, title=title, progress=progress)
     if not re.fullmatch(r"[A-Za-z0-9]{8}", project_id or ""):
         raise ValueError("Proyecto no válido.")
     seen = _seen if _seen is not None else set()

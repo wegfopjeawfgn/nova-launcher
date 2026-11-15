@@ -163,11 +163,22 @@ class ForgeTests(Base):
         info = {"url": "https://x", "size": None, "algo": None, "digest": None, "component": "c", "major": 21, "forge_build": "1"}
         with mock.patch.object(sl, "resolve", return_value=info), \
                 mock.patch.object(sl, "download", lambda url, target, **k: target.write_bytes(b"i" * 2000)), \
-                mock.patch.object(sl, "ensure_java", return_value="mojang-java"), mock.patch.object(sl, "full_java", return_value=None):
+                mock.patch.object(sl, "ensure_java", return_value="mojang-java"), mock.patch.object(sl, "full_java", return_value=None), \
+                mock.patch("java_propio.install", side_effect=ValueError("sin red")):
             with self.assertRaises(RuntimeError) as caught:
                 sl.create("Mods", "forge", "1.21.1", 4, 25581, eula=False)
         self.assertIn("Java completo", str(caught.exception))
         self.assertEqual(sl.all_servers(), [])
+
+    def test_ensure_full_java_prefers_what_exists_and_downloads_only_when_needed(self):
+        with mock.patch.object(sl, "full_java", return_value="/usr/bin/java"), mock.patch("java_propio.install") as install:
+            self.assertEqual(sl.ensure_full_java(21), "/usr/bin/java")
+            install.assert_not_called()
+        notes = []
+        with mock.patch.object(sl, "full_java", return_value=None), mock.patch("java_propio.install", return_value="/datos/java/temurin-21/bin/java") as install:
+            self.assertEqual(sl.ensure_full_java(21, notes.append), "/datos/java/temurin-21/bin/java")
+            install.assert_called_once()
+        self.assertTrue(any("Java" in note for note in notes))
 
     def test_create_runs_the_installer_and_leaves_no_server_jar(self):
         info = {"url": "https://x", "size": None, "algo": None, "digest": None, "component": "c", "major": 21, "forge_build": "52.1.20"}

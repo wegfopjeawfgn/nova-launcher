@@ -332,7 +332,7 @@ class UpdateTests(Base):
         self.assertEqual(ran, ["/usr/bin/java"])
         self.assertEqual(sl.load(sid)["forge_build"], "52.1.21")
         with mock.patch.object(sl, "resolve", return_value=info), mock.patch.object(sl, "download", self.fake_download), \
-                mock.patch.object(sl, "full_java", return_value=None):
+                mock.patch.object(sl, "full_java", return_value=None), mock.patch("java_propio.install", side_effect=ValueError("sin red")):
             with self.assertRaises(RuntimeError):
                 sg.update_server(sid)
         self.assertFalse((path / "forge-installer.jar").exists())
