@@ -1,5 +1,18 @@
 # Cambios
 
+## 1.10.0
+- **Java propio para Forge**: Forge necesita un Java completo, no el recortado de Mojang. Si no tenés uno instalado, Nova ahora baja
+  **Eclipse Temurin** desde Adoptium (comprueba su SHA-256 y lo extrae sin salirse de su carpeta) y lo guarda en sus datos, sin tocar
+  el Java del sistema. Así crear o actualizar un servidor Forge funciona en una PC sin Java (por ejemplo, la mayoría de las de Windows).
+- **Plugins de Hangar y SpigotMC**: el catálogo de un servidor Paper tiene un selector de fuente. **Hangar** (el sitio de plugins de
+  PaperMC) se descarga comprobando el SHA-256. **SpigotMC** se busca con Spiget: no publica hashes, así que Nova solo baja desde su
+  CDN, comprueba que sea un `.jar` y lo avisa; los plugins de pago o alojados fuera de SpigotMC se abren en su página. Fabric y Forge
+  siguen con Modrinth.
+- **Importar un servidor que ya tenés**: en «Mi servidor», «Importar servidor» detecta el tipo (Vanilla, Paper, Fabric o Forge), la
+  versión, el puerto y la memoria de una carpeta existente, te deja corregirlos y **copia** la carpeta (la original no se toca).
+  Después se maneja como cualquier servidor de Nova, incluidos los respaldos y las actualizaciones.
+- Arreglo: abrir la lista de cuentas ya no rompe Nova si falta la biblioteca de inicio de sesión de Microsoft.
+
 ## 1.9.4
 - **Conectar Microsoft, con guía**: al tocar «Conectar Microsoft», Nova ahora explica en pantalla cómo conseguir el ID de
   aplicación de Azure (los pasos, la redirección exacta y el enlace a los registros de aplicaciones) antes de pedirlo. Recordá

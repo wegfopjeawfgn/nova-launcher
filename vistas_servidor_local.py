@@ -144,6 +144,7 @@ class ServidorLocalMixin:
         titles.append(label("Mi servidor", "subheading"))
         titles.append(label("Servidores de Minecraft Java que corren en este equipo. Gratis y sin cuentas.", "muted"))
         header.append(titles)
+        header.append(button("Importar servidor", lambda: self.import_local_server(dialog, lambda sid: (watch(sid), refresh_list()))))
         header.append(button("Crear servidor", lambda: self.create_local_server(dialog, lambda sid: (watch(sid), refresh_list())), "primary"))
         page.append(header)
         page.append(local_notice())
@@ -760,16 +761,32 @@ class ServidorLocalMixin:
             box.append(card)
             return box
         noun = "plugins" if meta["kind"] == "paper" else "mods"
+        sources = sl.catalog_sources(meta)
         head = Gtk.Box(spacing=8)
-        search = Gtk.SearchEntry(placeholder_text=f"Buscar {noun} en Modrinth", hexpand=True)
+        source = Gtk.ComboBoxText(visible=len(sources) > 1)
+        for key in sources:
+            source.append(key, sl.SOURCE_NAMES[key])
+        source.set_active_id("modrinth")
+        source.update_property([Gtk.AccessibleProperty.LABEL], ["Fuente del catálogo"])
+        head.append(source)
+        search = Gtk.SearchEntry(placeholder_text=f"Buscar {noun}", hexpand=True)
         search.update_property([Gtk.AccessibleProperty.LABEL], [f"Buscar {noun}"])
         head.append(search)
         head.append(button("Buscar", lambda: run(0)))
         box.append(head)
-        info = label(f"Solo se muestran {noun} compatibles con Minecraft {meta['version']} y {sl.KINDS[meta['kind']].split(' ')[0]}. "
-                     "Los descarga Nova desde Modrinth y comprueba su SHA-512.", "opt-hint")
+        info = label("", "opt-hint")
         info.set_wrap(True)
         box.append(info)
+        notes = {"modrinth": "Los descarga Nova desde Modrinth y comprueba su SHA-512.",
+                 "hangar": "Los descarga Nova desde Hangar, el sitio de plugins de PaperMC, y comprueba su SHA-256.",
+                 "spigot": "SpigotMC no publica sumas de verificación: Nova baja una copia de Spiget (un servicio de la comunidad) y solo comprueba que sea un .jar. "
+                           "Preferí Modrinth o Hangar cuando el plugin esté ahí. Los de pago o alojados fuera de SpigotMC se abren en su página."}
+
+        def describe_source():
+            info.set_text(f"Solo se muestran {noun} compatibles con Minecraft {meta['version']} y {sl.KINDS[meta['kind']].split(' ')[0]}. "
+                          + notes[source.get_active_id() or "modrinth"])
+
+        describe_source()
         scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
         rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         scroll.set_child(rows)
@@ -786,6 +803,14 @@ class ServidorLocalMixin:
 
         def downloads(n):
             return f"{n / 1_000_000:.1f} M" if n >= 1_000_000 else f"{n / 1000:.0f} mil" if n >= 10_000 else str(n)
+
+        shown_keys = []
+
+        def rows_shown(append, result):
+            if not append:
+                shown_keys.clear()
+            shown_keys.extend(hit["project_id"] for hit in result["hits"])
+            return shown_keys
 
         def render(hits, append):
             if not append:
@@ -809,7 +834,9 @@ class ServidorLocalMixin:
             text.append(description)
             row.append(text)
             row.append(label(f"{downloads(hit['downloads'])} descargas", "muted"))
-            if is_installed:
+            if hit.get("external_url"):
+                row.append(button("Abrir página", lambda u=hit["external_url"]: Gio.AppInfo.launch_default_for_uri(u, None), "quiet-button"))
+            elif is_installed:
                 row.append(Gtk.Label(label="Instalado", css_classes=["chip", "chip-accent"]))
                 row.append(button("Quitar", lambda h=hit: remove(h), "quiet-button"))
             else:
@@ -824,10 +851,11 @@ class ServidorLocalMixin:
             token = state["token"]
             count.set_text("Buscando…")
             query = search.get_text()
+            chosen = source.get_active_id() or "modrinth"
 
             def worker():
                 try:
-                    result = sl.catalog_search(meta, query, offset=offset)
+                    result = sl.catalog_search(meta, query, offset=offset, source=chosen)
                 except Exception as error:
                     GLib.idle_add(finish, None, str(error), append, offset, token)
                 else:
@@ -842,9 +870,10 @@ class ServidorLocalMixin:
                 count.set_text(f"No se pudo buscar: {problem}")
                 return
             render(result["hits"], append)
-            state["offset"] = offset + len(result["hits"])
-            more.set_visible(state["offset"] < result["total"])
-            count.set_text(f"{state['offset']} de {result['total']} resultados")
+            state["offset"] = result["next"]
+            more.set_visible(bool(result["more"]))
+            shown = len(rows_shown(append, result))
+            count.set_text(f"{shown} de {result['total']} resultados" if result["total"] is not None else f"{shown} resultados")
 
         def install(hit, row):
             for child_button in (row.get_last_child(),):
@@ -882,6 +911,7 @@ class ServidorLocalMixin:
 
         search.connect("activate", lambda _: run(0))
         search.connect("search-changed", lambda _: None)
+        source.connect("changed", lambda _: (describe_source(), run(0)))
         box.load_once = lambda: run(0)
         return box
 

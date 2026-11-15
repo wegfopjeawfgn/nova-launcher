@@ -10,6 +10,7 @@ from gi.repository import GLib, Gtk, Pango
 
 import motor
 import servidor_gestion as sg
+import servidor_importar as si
 import servidor_local as sl
 from vistas_servidor_local import human_size
 from widgets import button, label
@@ -28,6 +29,146 @@ def duration(seconds):
 
 
 class ServidorExtraMixin:
+    # ------------------------------------------------------------ Importar un servidor que ya existe
+    def import_local_server(self, parent, created):
+        dialog = Gtk.Dialog(title="Importar servidor", transient_for=parent, modal=True, default_width=520)
+        cancel = dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
+        go = dialog.add_button("Importar", Gtk.ResponseType.NONE)
+        go.add_css_class("primary")
+        go.set_sensitive(False)
+        box = dialog.get_content_area()
+        box.add_css_class("menu")
+        box.set_spacing(8)
+        box.append(label("Importar un servidor que ya tenés", "subheading"))
+        intro = label("Nova copia la carpeta de tu servidor y la maneja desde acá. La carpeta original no se toca.", "muted")
+        intro.set_wrap(True)
+        box.append(intro)
+        picked = Gtk.Entry(editable=False, hexpand=True, placeholder_text="Ninguna carpeta elegida")
+        row = Gtk.Box(spacing=8)
+        row.append(picked)
+        row.append(button("Elegir carpeta…", lambda: choose()))
+        box.append(row)
+        form = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8, visible=False)
+        box.append(form)
+        name = Gtk.Entry()
+        kind = Gtk.ComboBoxText()
+        for key, title in sl.KINDS.items():
+            kind.append(key, title)
+        version = Gtk.Entry(placeholder_text="1.21.1")
+        forge_build = Gtk.Entry(placeholder_text="52.1.20")
+        memory = Gtk.SpinButton.new_with_range(1, 64, 1)
+        port = Gtk.SpinButton.new_with_range(1024, 65535, 1)
+        eula = Gtk.CheckButton(label="Acepto el EULA de Mojang")
+        link = Gtk.LinkButton.new_with_label(sl.EULA_URL, "Leer el EULA de Minecraft")
+        link.set_halign(Gtk.Align.START)
+        forge_caption = label("Compilación de Forge", "form-label")
+        for caption, widget in (("Nombre", name), ("Tipo", kind), ("Versión de Minecraft", version), (None, None), ("Memoria (GB)", memory), ("Puerto", port)):
+            if caption is None:
+                form.append(forge_caption)
+                form.append(forge_build)
+                continue
+            form.append(label(caption, "form-label"))
+            form.append(widget)
+        form.append(eula)
+        form.append(link)
+        detected = label("", "opt-hint")
+        detected.set_wrap(True)
+        box.append(detected)
+        progress = label("", "muted")
+        progress.set_wrap(True)
+        box.append(progress)
+        error = label("", "form-error")
+        error.set_wrap(True)
+        box.append(error)
+        state = {"folder": None, "found": None, "busy": False}
+
+        def forge_visible(*_):
+            show = kind.get_active_id() == "forge"
+            forge_caption.set_visible(show)
+            forge_build.set_visible(show)
+
+        kind.connect("changed", forge_visible)
+
+        def choose():
+            picker = Gtk.FileChooserNative(title="Elegí la carpeta de tu servidor", transient_for=dialog, action=Gtk.FileChooserAction.SELECT_FOLDER)
+
+            def chosen(chooser, response):
+                file = chooser.get_file() if response == Gtk.ResponseType.ACCEPT else None
+                folder = file.get_path() if file else None
+                chooser.destroy()
+                if folder:
+                    inspect(folder)
+
+            picker.connect("response", chosen)
+            picker.show()
+
+        def inspect(folder):
+            picked.set_text(folder)
+            error.set_text("")
+            detected.set_text("Mirando la carpeta…")
+
+            def done(found):
+                state.update(folder=folder, found=found)
+                name.set_text(found["name"])
+                kind.set_active_id(found["kind"] or "paper")
+                version.set_text(found["version"] or "")
+                forge_build.set_text(found["forge_build"] or "")
+                memory.set_value(found["memory"])
+                used = {m.get("port") for m in sl.all_servers()}
+                free = found["port"]
+                while free in used or not sl.free_port(free):
+                    free += 1
+                port.set_value(free)
+                eula.set_visible(not found["eula"])
+                link.set_visible(not found["eula"])
+                forge_visible()
+                form.set_visible(True)
+                go.set_sensitive(True)
+                kinds = sl.KINDS.get(found["kind"], "tipo sin reconocer")
+                detected.set_text(f"Detectado: {kinds}" + (f", Minecraft {found['version']}" if found["version"] else "")
+                                  + f". Se copian {human_size(si.folder_size(folder))}." + (" El EULA ya estaba aceptado." if found["eula"] else "")
+                                  + (" " + " ".join(found["notes"]) if found["notes"] else "") + " Revisá los datos antes de importar.")
+
+            self._worker(lambda: si.detect(folder), done, lambda text: (detected.set_text(""), error.set_text(f"No se pudo leer la carpeta: {text}")))
+
+        def run(_):
+            if state["busy"] or not state["folder"]:
+                return
+            found = state["found"]
+            same_kind = kind.get_active_id() == found["kind"]
+            jar = found["jar"] if same_kind else None
+            state["busy"] = True
+            go.set_sensitive(False)
+            error.set_text("")
+
+            def work():
+                return si.import_server(
+                    state["folder"], name=name.get_text(), kind=kind.get_active_id(), version=version.get_text().strip(), memory=memory.get_value_as_int(),
+                    port=port.get_value_as_int(), jar=jar, forge_build=forge_build.get_text().strip() or None,
+                    build=found["build"] if same_kind else None, accept_eula=eula.get_active() and eula.get_visible(),
+                    status=lambda text: GLib.idle_add(progress.set_text, text),
+                    progress=lambda done, total: GLib.idle_add(progress.set_text, f"Copiando… {done * 100 // total}%"))
+
+            def success(meta):
+                dialog.destroy()
+                created(meta["id"])
+                self.status.set_text(f"Servidor «{meta['name']}» importado." + ("" if meta.get("eula") else " Aceptá el EULA al encenderlo."))
+
+            def failure(text):
+                state["busy"] = False
+                go.set_sensitive(True)
+                progress.set_text("")
+                error.set_text(f"No se pudo importar: {text}")
+
+            self._worker(work, success, failure)
+
+        go.connect("clicked", run)
+        cancel.connect("clicked", lambda _: None if state["busy"] else dialog.destroy())
+        dialog.connect("close-request", lambda _: state["busy"])
+        dialog.inspect_folder = inspect   # lets the screenshot tool fill the form without a file chooser
+        dialog.present()
+        return dialog
+
     # ------------------------------------------------------------ pequeñas piezas
     @staticmethod
     def _card(box, heading):

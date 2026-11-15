@@ -441,10 +441,11 @@ def update_server(sid, version=None, status=None, progress=None):
     if meta["kind"] == "forge":
         new["forge_build"] = info["forge_build"]
         sl.download(info["url"], folder / "forge-installer.jar", size=info["size"], algo=info["algo"], digest=info["digest"], progress=progress)
-        java = sl.full_java(info["major"])
-        if java is None:
+        try:
+            java = sl.ensure_full_java(info["major"], status, progress)
+        except RuntimeError:
             (folder / "forge-installer.jar").unlink(missing_ok=True)
-            raise RuntimeError(f"Forge necesita un Java completo instalado en tu equipo (versión {info['major']} o más nueva).")
+            raise
         status("Instalando Forge… puede tardar unos minutos.")
         sl.install_forge(folder, java)
     else:
@@ -454,6 +455,7 @@ def update_server(sid, version=None, status=None, progress=None):
         if (folder / "server.jar").exists():
             shutil.copy2(folder / "server.jar", folder / "server.jar.old")   # one step back, in case the new one misbehaves
         fresh.replace(folder / "server.jar")
+        new["jar"] = "server.jar"   # an imported server may have run a differently named jar before
     sl.save(new)
     jars = [path for sub in (sl.UPLOAD_DIRS[meta["kind"]],) if sub and (folder / sub).is_dir() for path in (folder / sub).glob("*.jar")]
     return {"from": meta["version"], "to": target, "backup": backup.name if backup else None, "extensions": len(jars),

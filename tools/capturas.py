@@ -22,6 +22,8 @@ os.environ["XDG_DATA_HOME"] = str(DATA)
 os.environ.setdefault("GTK_A11Y", "none")
 sys.path.insert(0, str(ROOT))
 
+if Path("/usr/share/nova-launcher/vendor").is_dir():   # the sign-in library lives here when Nova runs from a source folder
+    sys.path.append("/usr/share/nova-launcher/vendor")
 import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
@@ -344,6 +346,16 @@ def scene_list(app, state):
                 go.emit("clicked")
         return run
 
+    def local_import():
+        app.leave_page()
+        demo = DATA / "viejo" / "Mi servidor viejo"
+        (demo / "world").mkdir(parents=True, exist_ok=True)
+        (demo / "paper-1.21.11-132.jar").write_bytes(b"PK" + b"x" * 5000)
+        (demo / "world" / "level.dat").write_bytes(b"x" * 3_000_000)
+        (demo / "version_history.json").write_text('{"currentVersion": "git-Paper-132 (MC: 1.21.11)"}')
+        (demo / "server.properties").write_text("server-port=25570\n")
+        app.import_local_server(app.window, lambda sid: None).inspect_folder(str(demo))
+
     def local_create():
         app.leave_page()
         app.create_local_server(app.window, lambda sid: None)
@@ -377,6 +389,7 @@ def scene_list(app, state):
         ("servidor-estado", local_detail(1), 4500),
         ("servidor-jugadores", local_detail(2), 2500),
         ("servidor-respaldos", local_detail(5), 2500),
+        ("servidor-importar", local_import, 2500),
         ("servidor-crear", local_create, 3500),
         ("mods", mods, 700),
         ("nueva", add, 700),

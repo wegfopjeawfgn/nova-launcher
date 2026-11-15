@@ -59,8 +59,12 @@ class CuentasMixin:
             options.append(button("Quitar cuenta Microsoft", self.disconnect_microsoft, "quiet-button"))
         else:
             options.append(button("+  Conectar Microsoft", self.connect_microsoft))
-            import cuentas
-            if cuentas.default_client_id():
+            try:
+                import cuentas
+                has_own_id = bool(cuentas.default_client_id())
+            except ImportError:   # the sign-in library is missing: the list of accounts must still open
+                has_own_id = False
+            if has_own_id:
                 options.append(button("Conectar con mi propio ID…", lambda: self.connect_microsoft(own=True), "quiet-button"))
         options.append(button("+  Agregar cuenta offline", self.edit_profile))
         popover.set_child(options)
