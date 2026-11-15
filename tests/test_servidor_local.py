@@ -390,6 +390,102 @@ class ResolveTests(Base):
                 sl.resolve("paper", "9.9")
 
 
+class OrphanTests(Base):
+    def test_a_port_with_recently_closed_connections_is_still_free(self):
+        if sl.os.name == "nt":
+            self.skipTest("TIME_WAIT behaviour differs on Windows")
+        import socket
+        listener = socket.socket()
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        port = listener.getsockname()[1]
+        client = socket.create_connection(("127.0.0.1", port))
+        connection, _ = listener.accept()
+        connection.close()   # the side that closes first keeps the TIME_WAIT
+        client.close()
+        listener.close()
+        self.assertTrue(sl.free_port(port))
+        busy = socket.socket()
+        busy.bind(("0.0.0.0", 0))
+        busy.listen()
+        try:
+            self.assertFalse(sl.free_port(busy.getsockname()[1]))   # a real listener still counts as taken
+        finally:
+            busy.close()
+
+    def test_process_identity(self):
+        mine = sl.process_start(sl.os.getpid())
+        self.assertIsNotNone(mine)
+        self.assertEqual(mine, sl.process_start(sl.os.getpid()))
+        self.assertIsNone(sl.process_start(0))
+        self.assertIsNone(sl.process_start("no"))
+        quick = subprocess_run_and_wait()
+        self.assertIsNone(sl.process_start(quick))
+
+    def test_reconnects_to_a_live_server_and_stops_it_without_commands(self):
+        import subprocess
+        sid, path = self.make()
+        child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"], start_new_session=True)
+        self.addCleanup(lambda: (child.poll() is None and child.kill(), child.wait()))
+        sl._write_pid(path, child.pid)
+        (path / "logs").mkdir()
+        (path / "logs" / "latest.log").write_text("[10:00:00] Done (1s)!\n")
+        runner = sl.Runner(sid)
+        self.assertTrue(runner.reattach())
+        self.assertEqual((runner.state, runner.adopted), ("running", True))
+        self.assertTrue(any("Reconectado" in line for line in runner.lines))
+        with self.assertRaises(RuntimeError):
+            runner.send("list")
+        with open(path / "logs" / "latest.log", "a") as log:
+            log.write("[10:00:05] Alex joined the game\n")
+        end = time.monotonic() + 5
+        while not any("Alex joined" in line for line in runner.lines) and time.monotonic() < end:
+            time.sleep(0.1)
+        self.assertTrue(any("Alex joined" in line for line in runner.lines))
+        runner.stop()
+        end = time.monotonic() + 15
+        while runner.state != "stopped" and time.monotonic() < end:
+            time.sleep(0.1)
+        self.assertEqual(runner.state, "stopped")
+        self.assertIsNotNone(child.wait(5))
+        self.assertFalse((path / "nova-server.pid").exists())
+
+    def test_a_reused_pid_is_never_adopted_or_signalled(self):
+        sid, path = self.make()
+        motor.save(path / "nova-server.pid", {"pid": sl.os.getpid(), "start": 12345})  # same PID, other start time
+        runner = sl.Runner(sid)
+        self.assertFalse(runner.reattach())
+        self.assertEqual(runner.state, "stopped")
+        self.assertFalse((path / "nova-server.pid").exists())
+
+    def test_restart_waits_for_a_port_that_is_still_closing(self):
+        runner = sl.Runner("0123456789ab")
+        attempts = []
+
+        def start():
+            attempts.append(1)
+            if len(attempts) < 3:
+                raise RuntimeError("El puerto 25565 lo está usando otro programa")
+        runner.start = start
+        with mock.patch.object(sl.time, "sleep"):
+            runner._start_again()
+        self.assertEqual(len(attempts), 3)
+        errors = []
+        runner.listeners.append(lambda kind, payload: errors.append(kind))
+        runner.start = mock.Mock(side_effect=RuntimeError("Hay que aceptar el EULA"))
+        runner._start_again()
+        self.assertEqual(runner.start.call_count, 1)
+        self.assertEqual(errors, ["error"])
+
+
+def subprocess_run_and_wait():
+    import subprocess
+    process = subprocess.Popen([sys.executable, "-c", "pass"])
+    process.wait()
+    return process.pid
+
+
 class RunnerTests(Base):
     def setUp(self):
         super().setUp()

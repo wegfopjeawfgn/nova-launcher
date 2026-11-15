@@ -217,6 +217,10 @@ def free_port(port, others=()):
     if port in others:
         return False
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        if os.name != "nt":
+            # Like Java does: connections closed a moment ago (TIME_WAIT) must not make the port look taken. Not on
+            # Windows, where this flag would let the probe bind a port someone else is listening on.
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             probe.bind(("0.0.0.0", port))
         except OSError:
@@ -393,6 +397,69 @@ def launch_command(meta, path, java):
     return [str(java), f"-Xmx{int(meta['memory'])}G", f"-Xms{min(int(meta['memory']), 2)}G", "-jar", "server.jar", "nogui"]
 
 
+# ---------------------------------------------------------------- procesos
+def process_start(pid):
+    """A value that identifies this exact process (its start time), or None when it is not running.
+
+    Used to recognise a server that kept running after Nova closed, without ever trusting a bare PID that the
+    system may have given to some other program."""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return None
+    if pid <= 0:
+        return None
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.windll.kernel32
+        handle = kernel.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return None
+        try:
+            created, exited, kernel_time, user_time = (wintypes.FILETIME() for _ in range(4))
+            code = wintypes.DWORD()
+            if not kernel.GetProcessTimes(handle, ctypes.byref(created), ctypes.byref(exited), ctypes.byref(kernel_time),
+                                          ctypes.byref(user_time)):
+                return None
+            if kernel.GetExitCodeProcess(handle, ctypes.byref(code)) and code.value != 259:  # 259 = STILL_ACTIVE
+                return None
+            return (created.dwHighDateTime << 32) | created.dwLowDateTime
+        finally:
+            kernel.CloseHandle(handle)
+    try:
+        with open(f"/proc/{pid}/stat", "rb") as handle:
+            fields = handle.read().rsplit(b")", 1)[1].split()
+        return None if fields[0] == b"Z" else int(fields[19])
+    except (OSError, IndexError, ValueError):
+        pass
+    try:  # macOS and other systems without /proc
+        result = subprocess.run(["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() or None
+
+
+def _pid_file(path):
+    return path / "nova-server.pid"
+
+
+def _write_pid(path, pid):
+    start = process_start(pid)
+    if start is not None:
+        motor.save(_pid_file(path), {"pid": pid, "start": start})
+
+
+def _tail_lines(file, count=200):
+    try:
+        with file.open("rb") as handle:
+            size = handle.seek(0, 2)
+            handle.seek(max(0, size - 60_000))
+            return handle.read().decode("utf-8", errors="replace").splitlines()[-count:]
+    except OSError:
+        return []
+
+
 class Runner:
     """One server process: start, command, stop, restart and a rolling copy of its console."""
 
@@ -402,6 +469,8 @@ class Runner:
         self.lines = collections.deque(maxlen=3000)
         self.listeners = []              # called from worker threads: listener(kind, payload)
         self.process = None
+        self.pid = None
+        self.adopted = False             # True when the server was already running when Nova opened
         self.lock = threading.RLock()
         self._restart = False
 
@@ -428,7 +497,7 @@ class Runner:
                 raise EulaError("Hay que aceptar el EULA de Mojang para encender el servidor.")
             port = int(read_properties(path).get("server-port", meta["port"]))
             if not free_port(port):
-                raise RuntimeError(f"El puerto {port} ya está en uso. Cambialo en Ajustes o cerrá lo que lo usa.")
+                raise RuntimeError(f"El puerto {port} lo está usando otro programa (¿otro servidor?). Cerralo o cambiá el puerto en Ajustes.")
             java = ensure_java(meta, status)
             flags = {}
             if os.name == "nt":
@@ -438,6 +507,8 @@ class Runner:
             self.process = subprocess.Popen(launch_command(meta, path, java), cwd=path, stdin=subprocess.PIPE,
                                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                                             encoding="utf-8", errors="replace", bufsize=1, **flags)
+            self.pid = self.process.pid
+            _write_pid(path, self.pid)
             self.lines.append(f"[Nova] Encendiendo «{meta['name']}»…")
             self._set("starting")
             threading.Thread(target=self._read, args=(self.process,), daemon=True).start()
@@ -457,22 +528,117 @@ class Runner:
                 pass
         with self.lock:
             self.process = None
+            self.pid = None
+            _pid_file(folder(self.sid)).unlink(missing_ok=True)
             note = f"[Nova] El servidor se apagó (código {code})."
             self.lines.append(note)
             self._emit("line", note)
             self._set("stopped")
             again, self._restart = self._restart, False
         if again:
+            self._start_again()
+
+    def _start_again(self):
+        """Restart after a stop; the port can take a moment to free up, so try a few times before giving up."""
+        for attempt in range(4):
             try:
                 self.start()
+                return
+            except RuntimeError as error:
+                if "puerto" in str(error) and attempt < 3:
+                    time.sleep(1.5)
+                    continue
+                self._emit("error", str(error))
+                return
             except Exception as error:
                 self._emit("error", str(error))
+                return
+
+    # ---- servidor que siguió encendido cuando Nova se cerró
+    def reattach(self):
+        """Take over a server whose process is still alive (checked by PID *and* start time). Returns True if adopted."""
+        with self.lock:
+            if self.state != "stopped":
+                return False
+            path = folder(self.sid)
+            data = motor.read(_pid_file(path), None)
+            alive = (isinstance(data, dict) and isinstance(data.get("pid"), int) and data.get("start") is not None
+                     and process_start(data["pid"]) == data["start"])
+            if not alive:
+                _pid_file(path).unlink(missing_ok=True)
+                return False
+            self.pid, self.adopted = data["pid"], True
+            self.lines.clear()
+            self.lines.extend(_tail_lines(path / "logs" / "latest.log"))
+            self.lines.append("[Nova] Reconectado con un servidor que seguía encendido. Podés ver el registro y apagarlo; "
+                              "para mandar comandos, reinicialo desde Nova.")
+            self._set("running")
+            threading.Thread(target=self._watch, args=(data["pid"], data["start"]), daemon=True).start()
+            return True
+
+    def _watch(self, pid, start):
+        """Follow the server's own log and notice when the process ends."""
+        log = folder(self.sid) / "logs" / "latest.log"
+        try:
+            position = log.stat().st_size
+        except OSError:
+            position = 0
+        while process_start(pid) == start:
+            try:
+                size = log.stat().st_size
+                if size < position:
+                    position = 0
+                if size > position:
+                    with log.open("rb") as handle:
+                        handle.seek(position)
+                        chunk = handle.read(size - position)
+                    position += len(chunk)
+                    for line in chunk.decode("utf-8", errors="replace").splitlines():
+                        self.lines.append(line)
+                        self._emit("line", line)
+            except OSError:
+                pass
+            time.sleep(0.6)
+        with self.lock:
+            self.pid, self.adopted = None, False
+            _pid_file(folder(self.sid)).unlink(missing_ok=True)
+            note = "[Nova] El servidor se apagó."
+            self.lines.append(note)
+            self._emit("line", note)
+            self._set("stopped")
+            again, self._restart = self._restart, False
+        if again:
+            self._start_again()
+
+    def _stop_adopted(self, wait):
+        pid, start = self.pid, process_start(self.pid)
+        self._set("stopping")
+
+        def escalate():
+            import signal
+            for force, grace in ((False, wait), (True, 10)):
+                if process_start(pid) != start:  # already gone, or the PID now belongs to something else
+                    return
+                try:
+                    if os.name == "nt":
+                        subprocess.run(["taskkill", "/PID", str(pid)] + (["/F"] if force else []), capture_output=True, timeout=15)
+                    else:
+                        os.kill(pid, signal.SIGKILL if force else signal.SIGTERM)  # SIGTERM makes the server save the world
+                except (OSError, subprocess.SubprocessError):
+                    return
+                end = time.monotonic() + grace
+                while time.monotonic() < end and process_start(pid) == start:
+                    time.sleep(0.3)
+        threading.Thread(target=escalate, daemon=True).start()
 
     def send(self, command):
         command = command.strip().lstrip("/")
         if not command or "\n" in command or len(command) > 500:
             return
         with self.lock:
+            if self.adopted:
+                raise RuntimeError("Este servidor siguió encendido cuando Nova se cerró: no se le pueden mandar comandos hasta "
+                                   "reiniciarlo desde Nova.")
             if self.process is None or self.state not in ("starting", "running"):
                 raise RuntimeError("El servidor está apagado.")
             try:
@@ -484,6 +650,9 @@ class Runner:
     def stop(self, wait=45):
         """Ask nicely with the server's own ``stop`` (it saves the world), then terminate, then kill."""
         with self.lock:
+            if self.adopted and self.state not in ("stopped", "stopping"):
+                self._stop_adopted(wait)
+                return
             process = self.process
             if process is None or self.state in ("stopped", "stopping"):
                 return
@@ -523,6 +692,18 @@ RUNNERS = {}
 def runner(sid):
     folder(sid)  # validates the id
     return RUNNERS.setdefault(sid, Runner(sid))
+
+
+def adopt_all():
+    """Reconnect with every server that is still running from a previous Nova session; returns their ids."""
+    adopted = []
+    for meta in all_servers():
+        try:
+            if runner(meta["id"]).reattach():
+                adopted.append(meta["id"])
+        except (OSError, ValueError):
+            continue
+    return adopted
 
 
 def running():

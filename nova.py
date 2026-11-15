@@ -25,6 +25,7 @@ import estadisticas
 import i18n
 import inicio
 import respaldos
+import servidor_local
 import tiempo
 import uso
 from widgets import (resolution_field, instance_art, hero_art, enter, label, button, feature_button,
@@ -311,6 +312,7 @@ class Nova(
         self.refresh()
         self.apply_theme()
         self.window.present()
+        servidor_local.adopt_all()
         self.refresh_nova()
         GLib.timeout_add_seconds(30, self.auto_backup)
         self.versions = motor.read(motor.ROOT / "versions.json", [])
@@ -1371,8 +1373,8 @@ class Nova(
         if instance.get("resolution", "default") == "default":
             instance["resolution"] = self.preferences["resolution"]
         behavior = self.preferences["launch_behavior"]
-        if os.name == "nt" and behavior == "close":
-            behavior = "minimize"
+        if os.name == "nt" and behavior == "close" or behavior == "close" and servidor_local.running():
+            behavior = "minimize"  # closing Nova would leave a running server without control
         if self.preferences["console"] and behavior != "close":
             self.open_log(folder)
         self.busy = True
