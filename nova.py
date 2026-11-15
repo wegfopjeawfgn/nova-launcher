@@ -26,6 +26,7 @@ import i18n
 import inicio
 import respaldos
 import tiempo
+import uso
 from widgets import (resolution_field, instance_art, hero_art, enter, label, button, feature_button,
                      content_tile, stat_tile, default_cover, HERE)
 from vistas_cuentas import CuentasMixin
@@ -313,8 +314,47 @@ class Nova(
         threading.Thread(target=self.load_versions, daemon=True).start()
         if self.preferences.get("release_repo", self.release_repo):
             self.check_release()
+        self.usage_count()
 
+    def usage_count(self):
+        """Ask once whether to join the anonymous usage count; if yes, send at most one ping a day."""
+        if self.preferences.get("usage") is None:
+            GLib.timeout_add_seconds(3, self.ask_usage)
+        elif self.preferences["usage"]:
+            ping = uso.due()
+            if ping:
+                threading.Thread(target=uso.send, args=(ping,), daemon=True).start()
 
+    def ask_usage(self):
+        dialog = Gtk.Dialog(title="Contar esta instalación", transient_for=self.window, modal=True, default_width=460)
+        dialog.add_button("No, gracias", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Sí, contar", Gtk.ResponseType.OK).add_css_class("primary")
+        box = dialog.get_content_area()
+        box.add_css_class("menu")
+        box.set_spacing(10)
+        box.append(label("¿Ayudás a contar cuánta gente usa Nova?", "subheading"))
+        for text in ("Una vez al día Nova envía un número al azar, su versión y tu sistema (Linux o Windows). "
+                     "Nada más: ni tu nombre, ni tu cuenta, ni tus instancias.",
+                     "Podés cambiarlo cuando quieras en Ajustes."):
+            line = label(text, "muted")
+            line.set_wrap(True)
+            box.append(line)
+
+        def respond(_, response):
+            dialog.destroy()
+            self.set_usage(response == Gtk.ResponseType.OK)
+
+        dialog.connect("response", respond)
+        dialog.present()
+        return False
+
+    def set_usage(self, enabled):
+        self.preferences = {**self.preferences, "usage": enabled}
+        motor.save(motor.ROOT / "settings.json", self.preferences)
+        if enabled:
+            self.usage_count()
+        else:
+            uso.forget()
 
     def create_shortcut(self, folder, name):
         try:
@@ -811,8 +851,9 @@ class Nova(
             ("alphabetical", "Ordenar por nombre", "Si no, se muestran en el orden de creación."),
             ("console", "Abrir la consola al iniciar", "Útil para depurar mods."),
             ("beta", "Versiones beta de Nova", "Pruebas anticipadas, pueden tener errores."),
+            ("usage", "Contar esta instalación", "Envía una vez al día un número al azar, la versión y el sistema. Nada más."),
         ):
-            control = Gtk.Switch(active=self.preferences[key], valign=Gtk.Align.CENTER)
+            control = Gtk.Switch(active=bool(self.preferences.get(key)), valign=Gtk.Align.CENTER)
             control.update_property([Gtk.AccessibleProperty.LABEL], [title])
             toggles[key] = control
             row = Gtk.Box(spacing=12, css_classes=["opt-row"])
@@ -870,6 +911,8 @@ class Nova(
                                 **{key: control.get_active() for key, control in toggles.items()}}
                     motor.save(motor.ROOT / "settings.json", settings)
                     self.preferences = settings
+                    if not settings["usage"]:
+                        uso.forget()
                     self.apply_theme()
                     self.refresh()
                     self.check_release()

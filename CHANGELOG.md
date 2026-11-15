@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.8.2
+- **Contar instalaciones (opcional)**: la primera vez, Nova pregunta si querés ayudar a contar cuánta gente lo usa. Si
+  aceptás, una vez al día envía un número al azar, la versión y el sistema (Linux o Windows). Nada más. Se cambia en
+  Ajustes > «Contar esta instalación»; al apagarlo se borra ese número. Está apagado hasta que digas que sí.
+
 ## 1.8.1
 - **Más rápido al abrir**: preparar el comando de Minecraft ya no lanza un proceso `file` por cada biblioteca del juego
   (unos 95 en un modpack grande): la arquitectura del sistema se consulta una sola vez. En una instancia NeoForge con
