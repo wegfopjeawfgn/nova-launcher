@@ -52,21 +52,21 @@
       <div class="wrap hero-grid">
         <div class="hero-copy">
           <div class="badge-row">
-            <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.11.0</b></p>
+            <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.12.0</b></p>
           <a class="badge badge-link" href="#roblox"><span aria-hidden="true"></span> Nuevo · Roblox</a>
           <a class="badge badge-link" href="#servidor"><span aria-hidden="true"></span> Nuevo · Mi servidor</a>
           </div>
           <h1 id="titulo">Tus mods.<br>Tus mundos.<br><em>Un solo launcher.</em></h1>
           <p class="intro">Nova Launcher organiza tus instancias de Minecraft Java: instalá mods, importá los que ya tenés, guardá respaldos verificados y armá tu propio servidor para jugar con amigos. Y si también jugás Roblox, lo abrís desde el mismo lugar.</p>
           <div class="actions">
-            <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.11.0-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
+            <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.12.0-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
             <div class="windows-download" id="windows-download">
-              <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.11.0/nova-launcher-1.11.0-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
+              <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.12.0/nova-launcher-1.12.0-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
             </div>
           </div>
           <p class="download-meta">Comprobá cada archivo con su suma:
-            <a id="release-checksum" href="descargas/nova-launcher-1.11.0-1.noarch.rpm.sha256" download>SHA-256 del RPM</a> ·
-            <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.11.0/nova-launcher-1.11.0-windows-x64-setup.exe.sha256">SHA-256 del instalador</a>
+            <a id="release-checksum" href="descargas/nova-launcher-1.12.0-1.noarch.rpm.sha256" download>SHA-256 del RPM</a> ·
+            <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.12.0/nova-launcher-1.12.0-windows-x64-setup.exe.sha256">SHA-256 del instalador</a>
           </p>
         </div>
         <figure class="shot hero-shot">
@@ -89,18 +89,20 @@
     <section class="section wrap import" id="roblox" aria-labelledby="roblox-titulo">
       <div class="copy reveal">
         <h2 id="roblox-titulo">Minecraft y Roblox, en un solo launcher</h2>
-        <p>Al abrir Nova elegís a qué querés jugar. Con Roblox explorás los juegos del momento y entrás directo al que elijas, sin pasar por el navegador.</p>
+        <p>Al abrir Nova elegís a qué querés jugar. Con Roblox explorás los juegos del momento, entrás directo al que elijas y te unís a tus amigos, sin pasar por el navegador.</p>
         <dl class="kinds">
-          <div><dt>Explorar</dt><dd>Tendencias, Más jugados, Emergentes y Con amigos</dd></div>
+          <div><dt>Explorar</dt><dd>Tendencias, Más jugados, Emergentes y En grupo</dd></div>
           <div><dt>Buscar</dt><dd>por nombre, o pegando el enlace de un juego de roblox.com</dd></div>
           <div><dt>Jugar</dt><dd>abre ese juego con Sober en Linux, o con el cliente oficial en Windows y Mac</dd></div>
+          <div><dt>Amigos</dt><dd>una fila arriba con tus amigos: tocás uno para unirte a su partida</dd></div>
           <div><dt>Tuyos</dt><dd>favoritos con una estrella y los últimos juegos que abriste</dd></div>
         </dl>
         <ul class="checks">
           <li>Nova no pide ni ve tu contraseña de Roblox: iniciás sesión en Sober o en el cliente oficial.</li>
-          <li>No muestra tus amigos ni quién está conectado, porque eso necesita tu sesión de Roblox.</li>
+          <li>La lista de amigos la armás vos, por nombre de usuario: Nova no lee tu cuenta de Roblox ni sabe quién está conectado. Roblox decide si podés unirte.</li>
+          <li>Si un juego es de pago, el botón muestra su precio; Nova no sabe si ya lo tenés.</li>
           <li>En Linux hace falta Sober, un cliente no oficial; Nova te avisa si no lo encuentra.</li>
-          <li>Probado en Fedora con Sober. En Windows y Mac todavía no se probó de punta a punta.</li>
+          <li>Probado en Fedora con Sober. Unirse a un amigo y Windows y Mac todavía no se probaron de punta a punta.</li>
         </ul>
       </div>
       <div class="shots">
@@ -109,12 +111,12 @@
           <figcaption>La pantalla de inicio. Podés recordar tu elección.</figcaption>
         </figure>
         <figure class="shot reveal">
-          <img src="assets/nova-roblox.webp" width="1280" height="820" loading="lazy" alt="Pantalla de Roblox en Nova con pestañas Tendencias, Más jugados, Emergentes, Con amigos, Favoritos y Recientes, un buscador y una grilla de juegos con botón Jugar">
-          <figcaption>Juegos reales de Roblox al momento de la captura.</figcaption>
+          <img src="assets/nova-roblox-amigos.webp" width="1280" height="820" loading="lazy" alt="Pantalla de Roblox en Nova con el buscador arriba, la fila de amigos con sus avatares, las pestañas de categorías y una grilla de juegos con botón Jugar">
+          <figcaption>La fila de amigos arriba. Amigos de ejemplo y juegos reales de Roblox.</figcaption>
         </figure>
         <figure class="shot reveal">
-          <img src="assets/nova-roblox-favoritos.webp" width="1280" height="820" loading="lazy" alt="Pestaña Favoritos de Roblox en Nova con seis juegos marcados con una estrella">
-          <figcaption>Favoritos con estrella. Juegos reales de Roblox.</figcaption>
+          <img src="assets/nova-roblox-pago.webp" width="1280" height="820" loading="lazy" alt="Juegos de Roblox en Nova; uno de pago tiene el botón De pago con su precio en Robux">
+          <figcaption>Un juego de pago muestra su precio. Juegos reales de Roblox.</figcaption>
         </figure>
       </div>
     </section>
@@ -320,10 +322,10 @@
       </div>
       <div class="terminal">
         <span>Si el archivo está en Descargas</span>
-        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-1.11.0-1.noarch.rpm"</code></pre>
+        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-1.12.0-1.noarch.rpm"</code></pre>
         <button type="button" data-copy-command="install-downloads" hidden>Copiar comando para Descargas</button>
         <span>Si ya estás en la carpeta del archivo</span>
-        <pre><code id="install-current">sudo dnf install ./nova-launcher-1.11.0-1.noarch.rpm</code></pre>
+        <pre><code id="install-current">sudo dnf install ./nova-launcher-1.12.0-1.noarch.rpm</code></pre>
         <button type="button" data-copy-command="install-current" hidden>Copiar comando para esta carpeta</button>
         <p id="copy-status" role="status"></p>
         <p>RPM sin firma. El primer arranque de Minecraft descarga los archivos del juego.</p>
@@ -338,7 +340,7 @@
       </details>
       <details>
         <summary>¿Puedo jugar Roblox desde Nova?</summary>
-        <p>Nova abre el juego que elijas con el cliente de Roblox; no corre Roblox por su cuenta. En Linux usa Sober, un cliente no oficial que tenés que instalar; en Windows y Mac usa el cliente oficial. Iniciás sesión ahí: Nova no pide ni ve tu contraseña. Todavía solo se probó en Fedora con Sober.</p>
+        <p>Nova abre el juego que elijas, o la partida de un amigo de tu lista, con el cliente de Roblox; no corre Roblox por su cuenta. En Linux usa Sober, un cliente no oficial que tenés que instalar; en Windows y Mac usa el cliente oficial. Iniciás sesión ahí: Nova no pide ni ve tu contraseña. Todavía solo se probó en Fedora con Sober.</p>
       </details>
       <details>
         <summary>¿«Mi servidor» es un hosting gratis?</summary>
