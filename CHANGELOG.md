@@ -1,6 +1,6 @@
 # Cambios
 
-## Próxima versión
+## 1.9.0
 - **Mi servidor**: creá y manejá servidores de Minecraft Java en tu computadora, sin salir de Nova. Elegís Paper (plugins),
   Fabric (mods) o Vanilla y la versión; Nova descarga el servidor y el Java que necesita (comprobando el hash cuando el
   proveedor lo publica) y te pide aceptar el EULA de Mojang: nunca lo acepta por vos. Encender, apagar (con `stop`, que guarda
