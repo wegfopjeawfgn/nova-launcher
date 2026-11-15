@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.12.0
+- **Unirte a tus amigos en Roblox**: arriba de la pantalla de Roblox hay una fila de amigos, como en Roblox. Los agregás con su nombre de
+  usuario (un «+» y listo) y, al tocar uno, Nova abre Roblox con el enlace oficial para unirte a su partida. Nova no puede leer tu lista
+  de amigos de Roblox ni saber quién está conectado (eso necesita tu sesión), así que la lista la armás vos y Roblox decide si podés
+  entrar. Todavía no se probó con un amigo real.
+- **Juegos de pago**: el botón muestra «De pago · R$ precio». Nova no sabe si ya lo tenés; si hace falta, Roblox te pide comprarlo.
+- **Buscador arriba**: en Roblox, el buscador de la barra superior busca juegos o acepta un enlace, igual que en Minecraft busca instancias.
+- **Botones y detalles**: botones más claros (con foco visible al usar el teclado), pestañas en píldora, estrellas más grandes, el porcentaje
+  de aprobación de cada juego y Nova recuerda la última pestaña. La categoría «Con amigos» pasó a llamarse «En grupo». En Roblox ya no se ven
+  la cuenta de Minecraft ni el panel lateral. La lista de juegos conserva su posición mientras cargan los íconos.
+
 ## 1.11.0
 - **Elegí a qué jugar**: al abrir Nova aparece «¿A qué querés jugar?» con **Minecraft** y **Roblox**, cada uno con su portada. Con
   «Recordar mi elección» entra directo la próxima vez, y «Cambiar de juego» vuelve a la pantalla de selección. Todo lo de Minecraft
