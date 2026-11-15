@@ -1,5 +1,22 @@
 # Cambios
 
+## 1.9.3
+- **Respaldos del mundo**: nueva sección Respaldos en cada servidor. Respaldos automáticos cada tantas horas (con el servidor
+  encendido Nova le pide que guarde el mundo, lo copia y lo deja guardando de nuevo), también al apagar si querés, y se
+  conservan los últimos que elijas (los manuales nunca se borran solos). Podés crear uno ahora, **restaurar** cualquiera
+  (antes Nova guarda una copia del mundo actual, así que se puede deshacer), guardar una copia fuera y eliminar.
+- **Jugadores y permisos**: sección Jugadores con quién está conectado, operadores, lista blanca y baneados, con botones en vez
+  de comandos. Con el servidor encendido se aplica al instante; apagado edita los archivos del servidor buscando el UUID en
+  Mojang (o calculándolo si el servidor no exige cuenta original). También podés expulsar a un jugador conectado.
+- **Estado y rendimiento**: sección Estado en vivo con el tiempo encendido, jugadores conectados, memoria y procesador que
+  usa el servidor, tamaño del mundo y puerto.
+- **Actualizar el servidor**: en Ajustes, «Versión del servidor» busca una compilación nueva de la misma versión de Minecraft
+  y las versiones nuevas disponibles, y actualiza sin perder el mundo: respalda antes, verifica la descarga y deja el
+  `server.jar` anterior como `server.jar.old`. No permite volver a una versión anterior (un mundo no abre en una más vieja).
+  Para Forge reinstala con su instalador.
+- Los servidores nuevos guardan la compilación instalada para poder avisar si hay una más nueva.
+- Un servidor Forge usa siempre su propia carpeta de bibliotecas aunque haya quedado una instalación anterior.
+
 ## 1.9.2
 - **Reiniciar un servidor ya no falla**: Nova lo encendía de nuevo apenas se apagaba y a veces el puerto seguía «ocupado» por
   conexiones recién cerradas (el sistema las retiene hasta un minuto), así que decía que no se podía. Ahora esas conexiones no

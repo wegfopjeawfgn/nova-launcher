@@ -131,6 +131,7 @@ def main():
             return False
         name, prepare, wait = scenes[state["index"]]
         state["index"] += 1
+        app.page_stack.set_transition_duration(0)   # a window that is not in front draws no animation frames
         try:
             prepare()
         except Exception:  # keep going: one broken scene must not stop the others
@@ -144,7 +145,16 @@ def main():
             if name == "menu" and state["popover"] is not None:
                 dialog = state["popover"]
                 dialog.destroy = lambda: None
-            snapshot(dialog or target, out / f"{name}.png")
+            app.window.present()   # a window that is not in front may not draw its frames
+            try:
+                snapshot(dialog or target, out / f"{name}.png")
+            except TypeError:  # the window had not been drawn yet: wait a moment and try again, up to three times
+                state["tries"] = state.get("tries", 0) + 1
+                if state["tries"] < 4:
+                    GLib.timeout_add(1500, shoot)
+                    return False
+                print("no se pudo capturar", name)
+            state["tries"] = 0
             if name == "soltar":
                 app.window.get_child().get_last_child().set_visible(False)
             if dialog:
@@ -183,6 +193,19 @@ def find_widget(root, test):
     return None
 
 
+def no_animations(root):
+    """Every Gtk.Stack under ``root`` switches at once: a window that is not in front draws no animation frames."""
+    walk = [root]
+    while walk:
+        widget = walk.pop()
+        if isinstance(widget, Gtk.Stack):
+            widget.set_transition_duration(0)
+        child = widget.get_first_child()
+        while child:
+            walk.append(child)
+            child = child.get_next_sibling()
+
+
 def local_demo():
     """A made-up local server (no download) so the Mi servidor screens have something to show."""
     import servidor_local as sl
@@ -205,6 +228,16 @@ def local_demo():
                          "[10:32:04 INFO]: Loading properties", "[10:32:09 INFO]: Done (7.842s)! For help, type \"help\"",
                          "[10:33:12 INFO]: Alex joined the game", "> whitelist add Sofi", "[10:33:20 INFO]: Added Sofi to the whitelist"])
     runner.state = "running"
+    runner.pid, runner.started_at, runner.online = os.getpid(), time.time() - 8100, {"Alex", "Sofi", "Mati"}
+    (path / "ops.json").write_text('[{"uuid": "1", "name": "Alex", "level": 4, "bypassesPlayerLimit": false}]')
+    (path / "whitelist.json").write_text('[{"uuid": "2", "name": "Sofi"}, {"uuid": "3", "name": "Mati"}, {"uuid": "4", "name": "Alex"}]')
+    (path / "banned-players.json").write_text('[{"uuid": "5", "name": "Troll99", "created": "x", "source": "Nova", "expires": "forever", "reason": "x"}]')
+    import zipfile
+    (path / "backups").mkdir(exist_ok=True)
+    for index, name in enumerate(("auto-2026-11-15-120000.zip", "auto-2026-11-15-060000.zip", "mundo-2026-11-14-221500.zip", "antes-2026-11-14-190000.zip")):
+        with zipfile.ZipFile(path / "backups" / name, "w") as archive:
+            archive.writestr("world/level.dat", "x" * (900_000 + index * 150_000))
+        os.utime(path / "backups" / name, (time.time() - 3600 * (index * 7 + 1),) * 2)
     return sid
 
 
@@ -300,9 +333,11 @@ def scene_list(app, state):
             app.leave_page()
             app.show_local_servers()
             window = app.current_page[1]
+            no_animations(window)
             opener = find_widget(window, lambda w: isinstance(w, Gtk.Button) and w.get_label() == "Abrir")
             opener.emit("clicked")
-            section = ("Consola", "Ajustes", "Archivos", "Plugins", "Amigos")[tab]
+            no_animations(window)
+            section = ("Consola", "Estado", "Jugadores", "Archivos", "Plugins", "Respaldos", "Amigos", "Ajustes")[tab]
             find_widget(window, lambda w: isinstance(w, Gtk.Button) and w.get_label() == section).emit("clicked")
             if folder:
                 go = find_widget(window, lambda w: isinstance(w, Gtk.Button) and w.get_label() == folder)
@@ -335,10 +370,13 @@ def scene_list(app, state):
         ("modpacks", modpacks, 5000),
         ("servidor-lista", local_list, 900),
         ("servidor-consola", local_detail(0), 900),
-        ("servidor-ajustes", local_detail(1), 900),
-        ("servidor-archivos", local_detail(2, "Plugins"), 900),
-        ("servidor-catalogo", local_detail(3), 6000),
-        ("servidor-amigos", local_detail(4), 2500),
+        ("servidor-ajustes", local_detail(7), 2500),
+        ("servidor-archivos", local_detail(3), 2500),
+        ("servidor-catalogo", local_detail(4), 6000),
+        ("servidor-amigos", local_detail(6), 2500),
+        ("servidor-estado", local_detail(1), 4500),
+        ("servidor-jugadores", local_detail(2), 2500),
+        ("servidor-respaldos", local_detail(5), 2500),
         ("servidor-crear", local_create, 3500),
         ("mods", mods, 700),
         ("nueva", add, 700),
