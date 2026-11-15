@@ -383,14 +383,24 @@ spinbutton text, entry text { color: @nova_text; }
 .seg button.seg-button.seg-active { background: @nova_accent_dim; color: @nova_accent_hover; border-color: @nova_accent_line; }
 
 /* Game chooser and Roblox screen */
-.game-tab { background: transparent; border: none; box-shadow: none; padding: 6px 12px; color: @nova_muted; border-radius: 8px; }
+.game-tab { background: transparent; border: 1px solid transparent; box-shadow: none; padding: 7px 14px; color: @nova_muted; border-radius: 999px; font-weight: 500; transition: background-color 150ms ease-out, color 150ms ease-out; }
 .game-tab:hover { background: @nova_control; color: @nova_text; }
-.game-tab.active { color: @nova_accent; background: @nova_accent_dim; }
+.game-tab.active { color: @nova_accent; background: @nova_accent_dim; border-color: @nova_accent_line; }
 .game-card { background: @nova_surface; border: 1px solid @nova_border; border-radius: 14px; padding: 10px 10px 12px; }
 .game-card:hover { border-color: @nova_border_strong; background: @nova_raised; }
 .game-card .card-label { padding: 6px 2px 0; font-size: 14px; }
 .game-card .card-meta { padding: 0 2px 4px; }
-.game-play { background: @nova_control; border: 1px solid @nova_border_strong; color: @nova_text; font-weight: 650; border-radius: 10px; padding: 7px 0; }
+.game-play { background: @nova_accent_dim; border: 1px solid @nova_accent_line; color: @nova_accent; font-weight: 650; border-radius: 10px; padding: 8px 0; box-shadow: none; transition: background-color 150ms ease-out, color 150ms ease-out; }
 .game-play:hover { background: @nova_accent; border-color: @nova_accent; color: #06161b; }
-.game-star { background: rgba(7, 8, 11, 0.72); border: none; border-radius: 999px; padding: 5px; margin: 6px; min-width: 28px; min-height: 28px; color: #eef0f5; }
+.game-play:active { background: @nova_accent_hover; }
+.game-play:focus-visible, .game-tab:focus-visible, .friend-chip:focus-visible { outline: 2px solid @nova_accent; outline-offset: 2px; }
+.game-star { background: rgba(7, 8, 11, 0.72); border: none; border-radius: 999px; padding: 6px; margin: 6px; min-width: 30px; min-height: 30px; color: #eef0f5; }
 .game-star:hover { background: rgba(7, 8, 11, 0.9); }
+.friend-chip { background: transparent; border: none; box-shadow: none; padding: 6px; border-radius: 14px; min-width: 76px; }
+.friend-chip:hover { background: @nova_control; }
+.friend-avatar { border-radius: 999px; background: @nova_surface; border: 1px solid @nova_border_strong; }
+.game-star { min-width: 20px; min-height: 20px; padding: 2px; margin: 2px; }
+.roblox-back { background: @nova_control; border: 1px solid @nova_border_strong; color: @nova_text; border-radius: 10px; padding: 6px 12px; }
+.roblox-back:hover { background: @nova_hover; }
+.game-play.paid { background: transparent; border-color: @nova_border_strong; color: @nova_text; }
+.game-play.paid:hover { background: @nova_accent; border-color: @nova_accent; color: #06161b; }

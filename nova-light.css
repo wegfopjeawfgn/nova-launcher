@@ -59,3 +59,6 @@ button.play-button { box-shadow: 0 8px 22px rgba(14, 116, 144, 0.3); }
 .form-status { color: @nova_warm; }
 
 .seg button.seg-button.seg-active { color: #0b5f77; }
+
+.game-play:hover { color: #ffffff; }
+.game-star { background: rgba(255, 255, 255, 0.85); color: #10131a; }
