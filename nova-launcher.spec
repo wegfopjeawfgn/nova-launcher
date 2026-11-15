@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        1.9.3
+Version:        1.9.4
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        GPL-3.0-or-later AND BSD-2-Clause
@@ -44,6 +44,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Sun Nov 15 2026 Nova Launcher <nova@localhost> - 1.9.4-1
+- Microsoft sign-in: on-screen guide for getting an application ID, and room for Nova's own approved ID.
+
 * Sun Nov 15 2026 Nova Launcher <nova@localhost> - 1.9.3-1
 - Local servers: world backups with restore, players and permissions, live status, and server updates.
 

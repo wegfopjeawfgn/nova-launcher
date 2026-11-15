@@ -1,5 +1,12 @@
 # Cambios
 
+## 1.9.4
+- **Conectar Microsoft, con guía**: al tocar «Conectar Microsoft», Nova ahora explica en pantalla cómo conseguir el ID de
+  aplicación de Azure (los pasos, la redirección exacta y el enlace a los registros de aplicaciones) antes de pedirlo. Recordá
+  que Mojang tiene que aprobar esa aplicación para usar los servicios de Minecraft.
+- Nova queda preparado para traer su propio ID aprobado: cuando exista, «Conectar Microsoft» iniciará sesión con un clic y
+  quedará la opción «Conectar con mi propio ID…» para quien prefiera el suyo.
+
 ## 1.9.3
 - **Respaldos del mundo**: nueva sección Respaldos en cada servidor. Respaldos automáticos cada tantas horas (con el servidor
   encendido Nova le pide que guarde el mundo, lo copia y lo deja guardando de nuevo), también al apagar si querés, y se
