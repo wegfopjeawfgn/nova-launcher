@@ -109,6 +109,7 @@ h3 { font-size: 1.15rem; font-weight: 620; letter-spacing: -0.01em; font-variati
 .shot.narrow { max-width: 420px; justify-self: center; }
 .import .shots { display: grid; gap: 20px; justify-items: end; }
 .import .shots .shot { max-width: none; width: 100%; }
+.import .shots .shot.narrow { max-width: 420px; justify-self: end; }
 .rust .shots { display: grid; gap: 20px; justify-items: end; }
 .rust .shot { max-width: none; width: 100%; }
 .rust .shot.small { max-width: 340px; }
