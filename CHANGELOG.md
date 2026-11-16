@@ -1,5 +1,16 @@
 # Cambios
 
+## 1.14.1
+- **Editor de skins renovado**:
+  - Pintás directamente sobre la skin desplegada, con cada parte marcada y su nombre. La capa exterior (sombrero, chaqueta, mangas…) tiene borde punteado.
+  - Vista previa 3D con las dos capas que se gira arrastrando, con modelo clásico o delgado.
+  - Herramientas: lápiz, borrar, gotero y relleno, además de simetría (pinta también el lado opuesto del cuerpo), paleta, colores usados hace poco y deshacer o rehacer (cada trazo es un paso). Atajos: `B`, `E`, `I`, `G`, `M`, `Ctrl + Z`, `Ctrl + S`.
+  - Biblioteca con miniaturas: guardar, guardar como, eliminar (con confirmación) y aviso si cerrás o cambiás de skin con cambios sin guardar.
+- **«De un jugador»**: trae la skin actual de cualquier jugador de Minecraft por su nombre, desde Mojang, para editarla y guardarla como tuya.
+- Las **skins antiguas de 64 × 32** ahora se pueden abrir (Nova completa el brazo y la pierna que faltaban) y detecta si una skin es de modelo delgado. Las de alta resolución se rechazan con un mensaje claro.
+- Arreglos: el borrador ya no deja huecos en la capa base (que se ven negros en el juego), una skin importada ya no cuenta como guardada, y los mensajes de «Equipar» explican qué falta (perfil, instancia, cargador de mods o cuenta de Microsoft, que cambia la skin en minecraft.net).
+- Sin probar: en Windows.
+
 ## 1.14.0
 - **Actualizaciones en segundo plano (opcional)**: en Ajustes → Actualizaciones, «Actualizar Nova en segundo plano». Con eso activado, Nova
   descarga la versión nueva mientras la usás, comprueba su SHA-256 contra el que publica la release y la guarda en su carpeta. Instalarla
