@@ -1,5 +1,14 @@
 # Cambios
 
+## 1.14.0
+- **Actualizaciones en segundo plano (opcional)**: en Ajustes → Actualizaciones, «Actualizar Nova en segundo plano». Con eso activado, Nova
+  descarga la versión nueva mientras la usás, comprueba su SHA-256 contra el que publica la release y la guarda en su carpeta. Instalarla
+  es un clic y no instala nada sola: en Fedora, «Instalar ahora» pide tu autorización al sistema y corre `dnf`; en Windows, «Reiniciar y
+  actualizar» ejecuta el instalador sin ventanas (no pide permisos de administrador) y Nova se abre de nuevo. Justo antes de instalar,
+  Nova vuelve a comprobar el archivo, así que uno cambiado entre la descarga y la instalación se rechaza.
+- La descarga manual de una actualización también ofrece «Instalar ahora» al terminar.
+- Sin probar todavía: la instalación automática en Windows y con una actualización real en Fedora.
+
 ## 1.13.0
 - **Servidores de cada juego (Roblox)**: cada tarjeta tiene un botón «Servidores» con los servidores públicos del juego: cuántos jugadores
   tiene, el ping y su estado (casi vacío, con lugar, casi lleno, lleno). «Unirme» abre Roblox directo en ese servidor; si Roblox lo

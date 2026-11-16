@@ -357,6 +357,30 @@ def scene_list(app, state):
         app.choose_game("roblox", save=False)
         GLib.timeout_add(1500, lambda: app.roblox_servers({"place": 920587237, "name": "Adopt Me!", "universe": None}) or False)
 
+    def settings_scene():
+        app.choose_game("minecraft", save=False)
+        app.global_settings()
+
+        def bottom():
+            def walk(widget):
+                if isinstance(widget, Gtk.ScrolledWindow):
+                    adj = widget.get_vadjustment()
+                    adj.set_value(adj.get_upper())
+                child = widget.get_first_child()
+                while child:
+                    walk(child)
+                    child = child.get_next_sibling()
+            if app.current_page:
+                walk(app.current_page[1])
+            return False
+        GLib.timeout_add(1200, bottom)
+
+    def update_card_scene():
+        app.choose_game("minecraft", save=False)
+        app.release_note.set_text("Listo para instalar · v1.14.0")
+        app.release_card.add_css_class("update")
+        app.leave_page()
+
     def roblox_favs():
         signed()
         games = app.roblox_data.get("top-trending", [])
@@ -414,6 +438,8 @@ def scene_list(app, state):
         ("roblox-favoritos", roblox_favs, 4000),
         ("roblox-amigos", roblox_friends_scene, 4000),
         ("roblox-sesion", roblox_login_scene, 4000),
+        ("ajustes-nova", settings_scene, 2500),
+        ("actualizacion", update_card_scene, 1200),
         ("roblox-servidores", roblox_servers_scene, 5000),
         ("roblox-guia", roblox_guide_scene, 3000),
         ("roblox-pago", roblox_paid_scene, 5000),
