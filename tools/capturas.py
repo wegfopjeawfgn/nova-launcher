@@ -381,6 +381,81 @@ def scene_list(app, state):
         app.release_card.add_css_class("update")
         app.leave_page()
 
+    def skins_scene():
+        import skinlib
+        app.choose_game("minecraft", save=False)
+        app.leave_page()
+        app.open_skins()
+        editor = app.current_page and getattr(app.current_page[0], "editor", None)
+        import skins as skins_module
+        for obj in __import__("gc").get_objects():
+            if isinstance(obj, skins_module.Editor):
+                editor = obj
+        # three made-up skins so the library, the thumbnails and the 3D view have something to show
+        def dress(body, legs, hair):
+            pixels = skinlib.seed()
+            for part, rgb in ((1, body), (2, body), (3, body), (4, legs), (5, legs)):
+                for side in range(6):
+                    u, v, w, h = skinlib.face(part, side)
+                    for y in range(v, v + h):
+                        for x in range(u, u + w):
+                            pixels[(y * 64 + x) * 4:(y * 64 + x) * 4 + 4] = bytes((*rgb, 255))
+            for side in range(6):
+                u, v, w, h = skinlib.face(0, side, overlay=True)
+                for y in range(v, v + h):
+                    for x in range(u, u + w):
+                        if side in (1, 2, 3, 4) or y < v + 3:
+                            pixels[(y * 64 + x) * 4:(y * 64 + x) * 4 + 4] = bytes((*hair, 255))
+            return pixels
+        demo = (("Caballero azul", (52, 101, 190), (40, 48, 90), (60, 40, 30)),
+                ("Mago violeta", (133, 91, 201), (64, 50, 110), (210, 210, 220)),
+                ("Explorador", (96, 140, 70), (92, 70, 48), (120, 80, 40)))
+        for name, body, legs, hair in demo:
+            editor.pixels[:] = dress(body, legs, hair)
+            editor.write(editor.library / editor.profile / f"{name}.png")
+        editor.open_file(editor.library / editor.profile / "Caballero azul.png", library=True)
+        editor.yaw = 0.62
+        editor.invalidate()
+        import os
+        if os.environ.get("NOVA_SKIN_TEST"):
+            def drive():
+                zoom, left, top = editor.geometry(editor.canvas.get_width(), editor.canvas.get_height())
+                def at(col, row):
+                    return left + col * zoom + zoom / 2, top + row * zoom + zoom / 2
+                out = []
+                before = bytes(editor.pixels)
+                editor.pick_tool("pencil"); editor.color.set_rgba(editor.rgba("#ff0000"))
+                editor.stroke_begin(None, *at(10, 10)); editor.apply_at(*at(12, 10)); editor.stroke_end()
+                idx = lambda c, r: (r * 64 + c) * 4
+                out.append(("pencil", bytes(editor.pixels[idx(10, 10):idx(10, 10) + 4]), bytes(editor.pixels[idx(11, 10):idx(11, 10) + 4])))
+                out.append(("history", len(editor.history), editor.dirty))
+                editor.undo(); out.append(("undo", bytes(editor.pixels) == before))
+                editor.redo(); out.append(("redo", bytes(editor.pixels) != before))
+                editor.pick_tool("eraser"); editor.stroke_begin(None, *at(10, 10)); editor.stroke_end()
+                out.append(("erase-base-kept", editor.pixels[idx(10, 10) + 3]))
+                editor.stroke_begin(None, *at(40, 10)); editor.stroke_end()
+                out.append(("erase-overlay", editor.pixels[idx(40, 10) + 3]))
+                editor.pick_tool("fill"); editor.stroke_begin(None, *at(20, 20)); editor.stroke_end()
+                out.append(("fill", bytes(editor.pixels[idx(21, 21):idx(21, 21) + 4])))
+                editor.mirror_button.set_active(True); editor.pick_tool("pencil")
+                editor.stroke_begin(None, *at(9, 9)); editor.stroke_end()
+                other = skinlib.mirror_texel(9, 9)
+                out.append(("mirror", bytes(editor.pixels[idx(*other):idx(*other) + 4])))
+                editor.set_slim(True); out.append(("slim", editor.slim))
+                from pathlib import Path
+                target = editor.library / editor.profile / "Prueba skin.png"
+                out.append(("save", editor.write(target), target.is_file(), editor.dirty, editor.current == target))
+                out.append(("rows", [r.path.name for r in iter(lambda r=[editor.rows.get_first_child()]: r.__setitem__(0, r[0].get_next_sibling()) or r[0], None)] if False else target.name))
+                before_open = bytes(editor.pixels)
+                editor.pick_tool("pencil"); editor.stroke_begin(None, *at(11, 11)); editor.stroke_end()
+                out.append(("dirty-after-edit", editor.dirty))
+                out.append(("reopen", editor.open_file(target, library=True), bytes(editor.pixels) == before_open, editor.dirty, editor.slim))
+                target.unlink()
+                editor.spin(0.6); editor.face_front()
+                print("SKINTEST", out)
+                return False
+            GLib.timeout_add(800, drive)
+
     def roblox_favs():
         signed()
         games = app.roblox_data.get("top-trending", [])
@@ -438,6 +513,7 @@ def scene_list(app, state):
         ("roblox-favoritos", roblox_favs, 4000),
         ("roblox-amigos", roblox_friends_scene, 4000),
         ("roblox-sesion", roblox_login_scene, 4000),
+        ("skins", skins_scene, 2500),
         ("ajustes-nova", settings_scene, 2500),
         ("actualizacion", update_card_scene, 1200),
         ("roblox-servidores", roblox_servers_scene, 5000),
