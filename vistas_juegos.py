@@ -570,7 +570,7 @@ class JuegosMixin:
         box.add_css_class("menu")
         box.set_spacing(8)
         box.append(label("Hace falta registrar una aplicación de Roblox (gratis)", "subheading"))
-        for step in ("1. Entrá al Creator Hub con tu cuenta de Roblox → «Credenciales» → OAuth 2.0 → crear una aplicación.",
+        for step in ("1. Entrá al Creator Hub con tu cuenta de Roblox → «Credenciales» → OAuth 2.0 → crear una aplicación. Roblox te pide antes verificar tu identidad (edad) en la configuración de tu cuenta.",
                      "2. Tipo de cliente: público (sin secreto).",
                      f"3. URL de redirección, exacta: {roblox_cuenta.redirect_uri()}",
                      "4. Permisos: solo «openid» y «profile».",
