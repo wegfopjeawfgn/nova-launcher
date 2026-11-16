@@ -404,3 +404,4 @@ spinbutton text, entry text { color: @nova_text; }
 .roblox-back:hover { background: @nova_hover; }
 .game-play.paid { background: transparent; border-color: @nova_border_strong; color: @nova_text; }
 .game-play.paid:hover { background: @nova_accent; border-color: @nova_accent; color: #06161b; }
+.game-card.gate { padding: 12px; border-radius: 18px; }

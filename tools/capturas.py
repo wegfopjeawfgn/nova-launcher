@@ -325,7 +325,12 @@ def scene_list(app, state):
         import biblioteca
         biblioteca.Browser(app, None, None, "modpack")
 
+    def signed():
+        app.roblox_person = {"id": 156, "name": "alex_demo", "display": "Alex", "picture": ""}
+        app.roblox_loaded = False
+
     def roblox_friends_scene():
+        signed()
         people = [(156, "builderman", "builderman"), (1, "Roblox", "Roblox")]
         app.preferences = {**app.preferences, "roblox_friend_list": [{"id": i, "name": n, "display": d} for i, n, d in people]}
         app.choose_game("roblox", save=False)
@@ -333,11 +338,21 @@ def scene_list(app, state):
         app.roblox_render_friends()
 
     def roblox_paid_scene():
+        signed()
         app.choose_game("roblox", save=False)
         app.roblox_open_tab("fun-with-friends")
         GLib.timeout_add(2500, lambda: app.roblox_scroll.get_vadjustment().set_value(app.roblox_scroll.get_vadjustment().get_upper()) or False)
 
+    def roblox_login_scene():
+        app.roblox_person = None
+        app.choose_game("roblox", save=False)
+
+    def roblox_guide_scene():
+        roblox_login_scene()
+        app.roblox_client_guide(lambda: None)
+
     def roblox_favs():
+        signed()
         games = app.roblox_data.get("top-trending", [])
         app.preferences = {**app.preferences, "roblox_favs": games[:6], "roblox_recent": games[6:12]}
         app.choose_game("roblox", save=False)
@@ -389,9 +404,11 @@ def scene_list(app, state):
 
     return [
         ("juegos", app.show_games, 3500),
-        ("roblox", lambda: app.choose_game("roblox", save=False), 4000),
+        ("roblox", lambda: (signed(), app.choose_game("roblox", save=False)), 4000),
         ("roblox-favoritos", roblox_favs, 4000),
         ("roblox-amigos", roblox_friends_scene, 4000),
+        ("roblox-sesion", roblox_login_scene, 4000),
+        ("roblox-guia", roblox_guide_scene, 3000),
         ("roblox-pago", roblox_paid_scene, 5000),
         ("principal", lambda: app.choose_game("minecraft", save=False), 400),
         ("biblioteca", tall, 900),
