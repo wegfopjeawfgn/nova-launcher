@@ -45,7 +45,7 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 
 %changelog
 * Mon Nov 16 2026 Nova Launcher <nova@localhost> - 1.14.1-1
-- Reworked skin editor: unfolded map with layers, 3D preview, library with thumbnails, skins from a player name.
+- Reworked skin editor, start screen while Minecraft opens and updated in-game loading screen.
 
 * Mon Nov 16 2026 Nova Launcher <nova@localhost> - 1.14.0-1
 - Optional background updates with one-click install (verified SHA-256).
