@@ -52,21 +52,21 @@
       <div class="wrap hero-grid">
         <div class="hero-copy">
           <div class="badge-row">
-            <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.13.0</b></p>
+            <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.14.0</b></p>
           <a class="badge badge-link" href="#roblox"><span aria-hidden="true"></span> Nuevo · Roblox</a>
           <a class="badge badge-link" href="#servidor"><span aria-hidden="true"></span> Nuevo · Mi servidor</a>
           </div>
           <h1 id="titulo">Tus mods.<br>Tus mundos.<br><em>Un solo launcher.</em></h1>
           <p class="intro">Nova Launcher organiza tus instancias de Minecraft Java: instalá mods, importá los que ya tenés, guardá respaldos verificados y armá tu propio servidor para jugar con amigos. Y si también jugás Roblox, lo abrís desde el mismo lugar.</p>
           <div class="actions">
-            <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.13.0-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
+            <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.14.0-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
             <div class="windows-download" id="windows-download">
-              <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.13.0/nova-launcher-1.13.0-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
+              <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.14.0/nova-launcher-1.14.0-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
             </div>
           </div>
           <p class="download-meta">Comprobá cada archivo con su suma:
-            <a id="release-checksum" href="descargas/nova-launcher-1.13.0-1.noarch.rpm.sha256" download>SHA-256 del RPM</a> ·
-            <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.13.0/nova-launcher-1.13.0-windows-x64-setup.exe.sha256">SHA-256 del instalador</a>
+            <a id="release-checksum" href="descargas/nova-launcher-1.14.0-1.noarch.rpm.sha256" download>SHA-256 del RPM</a> ·
+            <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.14.0/nova-launcher-1.14.0-windows-x64-setup.exe.sha256">SHA-256 del instalador</a>
           </p>
         </div>
         <figure class="shot hero-shot">
@@ -304,6 +304,13 @@
           </div>
           <figure class="shot"><img src="assets/nova-plantillas.webp" width="1280" height="820" loading="lazy" alt="Lista de plantillas de instancia: Vanilla, Supervivencia, PvP, Modpacks, Rendimiento, Creativo y Experimentación"><figcaption>Plantillas de instancia</figcaption></figure>
         </div>
+        <div class="row reveal">
+          <div class="copy">
+            <h3>Actualizaciones en segundo plano, si querés</h3>
+            <p>Actívalas en Ajustes. Nova descarga la versión nueva mientras la usás y comprueba su SHA-256; instalarla es un clic y no instala nada sola. Si no las activás, Nova solo te avisa.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-ajustes-actualizar.webp" width="1280" height="820" loading="lazy" alt="Ajustes de Nova, sección Actualizaciones, con el interruptor Actualizar Nova en segundo plano"><figcaption>Ajustes → Actualizaciones</figcaption></figure>
+        </div>
         <div class="row flip reveal">
           <div class="copy">
             <h3>Oscuro por defecto, claro si lo preferís</h3>
@@ -324,10 +331,10 @@
       </div>
       <div class="terminal">
         <span>Si el archivo está en Descargas</span>
-        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-1.13.0-1.noarch.rpm"</code></pre>
+        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-1.14.0-1.noarch.rpm"</code></pre>
         <button type="button" data-copy-command="install-downloads" hidden>Copiar comando para Descargas</button>
         <span>Si ya estás en la carpeta del archivo</span>
-        <pre><code id="install-current">sudo dnf install ./nova-launcher-1.13.0-1.noarch.rpm</code></pre>
+        <pre><code id="install-current">sudo dnf install ./nova-launcher-1.14.0-1.noarch.rpm</code></pre>
         <button type="button" data-copy-command="install-current" hidden>Copiar comando para esta carpeta</button>
         <p id="copy-status" role="status"></p>
         <p>RPM sin firma. El primer arranque de Minecraft descarga los archivos del juego.</p>
@@ -339,6 +346,10 @@
       <details>
         <summary>¿Es un launcher oficial de Minecraft?</summary>
         <p>No. Nova es un proyecto de terceros, sin afiliación ni aprobación de Mojang, Microsoft ni Roblox. Minecraft y Roblox son marcas de sus titulares.</p>
+      </details>
+      <details>
+        <summary>¿Nova se actualiza sola?</summary>
+        <p>Solo si lo activás en Ajustes → Actualizaciones. Entonces descarga la versión nueva en segundo plano y comprueba su SHA-256 contra el que publica la release. Instalarla es un clic: en Fedora te pide autorización al sistema y en Windows corre el instalador sin ventanas y abre Nova de nuevo. Nova no instala nada sola y vuelve a comprobar el archivo justo antes de instalar. Todavía no se probó la instalación automática en Windows.</p>
       </details>
       <details>
         <summary>¿Puedo jugar Roblox desde Nova?</summary>
