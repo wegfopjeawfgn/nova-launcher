@@ -336,6 +336,7 @@ def scene_list(app, state):
         app.choose_game("roblox", save=False)
         app.roblox_open_tab("top-trending")
         app.roblox_render_friends()
+        GLib.timeout_add(3600, lambda: app.roblox_scroll.get_vadjustment().set_value(0) or False)  # the shot is taken at 4 s
 
     def roblox_paid_scene():
         signed()

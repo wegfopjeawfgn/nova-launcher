@@ -154,8 +154,10 @@ class JuegosMixin:
         page.append(header)
         self.roblox_stack = Gtk.Stack(vexpand=True)
         self.roblox_stack.add_named(self._gate(), "gate")
-        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        self.roblox_stack.add_named(content, "content")
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, margin_end=8)
+        # the whole screen scrolls together (account, friends, tabs and games), not only the games
+        self.roblox_scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER, child=content)
+        self.roblox_stack.add_named(self.roblox_scroll, "content")
         page.append(self.roblox_stack)
         state, note = roblox.launcher_state()
         content.append(label(note, "muted" if state == "ready" else "status-error"))
@@ -175,10 +177,7 @@ class JuegosMixin:
         self.roblox_grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True,
                                        min_children_per_line=2, max_children_per_line=6, row_spacing=12,
                                        column_spacing=12, valign=Gtk.Align.START)
-        self.roblox_scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
-        self.roblox_scroll.set_child(self.roblox_grid)
-        self.roblox_shown = ()
-        content.append(self.roblox_scroll)
+        content.append(self.roblox_grid)
         return page
 
     def roblox_open_tab(self, key):
@@ -282,11 +281,6 @@ class JuegosMixin:
             self.roblox_grid.remove(child)
             child = nxt
         self.roblox_status.set_text("" if games else empty)
-        shown = tuple(g["place"] for g in games)
-        if shown != self.roblox_shown:  # a new list starts at the top; the same list gaining icons keeps its scroll
-            self.roblox_shown = shown
-            for delay in (0, 300):  # the cards are measured a moment after they are added
-                GLib.timeout_add(delay, lambda: self.roblox_scroll.get_vadjustment().set_value(0) or False)
         favs = {g.get("place") for g in self.preferences.get("roblox_favs", [])}
         for game in games:
             card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["game-card"], width_request=170)
@@ -488,7 +482,7 @@ class JuegosMixin:
         return box
 
     def _account_bar(self):
-        self.account_bar = Gtk.Box(spacing=12, css_classes=["game-card"])
+        self.account_bar = Gtk.Box(spacing=14, css_classes=["game-card", "account-bar"], valign=Gtk.Align.START)
         self.roblox_person = roblox_cuenta.load()
         return self.account_bar
 
@@ -506,15 +500,22 @@ class JuegosMixin:
             bar.remove(child)
         if not person:
             return
-        picture = Gtk.Picture(width_request=44, height_request=44, can_shrink=True, content_fit=Gtk.ContentFit.COVER,
-                              css_classes=["friend-avatar"])
+        picture = Gtk.Picture(width_request=48, height_request=48, can_shrink=True, content_fit=Gtk.ContentFit.COVER,
+                              halign=Gtk.Align.START, valign=Gtk.Align.CENTER, css_classes=["friend-avatar"])
         picture.set_overflow(Gtk.Overflow.HIDDEN)
         bar.append(picture)
         texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, valign=Gtk.Align.CENTER)
         texts.append(label(f"Hola, {person['display']}", "card-label"))
         texts.append(label(f"@{person['name']} · Nova solo ve tu nombre y tu avatar", "card-meta"))
         bar.append(texts)
-        bar.append(button("Cerrar sesión", self.roblox_sign_out, "roblox-back"))
+        out = button("", self.roblox_sign_out, "sign-out")
+        out.set_valign(Gtk.Align.CENTER)
+        out_row = Gtk.Box(spacing=8)
+        out_row.append(Gtk.Image.new_from_file(str(HERE / "icons" / "salir.svg")))
+        out_row.append(label("Cerrar sesión"))
+        out.set_child(out_row)
+        out.update_property([Gtk.AccessibleProperty.LABEL], ["Cerrar sesión de Roblox"])
+        bar.append(out)
         if person.get("picture"):
             threading.Thread(target=self._account_picture, args=(person["picture"], picture), daemon=True).start()
 
