@@ -275,6 +275,8 @@ class JuegosMixin:
     def roblox_show(self, serial, games, icons, empty):
         if serial != self.roblox_serial:
             return False
+        keep = self.roblox_scroll.get_vadjustment().get_value()
+        GLib.idle_add(lambda: self.roblox_scroll.get_vadjustment().set_value(keep) or False)
         child = self.roblox_grid.get_first_child()
         while child:
             nxt = child.get_next_sibling()
@@ -629,7 +631,7 @@ class JuegosMixin:
                 try:
                     found = roblox.servers(game["place"], value)
                 except Exception as error:
-                    GLib.idle_add(show, value, None, str(error))
+                    GLib.idle_add(show, value, None, roblox.friendly_error(error))
                     return
                 GLib.idle_add(show, value, found, "")
 
@@ -641,13 +643,14 @@ class JuegosMixin:
             while child := rows.get_first_child():
                 rows.remove(child)
             if found is None:
-                status.set_text(f"No pude cargar los servidores ({error}).")
+                status.set_text(error)
                 return False
             status.set_text("" if found else "Este juego no tiene servidores públicos ahora.")
+            GLib.idle_add(lambda: scroll.get_vadjustment().set_value(0) or False)
             for number, server in enumerate(found, 1):
                 row = Gtk.Box(spacing=12, css_classes=["game-card"])
                 texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, valign=Gtk.Align.CENTER)
-                texts.append(label(f"Servidor {number}", "card-label"))
+                texts.append(label(f"Servidor {number} · {roblox.server_state(server['playing'], server['max'])}", "card-label"))
                 ping = f" · {server['ping']} ms" if server["ping"] is not None else ""
                 texts.append(label(f"{server['playing']} de {server['max']} jugadores{ping}", "card-meta"))
                 row.append(texts)
@@ -664,16 +667,18 @@ class JuegosMixin:
             tab = button(name, lambda k=key: load(k), "game-tab")
             sorts[key] = tab
             tabs.append(tab)
+        tabs.append(button("Actualizar", lambda: load(order["value"]), "quiet-button"))
         box.append(tabs)
         box.append(status)
         box.append(scroll)
         private = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["game-card"])
-        private.append(label("Servidor privado", "card-label"))
-        note = label("Los servidores privados se crean y se administran en la página del juego (algunos cuestan Robux). "
-                     "Nova no puede crearlos por vos ni ver los tuyos.", "card-meta")
+        private.append(label("Servidor privado (tuyo)", "card-label"))
+        note = label("Nova no puede saber si este juego permite servidores privados ni cuánto cuestan: Roblox solo lo muestra "
+                     "con tu sesión. En la página del juego, la pestaña «Servidores» te dice si hay, si son gratis o de pago, "
+                     "y ahí los creás y los administrás.", "card-meta")
         note.set_wrap(True)
         private.append(note)
-        private.append(button("Abrir la página del juego en Roblox",
+        private.append(button("Ver si tiene servidores privados",
                               lambda: Gio.AppInfo.launch_default_for_uri(roblox.game_page(game["place"]), None), "roblox-back"))
         box.append(private)
         box.append(button("Cerrar", dialog.close, "quiet-button"))

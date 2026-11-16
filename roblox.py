@@ -56,6 +56,27 @@ def game_page(place_id):
     return f"https://www.roblox.com/games/{place_id}"
 
 
+def server_state(playing, maximum):
+    """A word for how full a server is."""
+    if not maximum or playing >= maximum:
+        return "Lleno"
+    if playing * 10 >= maximum * 9:
+        return "Casi lleno"
+    if playing <= max(1, maximum // 10):
+        return "Casi vacío"
+    return "Con lugar"
+
+
+def friendly_error(error):
+    """What to tell a person when Roblox's public API fails."""
+    code = getattr(getattr(error, "response", None), "status_code", None)
+    if code == 429:
+        return "Roblox pidió esperar un poco entre consultas. Probá de nuevo en unos segundos."
+    if code:
+        return f"Roblox respondió con un error ({code}). Probá de nuevo más tarde."
+    return "No hay conexión con Roblox ahora. Revisá tu internet y probá de nuevo."
+
+
 def servers(place_id, order="Desc", limit=25):
     """Public servers of a game: [{'id', 'playing', 'max', 'ping'}]. order 'Desc' = fullest first, 'Asc' = emptiest."""
     place_uri(place_id)

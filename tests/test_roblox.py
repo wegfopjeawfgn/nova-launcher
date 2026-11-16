@@ -125,6 +125,19 @@ class ServerTests(unittest.TestCase):
             self.assertEqual(roblox.servers(5, "Asc"), [{"id": self.JOB, "playing": 30, "max": 35, "ping": 85}])
             self.assertEqual(get.call_args[1]["sortOrder"], "Asc")
 
+    def test_server_state_words(self):
+        self.assertEqual(roblox.server_state(35, 35), "Lleno")
+        self.assertEqual(roblox.server_state(33, 35), "Casi lleno")
+        self.assertEqual(roblox.server_state(1, 35), "Casi vacío")
+        self.assertEqual(roblox.server_state(20, 35), "Con lugar")
+        self.assertEqual(roblox.server_state(0, 0), "Lleno")
+
+    def test_friendly_error(self):
+        err = roblox.requests.HTTPError(response=mock.Mock(status_code=429))
+        self.assertIn("esperar", roblox.friendly_error(err))
+        self.assertIn("500", roblox.friendly_error(roblox.requests.HTTPError(response=mock.Mock(status_code=500))))
+        self.assertIn("conexión", roblox.friendly_error(OSError("x")))
+
     def test_game_page_and_join(self):
         self.assertEqual(roblox.game_page(920587237), "https://www.roblox.com/games/920587237")
         with self.assertRaises(ValueError):
