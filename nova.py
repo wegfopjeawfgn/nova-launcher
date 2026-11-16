@@ -910,6 +910,18 @@ class Nova(
         repo = Gtk.Entry(text=self.preferences.get("release_repo", self.release_repo),
                          placeholder_text="usuario/repositorio")
         box.append(repo)
+        auto = Gtk.Switch(active=bool(self.preferences.get("auto_update")), valign=Gtk.Align.CENTER)
+        auto.update_property([Gtk.AccessibleProperty.LABEL], ["Actualizar Nova en segundo plano"])
+        toggles["auto_update"] = auto
+        auto_row = Gtk.Box(spacing=12, css_classes=["opt-row"])
+        auto_text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True)
+        auto_text.append(label("Actualizar Nova en segundo plano", "form-label"))
+        auto_hint = label("Descarga y verifica (SHA-256) las versiones nuevas mientras usás Nova. Instalarlas es un clic: no instala nada solo.", "opt-hint")
+        auto_hint.set_wrap(True)
+        auto_text.append(auto_hint)
+        auto_row.append(auto_text)
+        auto_row.append(auto)
+        box.append(auto_row)
         box.append(label("Ayuda", "settings-heading"))
         box.append(button("Copiar reporte de errores", lambda: (
             dialog.get_clipboard().set(errores.report()),
