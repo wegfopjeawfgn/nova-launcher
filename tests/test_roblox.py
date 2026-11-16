@@ -106,3 +106,30 @@ class FriendsTests(unittest.TestCase):
                 mock.patch.object(roblox.subprocess, "Popen") as popen:
             roblox.join_friend(156)
             self.assertEqual(popen.call_args[0][0][-1], "roblox://experiences/start?userId=156")
+
+
+class ServerTests(unittest.TestCase):
+    JOB = "da95e21a-cc94-4b39-8933-487f9663fd33"
+
+    def test_server_uri(self):
+        self.assertEqual(roblox.server_uri(5, self.JOB.upper()), f"roblox://experiences/start?placeId=5&gameInstanceId={self.JOB}")
+        for bad in ("", "x", self.JOB + "&a=b", None, 5):
+            with self.assertRaises(ValueError):
+                roblox.server_uri(5, bad)
+
+    def test_servers_keeps_valid_ones(self):
+        data = {"data": [{"id": self.JOB, "playing": 30, "maxPlayers": 35, "ping": 85.4},
+                         {"id": "no-es-uuid", "playing": 1, "maxPlayers": 2},
+                         {"id": self.JOB, "playing": "x"}]}
+        with mock.patch.object(roblox, "_get", return_value=data) as get:
+            self.assertEqual(roblox.servers(5, "Asc"), [{"id": self.JOB, "playing": 30, "max": 35, "ping": 85}])
+            self.assertEqual(get.call_args[1]["sortOrder"], "Asc")
+
+    def test_game_page_and_join(self):
+        self.assertEqual(roblox.game_page(920587237), "https://www.roblox.com/games/920587237")
+        with self.assertRaises(ValueError):
+            roblox.game_page(0)
+        with mock.patch.object(roblox.sys, "platform", "linux"), mock.patch.object(roblox, "sober_installed", return_value=True), \
+                mock.patch.object(roblox.subprocess, "Popen") as popen:
+            roblox.join_server(5, self.JOB)
+            self.assertIn("gameInstanceId=" + self.JOB, popen.call_args[0][0][-1])

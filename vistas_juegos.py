@@ -314,6 +314,7 @@ class JuegosMixin:
                 play.set_tooltip_text("Juego de pago. Nova no sabe si ya lo tenés: Roblox te pide comprarlo si hace falta.")
                 play.add_css_class("paid")
             card.append(play)
+            card.append(button("Servidores", lambda g=game: self.roblox_servers(g), "game-tab"))
             self.roblox_grid.append(card)
             url = icons.get(game.get("universe"))
             if url:
@@ -599,3 +600,90 @@ class JuegosMixin:
 
         dialog.connect("response", respond)
         dialog.present()
+
+    # ---- servers of a game: public ones to join, and the official page for private ones
+
+    def roblox_servers(self, game):
+        dialog = Gtk.Window(title=f"Servidores de {game['name']}", transient_for=self.window, modal=True,
+                            default_width=520, default_height=680)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["page"])
+        dialog.set_child(box)
+        title = label(game["name"], "heading")
+        title.set_wrap(True)
+        box.append(title)
+        status = label("Cargando servidores…", "muted")
+        status.set_wrap(True)
+        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_end=8)
+        scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER, child=rows)
+        order = {"value": "Asc"}
+        tabs = Gtk.Box(spacing=6)
+        sorts = {}
+
+        def load(value):
+            order["value"] = value
+            for key, tab in sorts.items():
+                tab.set_css_classes(["game-tab", "active"] if key == value else ["game-tab"])
+            status.set_text("Cargando servidores…")
+
+            def work():
+                try:
+                    found = roblox.servers(game["place"], value)
+                except Exception as error:
+                    GLib.idle_add(show, value, None, str(error))
+                    return
+                GLib.idle_add(show, value, found, "")
+
+            threading.Thread(target=work, daemon=True).start()
+
+        def show(value, found, error):
+            if value != order["value"]:
+                return False
+            while child := rows.get_first_child():
+                rows.remove(child)
+            if found is None:
+                status.set_text(f"No pude cargar los servidores ({error}).")
+                return False
+            status.set_text("" if found else "Este juego no tiene servidores públicos ahora.")
+            for number, server in enumerate(found, 1):
+                row = Gtk.Box(spacing=12, css_classes=["game-card"])
+                texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, valign=Gtk.Align.CENTER)
+                texts.append(label(f"Servidor {number}", "card-label"))
+                ping = f" · {server['ping']} ms" if server["ping"] is not None else ""
+                texts.append(label(f"{server['playing']} de {server['max']} jugadores{ping}", "card-meta"))
+                row.append(texts)
+                full = server["max"] and server["playing"] >= server["max"]
+                join = button("Lleno" if full else "Unirme", lambda s=server: self.roblox_join_server(game, s, status), "game-play")
+                join.set_sensitive(not full)
+                join.set_valign(Gtk.Align.CENTER)
+                join.set_size_request(110, -1)
+                row.append(join)
+                rows.append(row)
+            return False
+
+        for key, name in (("Asc", "Con lugar"), ("Desc", "Más llenos")):
+            tab = button(name, lambda k=key: load(k), "game-tab")
+            sorts[key] = tab
+            tabs.append(tab)
+        box.append(tabs)
+        box.append(status)
+        box.append(scroll)
+        private = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["game-card"])
+        private.append(label("Servidor privado", "card-label"))
+        note = label("Los servidores privados se crean y se administran en la página del juego (algunos cuestan Robux). "
+                     "Nova no puede crearlos por vos ni ver los tuyos.", "card-meta")
+        note.set_wrap(True)
+        private.append(note)
+        private.append(button("Abrir la página del juego en Roblox",
+                              lambda: Gio.AppInfo.launch_default_for_uri(roblox.game_page(game["place"]), None), "roblox-back"))
+        box.append(private)
+        box.append(button("Cerrar", dialog.close, "quiet-button"))
+        dialog.present()
+        load("Asc")
+
+    def roblox_join_server(self, game, server, status):
+        try:
+            roblox.join_server(game["place"], server["id"])
+        except (RuntimeError, OSError, ValueError) as error:
+            status.set_text(f"No pude abrir Roblox: {error}")
+            return
+        status.set_text("Abriendo Roblox en ese servidor… si ya se llenó, Roblox te lleva a otro del mismo juego.")

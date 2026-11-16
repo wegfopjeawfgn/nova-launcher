@@ -352,6 +352,11 @@ def scene_list(app, state):
         roblox_login_scene()
         app.roblox_client_guide(lambda: None)
 
+    def roblox_servers_scene():
+        signed()
+        app.choose_game("roblox", save=False)
+        GLib.timeout_add(1500, lambda: app.roblox_servers({"place": 920587237, "name": "Adopt Me!", "universe": None}) or False)
+
     def roblox_favs():
         signed()
         games = app.roblox_data.get("top-trending", [])
@@ -409,6 +414,7 @@ def scene_list(app, state):
         ("roblox-favoritos", roblox_favs, 4000),
         ("roblox-amigos", roblox_friends_scene, 4000),
         ("roblox-sesion", roblox_login_scene, 4000),
+        ("roblox-servidores", roblox_servers_scene, 5000),
         ("roblox-guia", roblox_guide_scene, 3000),
         ("roblox-pago", roblox_paid_scene, 5000),
         ("principal", lambda: app.choose_game("minecraft", save=False), 400),
