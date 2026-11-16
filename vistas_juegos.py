@@ -533,14 +533,18 @@ class JuegosMixin:
 
         def work():
             try:
-                person = roblox_cuenta.login(self.roblox_client_id(), lambda url: GLib.idle_add(
-                    Gio.AppInfo.launch_default_for_uri, url, None))
+                person = roblox_cuenta.login(self.roblox_client_id(), lambda url: GLib.idle_add(self._open_once, url))
             except Exception as error:  # cancelled, timed out or refused: say so and let them retry
                 GLib.idle_add(self._sign_in_failed, str(error) or error.__class__.__name__)
                 return
             GLib.idle_add(self._signed_in, person)
 
         threading.Thread(target=work, daemon=True).start()
+
+    @staticmethod
+    def _open_once(url):
+        Gio.AppInfo.launch_default_for_uri(url, None)
+        return False  # an idle callback that returns True runs again: that opened the browser over and over
 
     def _sign_in_failed(self, message):
         self.login_button.set_sensitive(True)

@@ -94,3 +94,14 @@ class ProfileTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OpenOnceTests(unittest.TestCase):
+    def test_idle_callback_does_not_repeat(self):
+        try:
+            import vistas_juegos
+        except ImportError:
+            self.skipTest("GTK no disponible")
+        with mock.patch.object(vistas_juegos.Gio.AppInfo, "launch_default_for_uri", return_value=True) as launch:
+            self.assertFalse(vistas_juegos.JuegosMixin._open_once("https://example.com"))
+            launch.assert_called_once()
