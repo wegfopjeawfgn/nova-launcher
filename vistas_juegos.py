@@ -79,8 +79,8 @@ class JuegosMixin:
             self.page_stack.set_visible_child_name("library")
 
     def _roblox_load_first(self):
-        """Nothing of Roblox (catalog, friends) is fetched or shown until the person has signed in."""
-        if self.roblox_person and not self.roblox_loaded:
+        """When sign-in is required, nothing of Roblox (catalog, friends) is fetched until the person has signed in."""
+        if (self.roblox_person or not roblox_cuenta.REQUIRE_LOGIN) and not self.roblox_loaded:
             self.roblox_loaded = True
             last = self.preferences.get("roblox_tab")
             self.roblox_open_tab(last if last in self.roblox_tabs else "top-trending")
@@ -493,15 +493,26 @@ class JuegosMixin:
         return self.preferences.get("roblox_client_id") or roblox_cuenta.DEFAULT_CLIENT_ID
 
     def roblox_render_account(self):
-        """Signed in: the catalog, friends and the greeting. Signed out: only the sign-in card."""
+        """Signed in: the greeting. Signed out: an optional sign-in bar, or only the sign-in card when it is required."""
         person = self.roblox_person
-        self.roblox_stack.set_visible_child_name("content" if person else "gate")
+        open_ = bool(person) or not roblox_cuenta.REQUIRE_LOGIN
+        self.roblox_stack.set_visible_child_name("content" if open_ else "gate")
         if getattr(self, "current_game", None) == "roblox":
-            self.library_query.set_visible(bool(person))
+            self.library_query.set_visible(open_)
         bar = self.account_bar
         while child := bar.get_first_child():
             bar.remove(child)
         if not person:
+            if open_:
+                texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, valign=Gtk.Align.CENTER)
+                texts.append(label("Iniciá sesión con Roblox (opcional)", "card-label"))
+                self.bar_note = label("Tu nombre y tu avatar aparecen acá. Se abre la página oficial de Roblox; Nova no ve tu contraseña.", "card-meta")
+                self.bar_note.set_wrap(True)
+                texts.append(self.bar_note)
+                bar.append(texts)
+                self.bar_login = button("Iniciar sesión", self.roblox_sign_in, "game-play")
+                self.bar_login.set_valign(Gtk.Align.CENTER)
+                bar.append(self.bar_login)
             return
         picture = Gtk.Picture(width_request=48, height_request=48, can_shrink=True, content_fit=Gtk.ContentFit.COVER,
                               halign=Gtk.Align.START, valign=Gtk.Align.CENTER, css_classes=["friend-avatar"])
@@ -532,8 +543,7 @@ class JuegosMixin:
         if not self.roblox_client_id():
             self.roblox_client_guide(self.roblox_sign_in)
             return
-        self.login_button.set_sensitive(False)
-        self.account_note.set_text("Esperando tu autorización en la página de Roblox… (hasta 3 minutos)")
+        self._login_state(False, "Esperando tu autorización en la página de Roblox… (hasta 3 minutos)")
 
         def work():
             try:
@@ -550,9 +560,14 @@ class JuegosMixin:
         Gio.AppInfo.launch_default_for_uri(url, None)
         return False  # an idle callback that returns True runs again: that opened the browser over and over
 
+    def _login_state(self, enabled, note):
+        for button_, label_ in ((self.login_button, self.account_note), (getattr(self, "bar_login", None), getattr(self, "bar_note", None))):
+            if button_ is not None:
+                button_.set_sensitive(enabled)
+                label_.set_text(note)
+
     def _sign_in_failed(self, message):
-        self.login_button.set_sensitive(True)
-        self.account_note.set_text(message)
+        self._login_state(True, message)
         return False
 
     def _signed_in(self, person):
@@ -568,6 +583,7 @@ class JuegosMixin:
         self.roblox_loaded = False
         self.login_button.set_sensitive(True)
         self.roblox_render_account()
+        self._roblox_load_first()
 
     def roblox_client_guide(self, then):
         """Roblox needs an app registered by its owner: explain the steps and ask for the client ID."""

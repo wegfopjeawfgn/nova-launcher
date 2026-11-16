@@ -13,6 +13,8 @@ import requests
 import motor
 
 DEFAULT_CLIENT_ID = "5875789697421617624"  # the public ID of the "Nova Launcher" app (identity scopes only); unpublished apps allow 10 users
+REQUIRE_LOGIN = False       # True hides the catalog until sign-in. Keep False until Roblox approves the app:
+                            # an unpublished app can be authorized by only 10 people, so a gate would lock everyone else out
 PORT = 53682
 PATH = "/roblox"
 AUTHORIZE = "https://apis.roblox.com/oauth/v1/authorize"
