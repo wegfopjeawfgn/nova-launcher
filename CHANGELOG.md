@@ -1,5 +1,18 @@
 # Cambios
 
+## 1.13.0
+- **Servidores de cada juego (Roblox)**: cada tarjeta tiene un botón «Servidores» con los servidores públicos del juego: cuántos jugadores
+  tiene, el ping y su estado (casi vacío, con lugar, casi lleno, lleno). «Unirme» abre Roblox directo en ese servidor; si Roblox lo
+  ignora o ya se llenó, te lleva a otro del mismo juego. Los servidores privados no se pueden crear desde Nova: Roblox solo muestra si
+  un juego los permite y cuánto cuestan con tu sesión completa, así que hay un botón que abre la página del juego, donde está la pestaña
+  «Servidores».
+- **Iniciar sesión con Roblox (opcional)**: se abre la página oficial de Roblox, autorizás y volvés a Nova, que muestra tu nombre y tu
+  avatar. Nova no ve tu contraseña y pide solo identidad (`openid` y `profile`); descarta los permisos apenas lee tu perfil. Roblox no
+  da la lista de amigos ni quién está conectado a las aplicaciones, así que los amigos se siguen agregando a mano. Mientras Roblox no
+  apruebe la aplicación de Nova, solo 10 personas pueden autorizarla: por eso es opcional y el catálogo se ve sin cuenta.
+- **Pantalla de Roblox**: ahora se desplaza entera (cuenta, amigos, pestañas y juegos), la barra de tu cuenta es más compacta, «Cerrar sesión»
+  es un botón claro y la pantalla ya no salta de lugar al refrescar o marcar un favorito.
+
 ## 1.12.0
 - **Unirte a tus amigos en Roblox**: arriba de la pantalla de Roblox hay una fila de amigos, como en Roblox. Los agregás con su nombre de
   usuario (un «+» y listo) y, al tocar uno, Nova abre Roblox con el enlace oficial para unirte a su partida. Nova no puede leer tu lista

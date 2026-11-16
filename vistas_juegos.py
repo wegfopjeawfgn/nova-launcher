@@ -7,10 +7,11 @@ import gi
 import requests
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import GLib, Gdk, GdkPixbuf, Gtk
+from gi.repository import GLib, Gdk, GdkPixbuf, Gio, Gtk
 
 import motor
 import roblox
+import roblox_cuenta
 from widgets import button, default_cover, label
 
 HERE = Path(__file__).resolve().parent
@@ -71,21 +72,26 @@ class JuegosMixin:
         if game == "roblox":
             self._chrome("roblox")
             self.page_stack.set_visible_child_name("roblox")
-            if not self.roblox_loaded:
-                self.roblox_loaded = True
-                last = self.preferences.get("roblox_tab")
-                self.roblox_open_tab(last if last in self.roblox_tabs else "top-trending")
+            self.roblox_render_account()
+            self._roblox_load_first()
         else:
             self._chrome("minecraft")
             self.page_stack.set_visible_child_name("library")
 
+    def _roblox_load_first(self):
+        """When sign-in is required, nothing of Roblox (catalog, friends) is fetched until the person has signed in."""
+        if (self.roblox_person or not roblox_cuenta.REQUIRE_LOGIN) and not self.roblox_loaded:
+            self.roblox_loaded = True
+            last = self.preferences.get("roblox_tab")
+            self.roblox_open_tab(last if last in self.roblox_tabs else "top-trending")
+
     # ---- chooser
 
-    def _cover(self):
+    def _cover(self, width=320, height=170):
         picture = Gtk.Picture(can_shrink=True, content_fit=Gtk.ContentFit.COVER)
         # the frame fixes the size: a Picture alone grows to its image's own aspect ratio
         frame = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vscrollbar_policy=Gtk.PolicyType.NEVER,
-                                   width_request=320, height_request=170, child=picture, css_classes=["instance-cover"])
+                                   width_request=width, height_request=height, child=picture, css_classes=["instance-cover"])
         frame.set_overflow(Gtk.Overflow.HIDDEN)
         frame.picture = picture
         return frame
@@ -126,6 +132,7 @@ class JuegosMixin:
             except Exception:  # no network: the tile just stays plain
                 return
             GLib.idle_add(self.roblox_cover.picture.set_paintable, texture)
+            GLib.idle_add(self.gate_cover.picture.set_paintable, texture)
 
         threading.Thread(target=work, daemon=True).start()
 
@@ -145,26 +152,32 @@ class JuegosMixin:
         title.set_hexpand(True)
         header.append(title)
         page.append(header)
+        self.roblox_stack = Gtk.Stack(vexpand=True)
+        self.roblox_stack.add_named(self._gate(), "gate")
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, margin_end=8)
+        # the whole screen scrolls together (account, friends, tabs and games), not only the games
+        self.roblox_scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER, child=content)
+        self.roblox_stack.add_named(self.roblox_scroll, "content")
+        page.append(self.roblox_stack)
         state, note = roblox.launcher_state()
-        page.append(label(note, "muted" if state == "ready" else "status-error"))
-        page.append(self._friends_strip())
+        content.append(label(note, "muted" if state == "ready" else "status-error"))
+        content.append(self._account_bar())
+        content.append(self._friends_strip())
         tabs = Gtk.Box(spacing=6)
         self.roblox_tabs = {}
         for key, name in roblox.CATEGORIES + MY_TABS:
             tab = button(name, lambda k=key: self.roblox_open_tab(k), "game-tab")
             self.roblox_tabs[key] = tab
             tabs.append(tab)
-        page.append(tabs)
+        content.append(tabs)
         self.roblox_status = label("", "muted")
-        page.append(self.roblox_status)
+        content.append(self.roblox_status)
         self.roblox_render_friends()
+        self.roblox_render_account()
         self.roblox_grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, homogeneous=True,
                                        min_children_per_line=2, max_children_per_line=6, row_spacing=12,
                                        column_spacing=12, valign=Gtk.Align.START)
-        self.roblox_scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
-        self.roblox_scroll.set_child(self.roblox_grid)
-        self.roblox_shown = ()
-        page.append(self.roblox_scroll)
+        content.append(self.roblox_grid)
         return page
 
     def roblox_open_tab(self, key):
@@ -262,17 +275,14 @@ class JuegosMixin:
     def roblox_show(self, serial, games, icons, empty):
         if serial != self.roblox_serial:
             return False
+        keep = self.roblox_scroll.get_vadjustment().get_value()
+        GLib.idle_add(lambda: self.roblox_scroll.get_vadjustment().set_value(keep) or False)
         child = self.roblox_grid.get_first_child()
         while child:
             nxt = child.get_next_sibling()
             self.roblox_grid.remove(child)
             child = nxt
         self.roblox_status.set_text("" if games else empty)
-        shown = tuple(g["place"] for g in games)
-        if shown != self.roblox_shown:  # a new list starts at the top; the same list gaining icons keeps its scroll
-            self.roblox_shown = shown
-            for delay in (0, 300):  # the cards are measured a moment after they are added
-                GLib.timeout_add(delay, lambda: self.roblox_scroll.get_vadjustment().set_value(0) or False)
         favs = {g.get("place") for g in self.preferences.get("roblox_favs", [])}
         for game in games:
             card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["game-card"], width_request=170)
@@ -306,6 +316,7 @@ class JuegosMixin:
                 play.set_tooltip_text("Juego de pago. Nova no sabe si ya lo tenés: Roblox te pide comprarlo si hace falta.")
                 play.add_css_class("paid")
             card.append(play)
+            card.append(button("Servidores", lambda g=game: self.roblox_servers(g), "game-tab"))
             self.roblox_grid.append(card)
             url = icons.get(game.get("universe"))
             if url:
@@ -448,3 +459,252 @@ class JuegosMixin:
             self.roblox_status.set_text(f"No pude abrir Roblox: {error}")
             return
         self.roblox_status.set_text(f"Abriendo Roblox para unirte a {friend['display']}… Si no está jugando o no te deja unirte, Roblox te avisa.")
+
+    # ---- Roblox account: the official sign-in (name and avatar only)
+
+    def _gate(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER,
+                      css_classes=["game-card", "gate"], width_request=420)
+        self.gate_cover = self._cover(396, 190)
+        box.append(self.gate_cover)
+        body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, margin_top=16, margin_start=6, margin_end=6, margin_bottom=6)
+        title = label("Entrá a Roblox", "heading")
+        body.append(title)
+        self.account_note = label("Iniciá sesión o registrate en la página oficial de Roblox, autorizá y volvé a Nova.", "muted")
+        self.account_note.set_wrap(True)
+        self.account_note.set_max_width_chars(44)
+        body.append(self.account_note)
+        for line in ("Nova no ve tu contraseña.", "Solo recibe tu nombre y tu avatar."):
+            body.append(label(line, "card-meta"))
+        self.login_button = button("Iniciar sesión con Roblox", self.roblox_sign_in, "primary")
+        self.login_button.set_margin_top(8)
+        body.append(self.login_button)
+        signup = button("Registrarme", lambda: Gio.AppInfo.launch_default_for_uri(roblox_cuenta.SIGN_UP, None), "quiet-button")
+        body.append(signup)
+        box.append(body)
+        return box
+
+    def _account_bar(self):
+        self.account_bar = Gtk.Box(spacing=14, css_classes=["game-card", "account-bar"], valign=Gtk.Align.START)
+        self.roblox_person = roblox_cuenta.load()
+        return self.account_bar
+
+    def roblox_client_id(self):
+        return self.preferences.get("roblox_client_id") or roblox_cuenta.DEFAULT_CLIENT_ID
+
+    def roblox_render_account(self):
+        """Signed in: the greeting. Signed out: an optional sign-in bar, or only the sign-in card when it is required."""
+        person = self.roblox_person
+        open_ = bool(person) or not roblox_cuenta.REQUIRE_LOGIN
+        self.roblox_stack.set_visible_child_name("content" if open_ else "gate")
+        if getattr(self, "current_game", None) == "roblox":
+            self.library_query.set_visible(open_)
+        bar = self.account_bar
+        while child := bar.get_first_child():
+            bar.remove(child)
+        if not person:
+            if open_:
+                texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, valign=Gtk.Align.CENTER)
+                texts.append(label("Iniciá sesión con Roblox (opcional)", "card-label"))
+                self.bar_note = label("Tu nombre y tu avatar aparecen acá. Se abre la página oficial de Roblox; Nova no ve tu contraseña.", "card-meta")
+                self.bar_note.set_wrap(True)
+                texts.append(self.bar_note)
+                bar.append(texts)
+                self.bar_login = button("Iniciar sesión", self.roblox_sign_in, "game-play")
+                self.bar_login.set_valign(Gtk.Align.CENTER)
+                bar.append(self.bar_login)
+            return
+        picture = Gtk.Picture(width_request=48, height_request=48, can_shrink=True, content_fit=Gtk.ContentFit.COVER,
+                              halign=Gtk.Align.START, valign=Gtk.Align.CENTER, css_classes=["friend-avatar"])
+        picture.set_overflow(Gtk.Overflow.HIDDEN)
+        bar.append(picture)
+        texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, valign=Gtk.Align.CENTER)
+        texts.append(label(f"Hola, {person['display']}", "card-label"))
+        texts.append(label(f"@{person['name']} · Nova solo ve tu nombre y tu avatar", "card-meta"))
+        bar.append(texts)
+        out = button("", self.roblox_sign_out, "sign-out")
+        out.set_valign(Gtk.Align.CENTER)
+        out_row = Gtk.Box(spacing=8)
+        out_row.append(Gtk.Image.new_from_file(str(HERE / "icons" / "salir.svg")))
+        out_row.append(label("Cerrar sesión"))
+        out.set_child(out_row)
+        out.update_property([Gtk.AccessibleProperty.LABEL], ["Cerrar sesión de Roblox"])
+        bar.append(out)
+        if person.get("picture"):
+            threading.Thread(target=self._account_picture, args=(person["picture"], picture), daemon=True).start()
+
+    def _account_picture(self, url, picture):
+        try:
+            GLib.idle_add(picture.set_paintable, _texture(url))
+        except Exception:
+            pass
+
+    def roblox_sign_in(self):
+        if not self.roblox_client_id():
+            self.roblox_client_guide(self.roblox_sign_in)
+            return
+        self._login_state(False, "Esperando tu autorización en la página de Roblox… (hasta 3 minutos)")
+
+        def work():
+            try:
+                person = roblox_cuenta.login(self.roblox_client_id(), lambda url: GLib.idle_add(self._open_once, url))
+            except Exception as error:  # cancelled, timed out or refused: say so and let them retry
+                GLib.idle_add(self._sign_in_failed, str(error) or error.__class__.__name__)
+                return
+            GLib.idle_add(self._signed_in, person)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    @staticmethod
+    def _open_once(url):
+        Gio.AppInfo.launch_default_for_uri(url, None)
+        return False  # an idle callback that returns True runs again: that opened the browser over and over
+
+    def _login_state(self, enabled, note):
+        for button_, label_ in ((self.login_button, self.account_note), (getattr(self, "bar_login", None), getattr(self, "bar_note", None))):
+            if button_ is not None:
+                button_.set_sensitive(enabled)
+                label_.set_text(note)
+
+    def _sign_in_failed(self, message):
+        self._login_state(True, message)
+        return False
+
+    def _signed_in(self, person):
+        roblox_cuenta.save(person)
+        self.roblox_person = person
+        self.roblox_render_account()
+        self._roblox_load_first()
+        return False
+
+    def roblox_sign_out(self):
+        roblox_cuenta.sign_out()
+        self.roblox_person = None
+        self.roblox_loaded = False
+        self.login_button.set_sensitive(True)
+        self.roblox_render_account()
+        self._roblox_load_first()
+
+    def roblox_client_guide(self, then):
+        """Roblox needs an app registered by its owner: explain the steps and ask for the client ID."""
+        dialog = Gtk.Dialog(title="Iniciar sesión con Roblox", transient_for=self.window, modal=True, default_width=540)
+        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Guardar y seguir", Gtk.ResponseType.OK).add_css_class("primary")
+        box = dialog.get_content_area()
+        box.add_css_class("menu")
+        box.set_spacing(8)
+        box.append(label("Hace falta registrar una aplicación de Roblox (gratis)", "subheading"))
+        for step in ("1. Entrá al Creator Hub con tu cuenta de Roblox → «Credenciales» → OAuth 2.0 → crear una aplicación. Roblox te pide antes verificar tu identidad (edad) en la configuración de tu cuenta.",
+                     "2. Tipo de cliente: público (sin secreto).",
+                     f"3. URL de redirección, exacta: {roblox_cuenta.redirect_uri()}",
+                     "4. Permisos: solo «openid» y «profile».",
+                     "5. Copiá el ID de cliente y pegalo acá."):
+            line = label(step, "muted")
+            line.set_wrap(True)
+            line.set_selectable(True)
+            box.append(line)
+        link = Gtk.LinkButton.new_with_label(roblox_cuenta.CREATOR_HUB, "Abrir el Creator Hub de Roblox")
+        link.set_halign(Gtk.Align.START)
+        box.append(link)
+        entry = Gtk.Entry(placeholder_text="ID de cliente")
+        box.append(entry)
+
+        def respond(_, response):
+            value = entry.get_text().strip()
+            dialog.destroy()
+            if response == Gtk.ResponseType.OK and value:
+                self._save_roblox({"roblox_client_id": value})
+                then()
+
+        dialog.connect("response", respond)
+        dialog.present()
+
+    # ---- servers of a game: public ones to join, and the official page for private ones
+
+    def roblox_servers(self, game):
+        dialog = Gtk.Window(title=f"Servidores de {game['name']}", transient_for=self.window, modal=True,
+                            default_width=520, default_height=680)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["page"])
+        dialog.set_child(box)
+        title = label(game["name"], "heading")
+        title.set_wrap(True)
+        box.append(title)
+        status = label("Cargando servidores…", "muted")
+        status.set_wrap(True)
+        rows = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, margin_end=8)
+        scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER, child=rows)
+        order = {"value": "Asc"}
+        tabs = Gtk.Box(spacing=6)
+        sorts = {}
+
+        def load(value):
+            order["value"] = value
+            for key, tab in sorts.items():
+                tab.set_css_classes(["game-tab", "active"] if key == value else ["game-tab"])
+            status.set_text("Cargando servidores…")
+
+            def work():
+                try:
+                    found = roblox.servers(game["place"], value)
+                except Exception as error:
+                    GLib.idle_add(show, value, None, roblox.friendly_error(error))
+                    return
+                GLib.idle_add(show, value, found, "")
+
+            threading.Thread(target=work, daemon=True).start()
+
+        def show(value, found, error):
+            if value != order["value"]:
+                return False
+            while child := rows.get_first_child():
+                rows.remove(child)
+            if found is None:
+                status.set_text(error)
+                return False
+            status.set_text("" if found else "Este juego no tiene servidores públicos ahora.")
+            GLib.idle_add(lambda: scroll.get_vadjustment().set_value(0) or False)
+            for number, server in enumerate(found, 1):
+                row = Gtk.Box(spacing=12, css_classes=["game-card"])
+                texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, hexpand=True, valign=Gtk.Align.CENTER)
+                texts.append(label(f"Servidor {number} · {roblox.server_state(server['playing'], server['max'])}", "card-label"))
+                ping = f" · {server['ping']} ms" if server["ping"] is not None else ""
+                texts.append(label(f"{server['playing']} de {server['max']} jugadores{ping}", "card-meta"))
+                row.append(texts)
+                full = server["max"] and server["playing"] >= server["max"]
+                join = button("Lleno" if full else "Unirme", lambda s=server: self.roblox_join_server(game, s, status), "game-play")
+                join.set_sensitive(not full)
+                join.set_valign(Gtk.Align.CENTER)
+                join.set_size_request(110, -1)
+                row.append(join)
+                rows.append(row)
+            return False
+
+        for key, name in (("Asc", "Con lugar"), ("Desc", "Más llenos")):
+            tab = button(name, lambda k=key: load(k), "game-tab")
+            sorts[key] = tab
+            tabs.append(tab)
+        tabs.append(button("Actualizar", lambda: load(order["value"]), "quiet-button"))
+        box.append(tabs)
+        box.append(status)
+        box.append(scroll)
+        private = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["game-card"])
+        private.append(label("Servidor privado (tuyo)", "card-label"))
+        note = label("Nova no puede saber si este juego permite servidores privados ni cuánto cuestan: Roblox solo lo muestra "
+                     "con tu sesión. En la página del juego, la pestaña «Servidores» te dice si hay, si son gratis o de pago, "
+                     "y ahí los creás y los administrás.", "card-meta")
+        note.set_wrap(True)
+        private.append(note)
+        private.append(button("Ver si tiene servidores privados",
+                              lambda: Gio.AppInfo.launch_default_for_uri(roblox.game_page(game["place"]), None), "roblox-back"))
+        box.append(private)
+        box.append(button("Cerrar", dialog.close, "quiet-button"))
+        dialog.present()
+        load("Asc")
+
+    def roblox_join_server(self, game, server, status):
+        try:
+            roblox.join_server(game["place"], server["id"])
+        except (RuntimeError, OSError, ValueError) as error:
+            status.set_text(f"No pude abrir Roblox: {error}")
+            return
+        status.set_text("Abriendo Roblox en ese servidor… si ya se llenó, Roblox te lleva a otro del mismo juego.")

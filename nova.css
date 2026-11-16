@@ -404,3 +404,8 @@ spinbutton text, entry text { color: @nova_text; }
 .roblox-back:hover { background: @nova_hover; }
 .game-play.paid { background: transparent; border-color: @nova_border_strong; color: @nova_text; }
 .game-play.paid:hover { background: @nova_accent; border-color: @nova_accent; color: #06161b; }
+.game-card.gate { padding: 12px; border-radius: 18px; }
+.account-bar { padding: 10px 14px; }
+button.sign-out { background: transparent; border: 1px solid @nova_border_strong; color: @nova_muted; border-radius: 10px; padding: 6px 12px; min-height: 0; }
+button.sign-out:hover { border-color: @nova_danger; color: @nova_danger; background: transparent; }
+button.sign-out:focus-visible { outline: 2px solid @nova_accent; outline-offset: 2px; }

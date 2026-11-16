@@ -15,6 +15,7 @@ SORTS = "https://apis.roblox.com/explore-api/v1/get-sorts"
 USERS = "https://users.roblox.com/v1/usernames/users"
 HEADSHOTS = "https://thumbnails.roblox.com/v1/users/avatar-headshot"
 GAMES = "https://games.roblox.com/v1/games"
+SERVERS = "https://games.roblox.com/v1/games/{place}/servers/Public"
 SEARCH = "https://apis.roblox.com/search-api/omni-search"
 THUMBS = "https://thumbnails.roblox.com/v1/games/multiget/thumbnails"
 ICONS = "https://thumbnails.roblox.com/v1/games/icons"
@@ -33,6 +34,60 @@ def follow_uri(user_id):
     if not isinstance(user_id, int) or isinstance(user_id, bool) or user_id <= 0:
         raise ValueError("Identificador de usuario no válido")
     return f"roblox://experiences/start?userId={user_id}"
+
+
+_JOB = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
+
+
+def server_uri(place_id, job_id):
+    """Link to a game's specific server (its job id). Roblox's client decides whether it still accepts it."""
+    if not isinstance(job_id, str) or not _JOB.fullmatch(job_id):
+        raise ValueError("Identificador de servidor no válido")
+    return f"{place_uri(place_id)}&gameInstanceId={job_id.lower()}"
+
+
+def join_server(place_id, job_id):
+    return _open(server_uri(place_id, job_id))
+
+
+def game_page(place_id):
+    """The game's page on roblox.com, where its Servers tab sells and manages private servers."""
+    place_uri(place_id)  # validates the id
+    return f"https://www.roblox.com/games/{place_id}"
+
+
+def server_state(playing, maximum):
+    """A word for how full a server is."""
+    if not maximum or playing >= maximum:
+        return "Lleno"
+    if playing * 10 >= maximum * 9:
+        return "Casi lleno"
+    if playing <= max(1, maximum // 10):
+        return "Casi vacío"
+    return "Con lugar"
+
+
+def friendly_error(error):
+    """What to tell a person when Roblox's public API fails."""
+    code = getattr(getattr(error, "response", None), "status_code", None)
+    if code == 429:
+        return "Roblox pidió esperar un poco entre consultas. Probá de nuevo en unos segundos."
+    if code:
+        return f"Roblox respondió con un error ({code}). Probá de nuevo más tarde."
+    return "No hay conexión con Roblox ahora. Revisá tu internet y probá de nuevo."
+
+
+def servers(place_id, order="Desc", limit=25):
+    """Public servers of a game: [{'id', 'playing', 'max', 'ping'}]. order 'Desc' = fullest first, 'Asc' = emptiest."""
+    place_uri(place_id)
+    data = _get(SERVERS.format(place=place_id), sortOrder="Asc" if order == "Asc" else "Desc", limit=limit)
+    found = []
+    for item in data.get("data", []):
+        if isinstance(item.get("id"), str) and _JOB.fullmatch(item["id"]) and isinstance(item.get("playing"), int):
+            found.append({"id": item["id"], "playing": item["playing"],
+                          "max": item["maxPlayers"] if isinstance(item.get("maxPlayers"), int) else 0,
+                          "ping": round(item["ping"]) if isinstance(item.get("ping"), (int, float)) else None})
+    return found
 
 
 def place_uri(place_id):
