@@ -48,6 +48,8 @@ class JuegosMixin:
         """The sidebar and Minecraft account belong to Minecraft; the top search follows the game on screen
         (game is "minecraft", "roblox" or None for the chooser)."""
         self.sidebar.set_visible(game == "minecraft")
+        for key, tab in self.game_switch.items():
+            (tab.add_css_class if key == game else tab.remove_css_class)("seg-active")
         self.accounts.set_visible(game == "minecraft")
         self.library_query.set_visible(game is not None)
         if game != getattr(self, "current_game", None):
@@ -64,6 +66,13 @@ class JuegosMixin:
     def show_games(self):
         self._chrome(None)
         self.page_stack.set_visible_child_name("games")
+
+    def switch_game(self, game):
+        """The title-bar switch: change game without asking again, and remember it only if the person asked for that."""
+        self.choose_game(game, save=False)
+        if self.preferences.get("remember_game"):
+            self.preferences = {**self.preferences, "game": game}
+            motor.save(motor.ROOT / "settings.json", self.preferences)
 
     def choose_game(self, game, save=True):
         if save:

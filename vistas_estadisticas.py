@@ -42,10 +42,15 @@ class EstadisticasMixin:
             names = {folder.name: data["name"] for folder, data in self.instances.items()}
             data = estadisticas.summary(names)
             launch = data["average_launch"]
-            body.append(card("Resumen", [
-                f"Sesiones: {data['sessions']} · Tiempo total: {tiempo.short(data['total_seconds'])}",
-                "Arranque promedio: " + (f"{launch:.0f} s" if launch is not None else "sin datos"),
-                f"Sesiones que terminaron con error: {data['failed']}"]))
+            tiles = Gtk.Box(spacing=12, homogeneous=True)
+            for title, value in (("Sesiones", str(data["sessions"])), ("Tiempo total", tiempo.short(data["total_seconds"])),
+                                 ("Arranque promedio", f"{launch:.0f} s" if launch is not None else "sin datos"),
+                                 ("Con error", str(data["failed"]))):
+                tile = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, css_classes=["shelf-tile", "shelf-stat"])
+                tile.append(label(title, "shelf-title"))
+                tile.append(label(value, "shelf-count"))
+                tiles.append(tile)
+            body.append(tiles)
             memory = estadisticas.system_memory_mb()
             if memory["total"]:
                 free = f" · disponible {size_text(memory['available'] * 1024**2)}" if memory["available"] else ""

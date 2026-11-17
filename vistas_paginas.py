@@ -70,15 +70,11 @@ class PaginasMixin:
 
     def mark_nav(self, title):
         title = i18n.tr(title)
-        button_ = self.nav_box.get_first_child()
-        while button_:
-            if isinstance(button_, Gtk.Button):
-                texts = [w.get_label() for w in _labels(button_)]
-                if title in texts:
-                    button_.add_css_class("nav-active")
-                else:
-                    button_.remove_css_class("nav-active")
-            button_ = button_.get_next_sibling()
+        for item in self.nav_items:
+            on = title in [w.get_label() for w in _labels(item)]
+            (item.add_css_class if on else item.remove_css_class)("nav-active")
+            if on and item in self.more_items:
+                self.more_revealer.set_reveal_child(True)
 
 
 def _labels(widget):

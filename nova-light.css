@@ -1,7 +1,7 @@
 /* Optional light theme: loaded after nova.css, so it only overrides the palette and the few literals.
    Same family as the dark theme: cool neutrals and a deeper teal for the launcher's cyan accent. */
 @define-color nova_canvas #f3f5f8;
-@define-color nova_sidebar #e8ecf1;
+@define-color nova_sidebar #e4e9ef;
 @define-color nova_surface #ffffff;
 @define-color nova_raised #f7f9fb;
 @define-color nova_control #edf0f4;
@@ -18,7 +18,7 @@
 @define-color nova_danger #b4233f;
 @define-color nova_warm #8a5a00;
 
-headerbar, .titlebar { background-color: #ffffff; }
+headerbar, .titlebar { background-color: @nova_sidebar; }
 button.primary { background-color: #0e7490; border-color: #0e7490; color: #ffffff; }
 button.primary:hover { background-color: #0b5f77; border-color: #0b5f77; }
 button.danger { border-color: #e2a0b0; }

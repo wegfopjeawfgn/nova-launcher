@@ -36,7 +36,7 @@ typography:
     fontSize: "0.74rem"
     letterSpacing: "0.04em"
 rounded:
-  card: "14px"
+  card: "18px"
   field: "10px"
   pill: "999px"
 components:
@@ -66,7 +66,7 @@ Website: Archivo (variable width axis) for everything, expanded for display; Mar
 
 ## Layout
 
-App: fixed sidebar (176px), library with a status row, a hero banner, a content shelf per kind (count + Explorar / Importar), then the instance grid. Forms are titled sections of rows (name and help left, control right) with their own scroll and a fixed footer. Website: rows separated by hairlines instead of cards; screenshots in a 16px-radius frame.
+App: a **night frame** (title bar, 208px sidebar, status bar) holding one rounded **content panel** (18px radius) where every page lives. The title bar carries the brand, a **Minecraft | Roblox switch** (one system for both games; the sidebar belongs to Minecraft), search and the account. The sidebar has ten rows in three groups (Biblioteca, Descubrir, Herramientas) plus one «Más» row that opens the rarely used pages (Respaldos, Sesiones, Descargas, Almacenamiento, Estadísticas) and opens itself when one of them is on screen. Home: heading with actions, a one-line status text, the hero of the selected instance (46px title, large Jugar), content shelves, then the instance grid. Settings and forms are titled sections of rows (name and help left, control right) inside 18px cards; lists of numbers use tiles or bar rows, never loose text. Website: rows separated by hairlines instead of cards; screenshots in a 16px-radius frame.
 
 ## Elevation & Depth
 
@@ -75,7 +75,9 @@ Flat. Only the hero banner and website screenshots carry a soft, offset shadow. 
 ## Components
 
 - **Shelf tile**: a button with the count (opens the installed list) over two quiet actions.
-- **Status row**: one hairline-divided strip, not four cards.
+- **Status row**: one line of text separated by hairlines, no box.
+- **Game switch**: a pill segmented control in the title bar; the active game is ion-cyan-dim.
+- **Frame and panel**: the frame uses `night`; the panel uses `canvas` with a hairline and 18px radius.
 - **Import review**: rows with a checkbox, name, kind, size and a warm note when something is off; refused files explain why.
 - **Drop overlay**: dashed ion-cyan card over a dimmed window.
 - **Form row**: 18px gap, hint under the label in `faint-ink`.
