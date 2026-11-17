@@ -246,6 +246,8 @@ def launch(folder, profile, instance, status, session=None, *, on_started=None, 
             "launcherVersion": NOVA_VERSION, "jvmArguments": heap_arguments(instance),
         }
         options["jvmArguments"].extend(parse_jvm_args(instance.get("jvm_args", "")))
+        import pantalla_carga
+        pantalla_carga.upgrade(folder)
         if (instance["version"] == "1.21.11" and instance["loader"] == "fabric"
                 and read(folder / "nova-loading.json", {}).get("logo")):
             logo_agent = Path(__file__).resolve().parent / "branding" / "nova-loading.jar"

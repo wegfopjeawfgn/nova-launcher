@@ -415,3 +415,5 @@ button.sign-out:focus-visible { outline: 2px solid @nova_accent; outline-offset:
 .skin-thumb { border-radius: 4px; background: @nova_control; }
 .skin-equip { border-top: 1px solid @nova_border; padding-top: 10px; }
 button.skin-tool { padding: 5px 11px; min-height: 0; }
+.launch-screen { background-color: rgba(8, 10, 14, 0.95); }
+.launch-card { padding: 28px 36px; background: @nova_surface; border: 1px solid @nova_border; border-radius: 20px; min-width: 420px; }

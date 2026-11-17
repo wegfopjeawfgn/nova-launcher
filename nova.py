@@ -21,6 +21,7 @@ import consola
 import historial
 import integraciones
 import motor
+import pantalla_carga
 import estadisticas
 import i18n
 import inicio
@@ -34,6 +35,7 @@ from widgets import (resolution_field, instance_art, hero_art, enter, label, but
 from vistas_cuentas import CuentasMixin
 from vistas_paginas import PaginasMixin
 from vistas_juegos import JuegosMixin
+from vistas_lanzamiento import LanzamientoMixin
 from vistas_salud import SaludMixin
 from vistas_java import java_picker
 from vistas_perfiles import PerfilesMixin
@@ -54,6 +56,7 @@ from vistas_respaldos import RespaldosMixin
 class Nova(
     PaginasMixin,
     JuegosMixin,
+    LanzamientoMixin,
     SaludMixin,
     PerfilesMixin,
     CurseForgeMixin,
@@ -149,7 +152,7 @@ class Nova(
         accounts = motor.read(motor.ROOT / "accounts.json", {"active": "", "profiles": []})
         self.preferences = {
             "memory": 4, "java": "", "resolution": "default", "console": False,
-            "compact": False, "alphabetical": False, "launch_behavior": "keep", "beta": False, "auto_backup_days": 0, "theme": "dark", "language": "es",
+            "compact": False, "alphabetical": False, "launch_behavior": "keep", "launch_screen": True, "beta": False, "auto_backup_days": 0, "theme": "dark", "language": "es",
             **motor.read(motor.ROOT / "settings.json", {}),
         }
         i18n.set_language(self.preferences.get("language", "es"))
@@ -185,6 +188,7 @@ class Nova(
         frame.set_child(outer)
         drop_hint = self.drop_hint()
         frame.add_overlay(drop_hint)
+        self.setup_launch_screen(frame)
         self.window.set_child(frame)
         self.setup_drop(self.window, drop_hint)
         shell = Gtk.Box(vexpand=True)
@@ -871,6 +875,7 @@ class Nova(
             ("compact", "Lista compacta", "Usarla incluso con pocas instancias."),
             ("alphabetical", "Ordenar por nombre", "Si no, se muestran en el orden de creación."),
             ("console", "Abrir la consola al iniciar", "Útil para depurar mods."),
+            ("launch_screen", "Pantalla de inicio al jugar", "Muestra el avance (preparar, archivos, Java, en juego) mientras Minecraft se abre."),
             ("beta", "Versiones beta de Nova", "Pruebas anticipadas, pueden tener errores."),
             ("usage", "Contar esta instalación", "Envía una vez al día un número al azar, la versión y el sistema. Nada más."),
         ):
@@ -1262,14 +1267,21 @@ class Nova(
             add_action("Crear atajo en el menú", lambda: self.create_shortcut(folder, instance["name"]))
         add_action("Reparar instalación", lambda: self.repair_instance(folder, instance))
         if instance["loader"] in ("fabric", "quilt"):
-            full_branding = instance["version"] == "1.21.11" and instance["loader"] == "fabric"
-            title = "Pantalla de carga Nova" if full_branding else "Colores Nova en la carga"
-            add_action(title, lambda: integraciones.run(
-                self, self.window, "Colores de carga",
-                lambda: integraciones.apply_colors(folder, instance),
-                "Pantalla Nova preparada para el próximo inicio." if full_branding else
-                "Colores aplicados. Se ven al iniciar Minecraft."
-            ))
+            full_branding = pantalla_carga.logo_supported(instance)
+            if pantalla_carga.status(folder) == "on":
+                add_action("Quitar pantalla de carga Nova", lambda: integraciones.run(
+                    self, self.window, "Pantalla de carga",
+                    lambda: integraciones.remove_colors(folder),
+                    "Listo: la pantalla de carga vuelve a como estaba antes de Nova."
+                ))
+            else:
+                title = "Pantalla de carga Nova" if full_branding else "Colores Nova en la carga"
+                add_action(title, lambda: integraciones.run(
+                    self, self.window, "Pantalla de carga",
+                    lambda: integraciones.apply_colors(folder, instance),
+                    "Pantalla Nova preparada para el próximo inicio de Minecraft." if full_branding else
+                    "Colores de Nova aplicados. Se ven al iniciar Minecraft."
+                ))
         menu.append(Gtk.Separator(css_classes=["menu-separator"]))
         add_action("Eliminar instancia", lambda: self.remove_instance(folder, instance["name"]), "danger")
 
@@ -1410,6 +1422,8 @@ class Nova(
         self.launch_stage = "Preparando…"
         self.status.set_text("Preparando Minecraft…")
         self.refresh()
+        if behavior != "close":
+            self.launch_screen_show(folder, instance, microsoft[1]["name"] if microsoft else profile)
 
         minimized = False
         began = []
@@ -1431,6 +1445,7 @@ class Nova(
                 self.window.minimize()
                 minimized = True
             self.refresh()
+            self.launch_screen_started(minimized)
 
         def finish(message, failed):
             self.running = None
@@ -1444,12 +1459,14 @@ class Nova(
             self.finished(message)
             self.failed_log = folder / "minecraft.log"
             self.failure_log.set_visible(failed)
+            self.launch_screen_finished(failed, message)
             if minimized:
                 self.window.unminimize()
                 self.window.present()
 
         def show_stage(message):
             self.status.set_text(message)
+            self.launch_screen_update(message)
             self.launch_stage = ("Descargando…" if message.startswith("Descargando") else
                                  "En juego" if message.startswith("Minecraft abierto") else
                                  "Iniciando…" if message.startswith("Iniciando") else "Preparando…")

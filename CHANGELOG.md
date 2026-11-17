@@ -9,7 +9,9 @@
 - **«De un jugador»**: trae la skin actual de cualquier jugador de Minecraft por su nombre, desde Mojang, para editarla y guardarla como tuya.
 - Las **skins antiguas de 64 × 32** ahora se pueden abrir (Nova completa el brazo y la pierna que faltaban) y detecta si una skin es de modelo delgado. Las de alta resolución se rechazan con un mensaje claro.
 - Arreglos: el borrador ya no deja huecos en la capa base (que se ven negros en el juego), una skin importada ya no cuenta como guardada, y los mensajes de «Equipar» explican qué falta (perfil, instancia, cargador de mods o cuenta de Microsoft, que cambia la skin en minecraft.net).
-- Sin probar: en Windows.
+- **Pantalla de inicio de Nova al jugar**: al tocar «Jugar», Nova muestra una pantalla con la portada de la instancia, el logo animado, cuatro pasos (preparar, archivos, iniciar Java y en juego) y el mensaje real de cada momento, por ejemplo qué se está descargando. Se va sola cuando Minecraft abre. Si el inicio falla, queda a la vista con el motivo y un botón para ver el registro. Se puede ocultar con «Ocultar» y apagar en Ajustes → «Pantalla de inicio al jugar». Respeta la opción de animaciones de tu escritorio.
+- **Pantalla de carga dentro de Minecraft** (instancias con Fabric o Quilt): ahora sigue los colores actuales de Nova (celeste sobre fondo oscuro) en lugar del violeta de antes, y el logo de Nova que aparece al cargar Minecraft 1.21.11 con Fabric está renovado. Las instancias que ya la tenían se actualizan solas en su próximo inicio. Nueva opción «Quitar pantalla de carga Nova» en el menú de cada instancia: devuelve los colores que tenía antes de Nova.
+- Sin probar: en Windows, ni ver la pantalla de carga renovada dentro del juego (se probó que Java carga el complemento y que los colores se escriben y se quitan bien).
 
 ## 1.14.0
 - **Actualizaciones en segundo plano (opcional)**: en Ajustes → Actualizaciones, «Actualizar Nova en segundo plano». Con eso activado, Nova

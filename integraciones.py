@@ -9,6 +9,7 @@ from gi.repository import GLib, Gtk
 import errores
 import catalogo
 import motor
+import pantalla_carga
 
 
 def ensure_mod(folder, instance, slug, marker):
@@ -53,13 +54,11 @@ def equip(folder, instance, player, png):
 
 def apply_colors(folder, instance):
     ensure_mod(folder, instance, "dark-loading-screen", "dark-loading-screen")
-    with motor.instance_lock(folder):
-        config = folder / "game" / "config" / "dark-loading-screen.json"
-        data = motor.read(config, {})
-        motor.save(config, {**data, "background": "101022", "bar": "bb94f5",
-                            "barBackground": "211b35", "border": "594475", "logo": "eadbff"})
-        if instance["version"] == "1.21.11" and instance["loader"] == "fabric":
-            motor.save(folder / "nova-loading.json", {"logo": True})
+    pantalla_carga.apply(folder, instance)
+
+
+def remove_colors(folder):
+    pantalla_carga.remove(folder)
 
 
 def run(app, parent, title, task, success):

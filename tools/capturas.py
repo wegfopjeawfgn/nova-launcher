@@ -456,6 +456,41 @@ def scene_list(app, state):
                 return False
             GLib.timeout_add(800, drive)
 
+    def launching_scene():
+        app.choose_game("minecraft", save=False)
+        app.leave_page()
+        folder = app.selected
+        instance = dict(app.instances[folder])
+        app.launch_screen_show(folder, instance, app.profile or "Alex")
+        app.launch_screen_update("Descargando recursos de Minecraft…")
+        app.launch_view.set_opacity(1.0)
+        import os
+        if os.environ.get("NOVA_LAUNCH_TEST"):
+            out = []
+
+            def step(n):
+                if n == 0:
+                    app.launch_screen_update("Iniciando Minecraft…")
+                    out.append(("iniciando", app.launch_step))
+                elif n == 1:
+                    app.launch_screen_started(False)
+                    out.append(("abierto", app.launch_step, app.launch_view.get_visible()))
+                elif n == 2:
+                    out.append(("tras-1.4s", app.launch_view.get_visible()))
+                    app.launch_screen_show(folder, instance, "Alex")
+                    app.launch_screen_update("Descargando recursos de Minecraft…")
+                    app.launch_screen_finished(True, "Minecraft terminó con código 1.")
+                    out.append(("fallo", app.launch_failed, app.launch_log.get_visible(), app.launch_view.get_visible()))
+                    app.launch_screen_hide()
+                    app.preferences = {**app.preferences, "launch_screen": False}
+                    app.launch_screen_show(folder, instance, "Alex")
+                    out.append(("desactivada", app.launch_view.get_visible()))
+                    print("LAUNCHTEST", out)
+                    return False
+                GLib.timeout_add(1700 if n == 1 else 100, step, n + 1)
+                return False
+            GLib.timeout_add(300, step, 0)
+
     def roblox_favs():
         signed()
         games = app.roblox_data.get("top-trending", [])
@@ -513,6 +548,7 @@ def scene_list(app, state):
         ("roblox-favoritos", roblox_favs, 4000),
         ("roblox-amigos", roblox_friends_scene, 4000),
         ("roblox-sesion", roblox_login_scene, 4000),
+        ("lanzando", launching_scene, 2500),
         ("skins", skins_scene, 2500),
         ("ajustes-nova", settings_scene, 2500),
         ("actualizacion", update_card_scene, 1200),
