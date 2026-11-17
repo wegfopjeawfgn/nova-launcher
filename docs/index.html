@@ -52,21 +52,21 @@
       <div class="wrap hero-grid">
         <div class="hero-copy">
           <div class="badge-row">
-            <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.14.0</b></p>
+            <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.14.1</b></p>
           <a class="badge badge-link" href="#roblox"><span aria-hidden="true"></span> Nuevo · Roblox</a>
           <a class="badge badge-link" href="#servidor"><span aria-hidden="true"></span> Nuevo · Mi servidor</a>
           </div>
           <h1 id="titulo">Tus mods.<br>Tus mundos.<br><em>Un solo launcher.</em></h1>
           <p class="intro">Nova Launcher organiza tus instancias de Minecraft Java: instalá mods, importá los que ya tenés, guardá respaldos verificados y armá tu propio servidor para jugar con amigos. Y si también jugás Roblox, lo abrís desde el mismo lugar.</p>
           <div class="actions">
-            <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.14.0-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
+            <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.14.1-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
             <div class="windows-download" id="windows-download">
-              <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.14.0/nova-launcher-1.14.0-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
+              <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.14.1/nova-launcher-1.14.1-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
             </div>
           </div>
           <p class="download-meta">Comprobá cada archivo con su suma:
-            <a id="release-checksum" href="descargas/nova-launcher-1.14.0-1.noarch.rpm.sha256" download>SHA-256 del RPM</a> ·
-            <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.14.0/nova-launcher-1.14.0-windows-x64-setup.exe.sha256">SHA-256 del instalador</a>
+            <a id="release-checksum" href="descargas/nova-launcher-1.14.1-1.noarch.rpm.sha256" download>SHA-256 del RPM</a> ·
+            <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.14.1/nova-launcher-1.14.1-windows-x64-setup.exe.sha256">SHA-256 del instalador</a>
           </p>
         </div>
         <figure class="shot hero-shot">
@@ -252,7 +252,7 @@
         <li class="reveal">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 20 1-4L16.5 4.5a2 2 0 0 1 3 3L8 19l-4 1Z"/></svg>
           <h3>Editor de skins</h3>
-          <p>Importá un PNG o dibujá por partes y capas. Equipá la skin en una instancia compatible.</p>
+          <p>Pintá sobre la skin desplegada con vista 3D, guardala en tu biblioteca, traé la de cualquier jugador por su nombre y equipala en una instancia compatible.</p>
         </li>
       </ul>
     </section>
@@ -306,6 +306,20 @@
         </div>
         <div class="row reveal">
           <div class="copy">
+            <h3>Un editor de skins con vista 3D</h3>
+            <p>Pintás sobre la skin desplegada, con cada parte y la capa exterior marcadas, y ves el resultado girando en 3D. Tiene lápiz, borrar, gotero, relleno, simetría, paleta y deshacer; una biblioteca con miniaturas; y «De un jugador» trae la skin de cualquiera por su nombre. Abre también las skins antiguas de 64 × 32.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-skins.webp" width="1280" height="820" loading="lazy" alt="Editor de skins de Nova: biblioteca con miniaturas a la izquierda, la skin desplegada con las capas marcadas al centro y la vista previa en 3D a la derecha"><figcaption>Editor de skins. Skins de ejemplo.</figcaption></figure>
+        </div>
+        <div class="row flip reveal">
+          <div class="copy">
+            <h3>Una pantalla de inicio cuando abrís Minecraft</h3>
+            <p>Al tocar Jugar, Nova muestra el avance real: preparar, archivos, iniciar Java y en juego, con el logo animado. Se va sola cuando Minecraft abre y, si algo falla, te dice el motivo. Se apaga en Ajustes.</p>
+          </div>
+          <figure class="shot"><img src="assets/nova-inicio-juego.webp" width="1280" height="820" loading="lazy" alt="Pantalla de inicio de Nova con la portada de la instancia, el logo animado y cuatro pasos: Preparar, Archivos, Iniciar Java y En juego"><figcaption>La pantalla de inicio al jugar</figcaption></figure>
+        </div>
+        <div class="row reveal">
+          <div class="copy">
             <h3>Actualizaciones en segundo plano, si querés</h3>
             <p>Actívalas en Ajustes. Nova descarga la versión nueva mientras la usás y comprueba su SHA-256; instalarla es un clic y no instala nada sola. Si no las activás, Nova solo te avisa.</p>
           </div>
@@ -331,10 +345,10 @@
       </div>
       <div class="terminal">
         <span>Si el archivo está en Descargas</span>
-        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-1.14.0-1.noarch.rpm"</code></pre>
+        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-1.14.1-1.noarch.rpm"</code></pre>
         <button type="button" data-copy-command="install-downloads" hidden>Copiar comando para Descargas</button>
         <span>Si ya estás en la carpeta del archivo</span>
-        <pre><code id="install-current">sudo dnf install ./nova-launcher-1.14.0-1.noarch.rpm</code></pre>
+        <pre><code id="install-current">sudo dnf install ./nova-launcher-1.14.1-1.noarch.rpm</code></pre>
         <button type="button" data-copy-command="install-current" hidden>Copiar comando para esta carpeta</button>
         <p id="copy-status" role="status"></p>
         <p>RPM sin firma. El primer arranque de Minecraft descarga los archivos del juego.</p>
