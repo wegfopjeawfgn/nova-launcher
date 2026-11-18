@@ -1,5 +1,21 @@
 # Cambios
 
+## 1.15.0
+- **Rediseño de la interfaz**: marco nocturno con un panel redondeado, selector Minecraft/Roblox en la barra de arriba, barra lateral más corta (lo menos usado queda detrás de «Más») y portada de instancia más grande. Ajustes, Almacenamiento y Estadísticas pasan a tarjetas ordenadas, y el resto de las pantallas hereda los nuevos colores, bordes y esquinas, en tema oscuro y claro.
+- **Animaciones nuevas**:
+  - **Entrada de Nova**: la estrella cae rebotando, deja sombra, anillos de luz y chispas, y la interfaz se arma en cascada.
+  - **Portal al elegir juego**: al tocar Minecraft o Roblox, el color del juego se expande desde el punto del clic, aparece su símbolo y el contenido cambia; después se drena desde el mismo punto.
+  - Selector de juego con una píldora que se estira al moverse, páginas que suben al abrirse, portadas con zoom suave, barras de progreso y tarjetas con transiciones.
+  - **Ajustes → Animaciones**: lentas y suaves, normales, rápidas o apagadas. Se aplica sin reiniciar. Si tu sistema ya tiene las animaciones apagadas, Nova tampoco anima.
+- Arreglos:
+  - Volver o Escape desde Roblox ya no te lleva a la biblioteca de Minecraft, y cambiar de juego con una página abierta la cierra bien.
+  - Un fallo de red ya no borra el aviso de una actualización pendiente.
+  - La tarjeta «Última jugada» ya no deja un error repetido en la lista compacta.
+  - La portada ya no parpadea al escribir en el buscador y las tarjetas no repiten su entrada con cada tecla.
+  - Tema claro: botón de cerrar, textos tenues, estado de error, botón de compra y pantalla de inicio al jugar se leen bien; los campos deshabilitados se ven apagados.
+  - Textos: «Jugar con cuenta offline» y un aviso de mods en instancias Vanilla que explica qué hacer.
+- Sin probar: en Windows, ni las animaciones nuevas en movimiento con clics reales (se revisaron cuadros sueltos y los tests).
+
 ## 1.14.1
 - **Editor de skins renovado**:
   - Pintás directamente sobre la skin desplegada, con cada parte marcada y su nombre. La capa exterior (sombrero, chaqueta, mangas…) tiene borde punteado.

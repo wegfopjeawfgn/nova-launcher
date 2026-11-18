@@ -35,7 +35,7 @@ def summary(*, recent, names, now, downloading, queued, account, update):
     if kind == "microsoft":
         text = f"Microsoft · {name}"
     elif kind == "offline":
-        text = f"Sin conexión · {name}"
+        text = f"Cuenta offline · {name}"
     else:
         text = "Sin cuenta: elegí un nombre"
     cards.append({"key": "account", "title": "Cuenta", "text": text})

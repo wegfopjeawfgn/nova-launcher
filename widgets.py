@@ -59,13 +59,30 @@ def hero_art(instance, height=260):
     except GLib.Error:
         pass
     frame = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER, vscrollbar_policy=Gtk.PolicyType.NEVER,
-                               min_content_height=height, max_content_height=height, can_target=False)
+                               min_content_height=height, max_content_height=height, can_target=False,
+                               css_classes=["hero-zoom"])
     frame.set_child(picture)
     return frame
 
 
+# Animation speed (Ajustes): every duration and delay goes through ms(), the CSS is rewritten with scale_css().
+SPEEDS = {"soft": 1.45, "medium": 1.0, "fast": 0.55, "off": 0.0}
+speed = [1.0]
+
+
+def ms(value):
+    return round(value * speed[0])
+
+
+def scale_css(text):
+    return re.sub(r"(\d+)ms", lambda m: f"{ms(int(m.group(1)))}ms", text)
+
+
 def motion_enabled():
-    return Gtk.Settings.get_default().get_property("gtk-enable-animations")
+    return speed[0] > 0 and Gtk.Settings.get_default().get_property("gtk-enable-animations")
+
+
+intro_delay = [0]  # the start veil holds the first entrances back until it dissolves
 
 
 def enter(widget, delay=0):
@@ -79,7 +96,65 @@ def enter(widget, delay=0):
         widget.remove_css_class("entering")
         return False
 
-    GLib.timeout_add(48 + delay, settle)
+    GLib.timeout_add(48 + ms(delay) + intro_delay[0], settle)
+
+
+def ease_out(t):
+    return 1 - 2 ** (-10 * t) if t < 1 else 1.0
+
+
+def tween(widget, duration, step, done=None, curve=ease_out):
+    """Run step(curve(t)) every frame for `duration` ms (already scaled by the caller). curve=None gives raw 0..1."""
+    if not motion_enabled():
+        step(1.0)
+        done and done()
+        return
+    start = []
+
+    def tick(_w, clock):
+        now = clock.get_frame_time()
+        start.append(now) if not start else None
+        t = min((now - start[0]) / (max(duration, 1) * 1000), 1.0)
+        step(curve(t) if curve else t)
+        if t >= 1.0:
+            done and done()
+            return GLib.SOURCE_REMOVE
+        return GLib.SOURCE_CONTINUE
+
+    widget.add_tick_callback(tick)
+
+
+def cascade(widgets, start=0, step=45, kind="below", cap=16, later=False):
+    """Bring widgets in one after another. `kind`: below (rise), left (slide from the sidebar), pop (grow).
+    The hold state is a CSS class, so nothing is lost if the person clicks mid-entrance."""
+    if not motion_enabled():
+        return lambda: None
+    items = list(widgets)[:cap]
+    for widget in items:
+        widget.add_css_class("cascade")
+        widget.add_css_class("entering")
+        widget.add_css_class("from-" + kind)
+
+    def release():
+        for index, widget in enumerate(items):
+            at = ms(start + index * step)
+
+            def go(w=widget):
+                w.remove_css_class("entering")
+                return False
+
+            def settle(w=widget):
+                w.remove_css_class("cascade")
+                w.remove_css_class("from-" + kind)
+                return False
+
+            GLib.timeout_add(max(at, 1), go)
+            GLib.timeout_add(at + ms(700), settle)
+
+    if later:
+        return release
+    release()
+    return release
 
 
 def instance_art(instance, width=-1, height=145):

@@ -242,7 +242,7 @@ class Browser:
             self.status.set_text("Seleccioná una instancia para descargar este tipo de contenido.")
             return
         if category == "mod" and self.instance["loader"] == "vanilla":
-            self.status.set_text("Elegí Fabric, Forge, NeoForge o Quilt en los ajustes de la instancia.")
+            self.status.set_text("Esta instancia es Vanilla y no admite mods. Tocá «Editar» y elegí Fabric, Forge, NeoForge o Quilt.")
             return
         if category == "shader":
             self.status.set_text("Para activar shaders necesitás un mod compatible, como Iris.")

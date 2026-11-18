@@ -9,7 +9,7 @@ from gi.repository import GLib, Gtk
 
 import lanzamiento
 import motor
-from widgets import button, instance_art, label
+from widgets import button, cascade, instance_art, label, ms, tween
 
 
 def star_path(cr, cx, cy, radius):
@@ -70,20 +70,136 @@ class LanzamientoMixin:
         frame.add_overlay(self.launch_view)
         self.launch_orbit.add_tick_callback(self.launch_tick)
 
+    # ---- start veil
+    def play_intro(self, frame, nav, blocks):
+        """Nova's star blooms over the canvas with rings of light, then the veil dissolves and the interface builds up."""
+        from widgets import motion_enabled
+        if not motion_enabled():
+            return
+        accent = (14 / 255, 116 / 255, 144 / 255) if self.light_active else (143 / 255, 214 / 255, 232 / 255)
+        state = {"p": 0.0}
+
+        R = 46
+        # (start, length, height of the hop in px): the star falls, then bounces three times, each lower
+        hops = ((0.30, 0.22, 150), (0.52, 0.14, 62), (0.66, 0.09, 22))
+        impacts = (0.30, 0.52, 0.66, 0.75)
+
+        def offset(p, drop):
+            """How far above the ground the star is, and how fast it moves (for stretch)."""
+            if p < 0.30:
+                u = p / 0.30
+                return drop * (1 - u * u), u
+            for start, length, height in hops:
+                if start <= p < start + length:
+                    u = (p - start) / length
+                    return height * 4 * u * (1 - u), abs(1 - 2 * u) * 0.5
+            return 0.0, 0.0
+
+        def draw(_area, cr, width, height, *_):
+            p, cx = state["p"], width / 2
+            ground = height / 2 + R - 6
+            high, speed_now = offset(p, ground + 80)
+            # squash on every landing, stretch while moving fast
+            hit = min((p - i for i in impacts if p >= i), default=9.0)
+            squash = 0.3 * math.exp(-hit * 38) * math.cos(hit * 60) * (1.0 if p < 0.75 else 0.6)
+            sy = 1 - squash + 0.18 * speed_now
+            sx = 1 + squash * 0.9 - 0.08 * speed_now
+            spin = 4 * math.pi * (1 - min(p / 0.75, 1.0)) ** 2
+            star_y = ground - high - R * sy
+            glow = cairo.RadialGradient(cx, ground - R, 0, cx, ground - R, 230)
+            glow.add_color_stop_rgba(0, *accent, 0.22 * min(p * 3, 1.0))
+            glow.add_color_stop_rgba(1, *accent, 0)
+            cr.set_source(glow)
+            cr.paint()
+            # shadow on the ground: tight when the star is low, wide and faint when it is high
+            near = max(0.0, 1 - high / 260)
+            cr.save()
+            cr.translate(cx, ground + 8)
+            cr.scale(1, 0.16)
+            cr.arc(0, 0, R * (0.5 + 0.9 * near), 0, 2 * math.pi)
+            cr.restore()
+            cr.set_source_rgba(0, 0, 0, 0.10 + 0.22 * near)
+            cr.fill()
+            # a ring and a burst of tiny stars at each landing
+            for k, at in enumerate(impacts):
+                u = (p - at) / (0.34 if k == 0 else 0.22)
+                if 0 < u < 1:
+                    strength = (1.0, 0.6, 0.4, 0.9)[k]
+                    cr.set_source_rgba(*accent, 0.55 * (1 - u) ** 2 * strength)
+                    cr.set_line_width(2.4 - 1.4 * u)
+                    cr.save()
+                    cr.translate(cx, ground + 4)
+                    cr.scale(1, 0.32)
+                    cr.arc(0, 0, 30 + (260 if k in (0, 3) else 120) * (1 - (1 - u) ** 3), 0, 2 * math.pi)
+                    cr.restore()
+                    cr.stroke()
+                    if k in (0, 3):
+                        for i in range(12 if k else 9):
+                            angle = i * 2 * math.pi / (12 if k else 9) + k
+                            dist = (60 + 70 * ((i * 7) % 5) / 4) * (1 - (1 - u) ** 3) * (1.3 if k else 1)
+                            px, py = cx + dist * math.cos(angle), ground - 10 - dist * abs(math.sin(angle)) * 0.9 + 80 * u * u
+                            cr.set_source_rgba(*accent, (1 - u) * 0.95)
+                            star_path(cr, px, py, 3 + 3 * ((i * 3) % 3) * (1 - u))
+                            cr.fill()
+            cr.save()
+            cr.translate(cx, star_y)
+            cr.scale(sx, sy)
+            cr.rotate(spin)
+            star_path(cr, 0, 0, R)
+            cr.set_source_rgba(*accent, 1)
+            cr.fill()
+            cr.restore()
+
+        area = Gtk.DrawingArea(hexpand=True, vexpand=True, can_target=False)
+        area.set_draw_func(draw)
+        word = label("NOVA", "boot-word")
+        word.set_halign(Gtk.Align.CENTER)
+        word.set_valign(Gtk.Align.CENTER)
+        word.set_margin_top(200)
+        word.add_css_class("boot-logo")
+        word.add_css_class("entering")
+        veil = Gtk.Overlay(css_classes=["boot-veil"], child=area)
+        veil.add_overlay(word)
+        frame.add_overlay(veil)
+        releases = [cascade(nav, start=0, step=26, kind="left", cap=14, later=True),
+                    cascade(blocks, start=120, step=80, kind="below", later=True)]
+
+        def begin(*_):
+            tween(area, ms(1650), lambda t: (state.__setitem__("p", t), area.queue_draw()), curve=None)
+            GLib.timeout_add(ms(1250), lambda: (word.remove_css_class("entering"), False)[1])
+            GLib.timeout_add(ms(1650), leave)
+
+        def leave():
+            veil.add_css_class("leaving")
+            veil.set_can_target(False)
+            for release in releases:
+                release()
+            GLib.timeout_add(ms(620), lambda: (frame.remove_overlay(veil), False)[1])
+            return False
+
+        if veil.get_mapped():
+            begin()
+        else:
+            veil.connect("map", begin)
+
     # ---- drawing
     def launch_tick(self, widget, clock):
         if self.launch_view.get_visible():
-            fade = min(1.0, (clock.get_frame_time() / 1e6 - self.launch_started_at) / 0.3)
+            fade = 1.0 if not self.animations_on() else min(1.0, (clock.get_frame_time() / 1e6 - self.launch_started_at) / 0.3)
             self.launch_view.set_opacity(fade if self.launch_hide_id == 0 else self.launch_view.get_opacity())
             if self.animations_on():
                 widget.queue_draw()
                 self.launch_steps.queue_draw()
         return GLib.SOURCE_CONTINUE
 
+    def launch_ink(self):
+        """Text colour on the start card: it follows the theme, the card does."""
+        return (0.07, 0.08, 0.10) if self.light_active else (0.93, 0.94, 0.96)
+
     @staticmethod
     def animations_on():
-        from gi.repository import Gtk as _Gtk
-        return bool(_Gtk.Settings.get_default().get_property("gtk-enable-animations"))
+        from widgets import motion_enabled
+        return bool(motion_enabled())
 
     def draw_orbit(self, area, cr, width, height):
         t = GLib.get_monotonic_time() / 1e6 if self.animations_on() else 0.0
@@ -101,7 +217,7 @@ class LanzamientoMixin:
         cr.fill()
         for index, (radius, speed, size) in enumerate(((66, 0.9, 4.5), (52, -1.4, 3.2))):
             angle = t * speed + index * 2.1
-            cr.set_source_rgba(0.93, 0.94, 0.96, 0.95)
+            cr.set_source_rgba(*self.launch_ink(), 0.95)
             cr.arc(cx + radius * math.cos(angle), cy + radius * math.sin(angle), size, 0, 2 * math.pi)
             cr.fill()
         cr.set_source_rgb(*accent)
@@ -154,7 +270,7 @@ class LanzamientoMixin:
                                 cairo.FONT_WEIGHT_BOLD if state == "active" else cairo.FONT_WEIGHT_NORMAL)
             cr.new_path()
             cr.set_font_size(15)
-            cr.set_source_rgba(*(0.93, 0.94, 0.96) if state in ("active", "done") else dim, 1.0 if state != "pending" else 0.85)
+            cr.set_source_rgba(*self.launch_ink() if state in ("active", "done") else dim, 1.0 if state != "pending" else 0.85)
             cr.move_to(cx + 24, cy + 5)
             cr.show_text(name)
 
@@ -200,7 +316,7 @@ class LanzamientoMixin:
         self.launch_step = len(lanzamiento.STEPS) - 1
         self.launch_message.set_text("Minecraft se abrió. ¡A jugar!")
         self.launch_steps.queue_draw()
-        self.launch_hide_id = GLib.timeout_add(150 if minimized else 1400, self._launch_fade)
+        self.launch_hide_id = GLib.timeout_add(150 if minimized else ms(1400), self._launch_fade)
 
     def _launch_fade(self):
         self.launch_hide_id = 0
