@@ -7,12 +7,14 @@ import gi
 import requests
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import GLib, Gdk, GdkPixbuf, Gio, Gtk
+gi.require_version("Graphene", "1.0")
+from gi.repository import GLib, Gdk, GdkPixbuf, Gio, Graphene, Gtk
 
 import motor
+import portal
 import roblox
 import roblox_cuenta
-from widgets import button, default_cover, label
+from widgets import button, default_cover, ease_out, label, ms, tween
 
 HERE = Path(__file__).resolve().parent
 MY_TABS = (("favs", "Favoritos"), ("recent", "Recientes"))
@@ -48,6 +50,9 @@ class JuegosMixin:
         """The sidebar and Minecraft account belong to Minecraft; the top search follows the game on screen
         (game is "minecraft", "roblox" or None for the chooser)."""
         self.sidebar.set_visible(game == "minecraft")
+        for key, tab in self.game_switch.items():
+            (tab.add_css_class if key == game else tab.remove_css_class)("seg-active")
+        self.move_pill(game)
         self.accounts.set_visible(game == "minecraft")
         self.library_query.set_visible(game is not None)
         if game != getattr(self, "current_game", None):
@@ -57,6 +62,36 @@ class JuegosMixin:
                 self.library_query.set_placeholder_text("Buscar un juego o pegar un enlace de Roblox" if game == "roblox"
                                                         else "Buscar instancias")
 
+    def move_pill(self, game):
+        """Glide the pill under the active game (it is hidden on the chooser)."""
+        tab, pill = self.game_switch.get(game), self.switch_pill
+        pill.set_visible(tab is not None)
+        if tab is None:
+            self.pill_now = None
+            return
+        if not tab.get_width():  # not laid out yet: place it on the first frame
+            GLib.idle_add(lambda: (self.move_pill(game), False)[1] if tab.get_width() else True)
+            return
+        ok, point = tab.compute_point(self.switch_box, Graphene.Point().init(0, 0))
+        x, w, h = int(point.x), tab.get_width(), tab.get_height()
+        a, b = self.pill_now or (x, w), (x, w)
+        self.pill_job = job = getattr(self, "pill_job", 0) + 1  # a newer move cancels the one in flight
+        right = (1 if b[0] > a[0] else -1)
+
+        def step(t):
+            # the edge that leads the move arrives first and the other follows: the pill stretches, then settles
+            if job != self.pill_job:
+                return
+            lead, trail = ease_out(min(t * 1.35, 1.0)), ease_out(max(t * 1.35 - 0.35, 0.0))
+            a_right, b_right = a[0] + a[1], b[0] + b[1]
+            left = a[0] + (b[0] - a[0]) * (trail if right > 0 else lead)
+            edge = a_right + (b_right - a_right) * (lead if right > 0 else trail)
+            self.pill_now = (round(left), round(edge - left))
+            pill.set_margin_start(self.pill_now[0])
+            pill.set_size_request(self.pill_now[1], h)
+
+        tween(pill, ms(520), step, curve=None)
+
     def _search_activate(self, entry):
         if getattr(self, "current_game", None) == "roblox":
             self.roblox_submit(entry.get_text())
@@ -65,7 +100,35 @@ class JuegosMixin:
         self._chrome(None)
         self.page_stack.set_visible_child_name("games")
 
+    def run_portal(self, game, source, swap):
+        """Flood the window from the clicked widget (see portal.py), changing the game at the peak."""
+        ok, point = source.compute_point(self.frame_overlay, Graphene.Point().init(source.get_width() / 2,
+                                                                                    source.get_height() / 2))
+        portal.play(self.frame_overlay, (point.x, point.y) if ok else (0, 0), game, swap)
+
+    def switch_game(self, game):
+        if game == getattr(self, "current_game", None):
+            return
+        self.move_pill(game)
+        self.run_portal(game, self.game_switch[game], lambda: self._switch_game_now(game))
+
+    def pick_game(self, game):
+        self.run_portal(game, self.chooser_tiles[game], lambda: self.choose_game(game))
+
+    def _switch_game_now(self, game):
+        """The title-bar switch: change game without asking again, and remember it only if the person asked for that."""
+        # the games slide sideways in the order of the switch: Roblox comes from the right, Minecraft from the left
+        self.page_stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT if game == "roblox"
+                                            else Gtk.StackTransitionType.SLIDE_RIGHT)
+        GLib.timeout_add(ms(350), lambda: (self.page_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE), False)[1])
+        self.choose_game(game, save=False)
+        if self.preferences.get("remember_game"):
+            self.preferences = {**self.preferences, "game": game}
+            motor.save(motor.ROOT / "settings.json", self.preferences)
+
     def choose_game(self, game, save=True):
+        if getattr(self, "current_page", None) and not self.leave_page(switch=False):
+            return  # the open page is busy: stay where we are
         if save:
             self.preferences = {**self.preferences, "game": game, "remember_game": self.remember_check.get_active()}
             motor.save(motor.ROOT / "settings.json", self.preferences)
@@ -103,12 +166,14 @@ class JuegosMixin:
         title.set_xalign(0.5)
         box.append(title)
         row = Gtk.Box(spacing=20, halign=Gtk.Align.CENTER)
+        self.chooser_tiles = {}
         minecraft_cover = self._cover()
         minecraft_cover.picture.set_paintable(default_cover(0))
         self.roblox_cover = self._cover()
         for key, name, note, cover in (("minecraft", "Minecraft", "Instancias, mods y Mi servidor", minecraft_cover),
                                        ("roblox", "Roblox", "Explorá y entrá directo a un juego", self.roblox_cover)):
-            tile = button("", lambda k=key: self.choose_game(k), "card")
+            tile = button("", lambda k=key: self.pick_game(k), "card")
+            self.chooser_tiles[key] = tile
             inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
             inner.append(cover)
             inner.append(label(name, "card-label"))

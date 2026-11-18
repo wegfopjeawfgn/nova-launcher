@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        1.14.1
+Version:        1.15.0
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        GPL-3.0-or-later AND BSD-2-Clause
@@ -44,6 +44,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Tue Nov 17 2026 Nova Launcher <nova@localhost> - 1.15.0-1
+- Interface redesign, game portal, new start animation and animation speed setting.
+
 * Mon Nov 16 2026 Nova Launcher <nova@localhost> - 1.14.1-1
 - Reworked skin editor, start screen while Minecraft opens and updated in-game loading screen.
 

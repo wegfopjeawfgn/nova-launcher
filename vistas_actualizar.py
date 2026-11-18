@@ -133,6 +133,10 @@ class ActualizarMixin:
             if repo != self.preferences.get("release_repo", self.release_repo):
                 self.check_release(manual)
                 return
+            if error:  # a failed check keeps what was known (a pending update must not vanish)
+                if manual:
+                    self.status.set_text(error)
+                return
             self.available_release = release
             self.update_home()
             self.release_note.set_text(f"Actualizar a {release[0]}" if release else "Al día")

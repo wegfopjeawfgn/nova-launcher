@@ -107,7 +107,7 @@ def clear():
 def describe():
     return ("Nova guarda solo en tu computadora: la fecha y hora de inicio, la duración, el tiempo "
             "de arranque, si terminó bien y el identificador de la instancia. Nada sale de tu "
-            "computadora y puedes borrarlo cuando quieras.")
+            "computadora y podés borrarlo cuando quieras.")
 
 
 def _meminfo_mb(text, key):

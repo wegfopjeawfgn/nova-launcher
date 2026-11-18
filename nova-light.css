@@ -1,7 +1,7 @@
 /* Optional light theme: loaded after nova.css, so it only overrides the palette and the few literals.
    Same family as the dark theme: cool neutrals and a deeper teal for the launcher's cyan accent. */
 @define-color nova_canvas #f3f5f8;
-@define-color nova_sidebar #e8ecf1;
+@define-color nova_sidebar #e4e9ef;
 @define-color nova_surface #ffffff;
 @define-color nova_raised #f7f9fb;
 @define-color nova_control #edf0f4;
@@ -10,7 +10,7 @@
 @define-color nova_border_strong #c4ccd7;
 @define-color nova_text #10131a;
 @define-color nova_muted #4a5262;
-@define-color nova_dim #626b7c;
+@define-color nova_dim #555e70;
 @define-color nova_accent #0e7490;
 @define-color nova_accent_hover #0b5f77;
 @define-color nova_accent_dim #def0f5;
@@ -18,7 +18,7 @@
 @define-color nova_danger #b4233f;
 @define-color nova_warm #8a5a00;
 
-headerbar, .titlebar { background-color: #ffffff; }
+headerbar, .titlebar { background-color: @nova_sidebar; }
 button.primary { background-color: #0e7490; border-color: #0e7490; color: #ffffff; }
 button.primary:hover { background-color: #0b5f77; border-color: #0b5f77; }
 button.danger { border-color: #e2a0b0; }
@@ -45,7 +45,7 @@ button.play-button { box-shadow: 0 8px 22px rgba(14, 116, 144, 0.3); }
 .state-warning { color: #8a5a00; background: rgba(138, 90, 0, 0.08); border-color: rgba(138, 90, 0, 0.3); }
 .drop-hint { background: rgba(243, 245, 248, 0.86); }
 .drop-title { color: #0b5f77; }
-.me-logo { background: #0b0d12; }
+.me-logo { background: #0b0d12; box-shadow: none; }
 
 /* The hero is a photo: its own buttons stay dark, but menus opened from it follow the light theme. */
 .hero button:not(.primary) { background-color: rgba(11, 13, 18, 0.62); border-color: rgba(238, 240, 245, 0.28); }
@@ -56,9 +56,14 @@ button.play-button { box-shadow: 0 8px 22px rgba(14, 116, 144, 0.3); }
 .hero popover button:not(.primary):hover { background-color: @nova_control; }
 .hero popover button:not(.primary) label, .hero popover button:not(.primary) image { color: @nova_text; }
 .hero popover button.danger label { color: @nova_danger; }
+headerbar windowcontrols button.close:hover { background: #fbe4ea; }
+headerbar windowcontrols button.close:hover > image { color: #b4233f; }
 .form-status { color: @nova_warm; }
 
 .seg button.seg-button.seg-active { color: #0b5f77; }
 
 .game-play:hover { color: #ffffff; }
 .game-star { background: rgba(255, 255, 255, 0.85); color: #10131a; }
+
+.game-play.paid:hover { color: #ffffff; }
+.state-error { background: rgba(180, 35, 63, 0.08); border-color: rgba(180, 35, 63, 0.3); }

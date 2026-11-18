@@ -20,7 +20,10 @@
 @define-color nova_warm #f1d49b;
 
 /* Base */
-window, window.nova-main { background: @nova_canvas; color: @nova_text; }
+window { background: @nova_canvas; color: @nova_text; }
+/* The window is a night frame (title bar, sidebar, status bar); pages live in one rounded panel inside it. */
+window.nova-main { background: @nova_sidebar; }
+.content-panel { background: @nova_canvas; border: 1px solid @nova_border; border-radius: 18px; margin: 0 10px 0 0; }
 window.dialog, window.background:not(.nova-main), popover contents {
   background-color: @nova_surface;
   background-image: none;
@@ -37,11 +40,13 @@ label { font-feature-settings: "tnum"; }
 headerbar, .titlebar {
   background-color: @nova_sidebar;
   background-image: none;
-  border-bottom: 1px solid @nova_border;
+  border-bottom: none;
+  box-shadow: none;
   color: @nova_text;
   padding: 6px 12px;
 }
-.nova-titlebar { padding: 5px 10px 5px 16px; }
+.nova-titlebar { padding: 6px 10px 6px 16px; }
+.game-switch { margin-left: 14px; }
 .brand { font-size: 15px; font-weight: 700; letter-spacing: 0.3px; }
 headerbar windowcontrols { padding: 0 2px; border-spacing: 4px; }
 headerbar windowcontrols button, .nova-titlebar windowcontrols button {
@@ -64,32 +69,33 @@ headerbar windowcontrols button:active { background: @nova_border_strong; }
 /* Sidebar */
 .sidebar {
   background: @nova_sidebar;
-  border-right: 1px solid @nova_border;
-  padding: 10px 10px 10px;
-  min-width: 176px;
+  border: none;
+  box-shadow: none;
+  padding: 4px 10px 10px 12px;
+  min-width: 208px;
 }
 .nav-caption {
   color: @nova_dim;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1px;
-  margin: 12px 10px 3px;
+  margin: 16px 12px 4px;
 }
 button.nav-button {
   background: transparent;
   border-color: transparent;
-  border-radius: 9px;
-  padding: 2px 10px;
-  min-height: 22px;
+  border-radius: 11px;
+  padding: 4px 12px;
+  min-height: 24px;
   color: @nova_muted;
 }
 button.nav-button:hover { background: @nova_control; color: @nova_text; }
-button.nav-active { background: @nova_accent_dim; border-color: transparent; color: @nova_accent_hover; }
+button.nav-active { background: @nova_accent_dim; border-color: transparent; color: @nova_accent_hover; box-shadow: inset 3px 0 0 @nova_accent; }
 button.nav-active:hover { background: @nova_accent_dim; color: @nova_accent_hover; }
 
 /* Typography */
-.main { padding: 26px 32px 18px; }
-.heading { font-size: 30px; font-weight: 700; letter-spacing: -0.7px; }
+.main { padding: 30px 38px 22px; }
+.heading { font-size: 32px; font-weight: 750; letter-spacing: -0.9px; }
 .subheading { font-size: 21px; font-weight: 700; letter-spacing: -0.3px; }
 .settings-heading { font-size: 17px; font-weight: 700; margin-top: 12px; }
 .form-label, .catalog-title, .feature-title { font-weight: 650; }
@@ -105,8 +111,8 @@ button {
   background-color: @nova_control;
   color: @nova_text;
   border: 1px solid @nova_border_strong;
-  border-radius: 10px;
-  padding: 8px 14px;
+  border-radius: 12px;
+  padding: 8px 15px;
 }
 button:hover { background-color: @nova_hover; }
 button:active { background-color: @nova_border_strong; }
@@ -159,13 +165,13 @@ notebook > header tab:checked { color: @nova_text; background: @nova_hover; }
 .action-menu button.danger:hover { background: #3a1d23; }
 
 /* Library: cards, compact rows and the selected instance */
-button.card { padding: 0; border: 1px solid @nova_border; border-radius: 14px; background: @nova_surface; }
+button.card { padding: 0; border: 1px solid @nova_border; border-radius: 18px; background: @nova_surface; }
 button.card:hover { border-color: @nova_border_strong; background: @nova_raised; }
 button.card.selected { border-color: @nova_accent; box-shadow: 0 0 0 1px @nova_accent; }
 .card-label { padding: 12px 14px 2px; font-size: 16px; font-weight: 650; }
 .card-meta { padding: 0 14px 13px; font-size: 12.5px; }
 .instance-cover { border-radius: 8px; }
-button.card .instance-cover { border-radius: 13px 13px 0 0; }
+button.card .instance-cover { border-radius: 17px 17px 0 0; }
 button.compact-instance { padding: 8px 12px; background: @nova_surface; border-color: @nova_border; border-radius: 12px; }
 button.compact-instance:hover { background: @nova_raised; }
 button.compact-instance.selected { background: @nova_raised; border-color: @nova_accent_line; }
@@ -207,22 +213,22 @@ button.feature:hover { background: @nova_hover; border-color: @nova_accent_line;
 .section-title { font-size: 15px; font-weight: 700; letter-spacing: -0.1px; }
 .hero {
   border: 1px solid @nova_border;
-  border-radius: 16px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
-  min-height: 262px;
+  border-radius: 22px;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.5);
+  min-height: 300px;
 }
 .hero-shade {
   background-image:
     linear-gradient(90deg, rgba(7, 8, 11, 0.96) 0%, rgba(7, 8, 11, 0.8) 40%, rgba(7, 8, 11, 0.06) 82%),
     linear-gradient(0deg, rgba(7, 8, 11, 0.82), rgba(7, 8, 11, 0) 55%);
 }
-.hero-content { padding: 0 32px 28px; }
-.hero-title { font-size: 36px; font-weight: 700; letter-spacing: -1px; }
+.hero-content { padding: 0 36px 32px; }
+.hero-title { font-size: 46px; font-weight: 750; letter-spacing: -1.4px; }
 .hero-actions { margin-top: 8px; }
 button.play-button {
-  padding: 12px 34px;
+  padding: 13px 40px;
   border-radius: 999px;
-  font-size: 16px;
+  font-size: 17px;
 }
 button.play-button image { -gtk-icon-size: 20px; }
 button.feature.stat { background: @nova_surface; }
@@ -235,12 +241,12 @@ button.card-new {
   min-height: 132px;
 }
 button.card-new:hover { border-color: @nova_accent; color: @nova_text; background: @nova_surface; }
-.statusbar { background: @nova_sidebar; border-top: 1px solid @nova_border; padding: 6px 18px; color: @nova_muted; font-size: 12px; }
+.statusbar { background: @nova_sidebar; padding: 6px 20px 8px; color: @nova_muted; font-size: 12px; }
 .statusbar button { padding: 2px 10px; }
 
 /* Content shelves: the count opens the installed list, two quiet actions add more. */
-.shelf-tile { background: @nova_surface; border: 1px solid @nova_border; border-radius: 14px; }
-.shelf-main { background: transparent; border-color: transparent; border-radius: 13px 13px 0 0; padding: 14px 16px 10px; }
+.shelf-tile { background: @nova_surface; border: 1px solid @nova_border; border-radius: 18px; }
+.shelf-main { background: transparent; border-color: transparent; border-radius: 17px 17px 0 0; padding: 14px 16px 10px; }
 .shelf-main:hover { background: @nova_raised; }
 .shelf-title { color: @nova_muted; font-size: 12.5px; font-weight: 600; }
 .shelf-count { font-size: 30px; font-weight: 700; letter-spacing: -0.8px; }
@@ -281,7 +287,42 @@ button.card:active { transform: scale(0.98); }
 button.feature { transition: background-color 140ms ease-out, border-color 160ms ease-out, transform 160ms cubic-bezier(0.23, 1, 0.32, 1); }
 button.feature:hover { transform: translateY(-1px); }
 button.feature.stat:hover { transform: none; }
-button.nav-active { transition: background-color 180ms ease-out, color 180ms ease-out; }
+button.nav-active { transition: background-color 180ms ease-out, color 180ms ease-out, box-shadow 220ms cubic-bezier(0.23, 1, 0.32, 1); }
+.seg button.seg-button, .game-tab { transition: background-color 200ms ease-out, color 200ms ease-out, border-color 200ms ease-out; }
+.page { transition: transform 320ms cubic-bezier(0.23, 1, 0.32, 1); }
+.page.entering { transform: translateY(14px); }
+.shelf-tile, .form-card, .catalog-row, .job { transition: border-color 180ms ease-out, background-color 180ms ease-out; }
+.shelf-tile:hover { border-color: @nova_border_strong; }
+progressbar progress { transition: min-width 400ms cubic-bezier(0.23, 1, 0.32, 1); }
+button.play-button { transition: background-color 140ms ease-out, box-shadow 200ms ease-out, transform 200ms cubic-bezier(0.23, 1, 0.32, 1); }
+button.play-button:hover { transform: translateY(-1px); box-shadow: 0 8px 26px rgba(143, 214, 232, 0.28); }
+
+/* Orchestrated entrances (widgets.cascade): the hold state is `.entering`, the transition lives on `.cascade`. */
+.cascade.cascade { transition: opacity 520ms cubic-bezier(0.16, 1, 0.3, 1), transform 560ms cubic-bezier(0.16, 1, 0.3, 1); }
+.cascade.entering.from-below { opacity: 0; transform: translateY(18px); }
+.cascade.entering.from-left { opacity: 0; transform: translateX(-20px); }
+.cascade.entering.from-pop { opacity: 0; transform: translateY(12px) scale(0.95); }
+.hero-zoom { transition: transform 600ms cubic-bezier(0.16, 1, 0.3, 1); }
+.hero.entering .hero-zoom { transform: scale(1.08); }
+
+/* Small details: the nav icon leans toward its label on hover, cards lift with a soft shadow. */
+button.nav-button image { transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1); }
+button.nav-button:hover image { transform: translateX(2px); }
+button.card:hover { box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3); }
+button.home-card, .me-card { transition: background-color 160ms ease-out, border-color 180ms ease-out; }
+
+/* Start veil: Nova's logo rises, rings of light leave it, then the veil dissolves into the interface. */
+.boot-veil { background: @nova_canvas; transition: opacity 460ms ease-out; }
+.boot-veil.leaving { opacity: 0; }
+.boot-word { color: @nova_muted; font-size: 13px; font-weight: 700; letter-spacing: 7px; }
+.boot-logo { transition: opacity 480ms cubic-bezier(0.16, 1, 0.3, 1), transform 640ms cubic-bezier(0.16, 1, 0.3, 1); }
+.boot-logo.entering { opacity: 0; transform: scale(0.78); }
+.boot-veil.leaving .boot-logo { transform: scale(1.14); }
+
+/* The game switch: one pill glides between the two games. */
+.game-switch { padding: 0; }
+.game-switch button.seg-button.seg-active { background: transparent; border-color: transparent; }
+.seg-pill { background: @nova_accent_dim; border: 1px solid @nova_accent_line; border-radius: 999px; }
 
 /* The play button breathes while Minecraft prepares or runs: a state indicator, not decoration. */
 @keyframes launch-glow {
@@ -311,22 +352,29 @@ switch slider { background: @nova_muted; border-radius: 999px; min-width: 18px; 
 switch:checked slider { background: #06161b; }
 
 /* Sidebar footer card: version + update state, settings gear */
-.me-card { background: @nova_surface; border: 1px solid @nova_border; border-radius: 13px; padding: 6px;
+.me-card { background: @nova_surface; border: 1px solid @nova_border; border-radius: 15px; padding: 7px; margin-bottom: 8px;
            transition: border-color 180ms ease-out, background-color 180ms ease-out; }
 .me-card.update { border-color: @nova_accent_line; background: @nova_accent_dim; }
 button.me-main { background: transparent; border-color: transparent; padding: 4px 6px; border-radius: 10px; }
 button.me-main:hover { background: @nova_control; }
-.me-logo { background: @nova_canvas; border: 1px solid @nova_border_strong; border-radius: 10px;
-           min-width: 34px; min-height: 34px; color: @nova_accent; }
-.me-title { font-weight: 650; font-size: 13px; }
+.me-logo { background: @nova_canvas; border: 1px solid @nova_border_strong;
+           min-width: 38px; min-height: 38px; color: @nova_accent; border-radius: 11px;
+           box-shadow: inset 0 0 14px rgba(143, 214, 232, 0.10); }
+.me-card:hover .me-logo { border-color: @nova_accent_line; }
+.me-logo { transition: border-color 200ms ease-out; }
+.me-title { font-weight: 650; font-size: 13.5px; letter-spacing: 0.2px; }
 .me-note { color: @nova_dim; font-size: 11.5px; }
 .me-card.update .me-note { color: @nova_accent; }
-button.me-gear { background: transparent; border-color: transparent; padding: 7px; border-radius: 9px; color: @nova_dim; }
+button.me-gear { background: transparent; border-color: transparent; padding: 9px; border-radius: 10px; color: @nova_dim; }
 button.me-gear:hover { background: @nova_control; color: @nova_text; }
+button.me-gear image { transition: transform 480ms cubic-bezier(0.16, 1, 0.3, 1); }
+button.me-gear:hover image { transform: rotate(75deg); }
 
 /* Pages shown inside the main window */
-.page { padding: 18px 32px 10px; }
+.page { padding: 22px 38px 12px; }
 .page-header { padding-bottom: 8px; }
+.page-header > button { padding-left: 0; }
+entry:disabled, spinbutton:disabled, combobox entry:disabled { opacity: 0.5; }
 .page .menu { padding: 8px 0; }
 
 .state-warning { background: rgba(241, 212, 155, 0.1); color: @nova_warm; border-color: rgba(241, 212, 155, 0.3); }
@@ -339,18 +387,18 @@ button.me-gear:hover { background: @nova_control; color: @nova_text; }
 .menu-separator { margin: 6px 4px 2px; background: @nova_border; min-height: 1px; }
 
 /* Status row: one quiet strip instead of four cards */
-.home-strip { margin-top: -4px; background: @nova_surface; border: 1px solid @nova_border; border-radius: 14px; }
-button.home-card { background: transparent; border: none; border-radius: 0; padding: 11px 16px;
-                   border-right: 1px solid @nova_border; }
+.home-strip { margin-top: -6px; background: transparent; border: none; border-radius: 0; }
+button.home-card { background: transparent; border: none; border-radius: 12px; padding: 8px 14px 8px 0;
+                   border-right: 1px solid @nova_border; margin-right: 14px; }
 button.home-card:last-child { border-right: none; }
-button.home-card:hover { background: @nova_raised; }
+button.home-card:hover { background: @nova_surface; }
 .home-title { color: @nova_dim; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
 .home-text { font-weight: 600; font-size: 13.5px; }
 
 /* Forms: titled sections made of rows (name and help on the left, control on the right) */
 .form-page { padding: 6px 6px 26px 0; }
 .form-section { color: @nova_muted; font-size: 12px; font-weight: 700; letter-spacing: 0.8px; }
-.form-card { background: @nova_surface; border: 1px solid @nova_border; border-radius: 14px; }
+.form-card { background: @nova_surface; border: 1px solid @nova_border; border-radius: 18px; }
 .form-row { padding: 12px 16px; border-bottom: 1px solid @nova_border; }
 .form-row:last-child { border-bottom: none; }
 .form-note { color: @nova_muted; font-size: 12.5px; padding: 11px 16px; background: @nova_raised;
@@ -366,7 +414,7 @@ combobox box.linked > button arrow { color: @nova_muted; }
 .import-list { padding-bottom: 14px; }
 .feature-chevron { color: @nova_dim; }
 button.feature:hover .feature-chevron { color: @nova_accent; }
-.form-page { padding-right: 16px; }
+.form-page { padding-right: 24px; }
 combobox arrow, dropdown arrow {
   min-width: 16px; min-height: 16px;
   border: none; border-radius: 0; box-shadow: none; outline: none; background: none;
@@ -377,8 +425,8 @@ combobox button.combo { padding: 4px 10px; }
 spinbutton text, entry text { color: @nova_text; }
 
 /* Mi servidor: navegación por secciones */
-.seg { padding: 3px; background: @nova_control; border-radius: 12px; }
-.seg button.seg-button { background: transparent; border-color: transparent; color: @nova_muted; padding: 6px 16px; }
+.seg { padding: 3px; background: @nova_control; border-radius: 999px; }
+.seg button.seg-button { background: transparent; border-color: transparent; color: @nova_muted; padding: 5px 16px; border-radius: 999px; }
 .seg button.seg-button:hover { color: @nova_text; }
 .seg button.seg-button.seg-active { background: @nova_accent_dim; color: @nova_accent_hover; border-color: @nova_accent_line; }
 
@@ -394,7 +442,7 @@ spinbutton text, entry text { color: @nova_text; }
 .game-play:hover { background: @nova_accent; border-color: @nova_accent; color: #06161b; }
 .game-play:active { background: @nova_accent_hover; }
 .game-play:focus-visible, .game-tab:focus-visible, .friend-chip:focus-visible { outline: 2px solid @nova_accent; outline-offset: 2px; }
-.game-star { background: rgba(7, 8, 11, 0.72); border: none; border-radius: 999px; padding: 6px; margin: 6px; min-width: 30px; min-height: 30px; color: #eef0f5; }
+.game-star { background: rgba(7, 8, 11, 0.72); border: none; border-radius: 999px; color: #eef0f5; }
 .game-star:hover { background: rgba(7, 8, 11, 0.9); }
 .friend-chip { background: transparent; border: none; box-shadow: none; padding: 6px; border-radius: 14px; min-width: 76px; }
 .friend-chip:hover { background: @nova_control; }

@@ -39,7 +39,7 @@ class HomeTests(unittest.TestCase):
 
     def test_account_and_update(self):
         self.assertEqual(cards(account=("microsoft", "Alex"))["account"], "Microsoft · Alex")
-        self.assertEqual(cards(account=("offline", "Alex"))["account"], "Sin conexión · Alex")
+        self.assertEqual(cards(account=("offline", "Alex"))["account"], "Cuenta offline · Alex")
         self.assertEqual(cards()["account"], "Sin cuenta: elegí un nombre")
         self.assertEqual(cards()["nova"], "Al día")
         self.assertEqual(cards(update="v9.9.9")["nova"], "Hay una versión nueva: v9.9.9")

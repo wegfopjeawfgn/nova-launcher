@@ -150,13 +150,15 @@ class DescargasMixin:
         dialog = Gtk.Window(title="Almacenamiento", transient_for=self.window, modal=True, default_width=460)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10, css_classes=["menu"])
         box.append(label("Almacenamiento de Nova", "subheading"))
-        usage = label("Calculando…", "muted")
-        usage.set_wrap(True)
+        usage = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, css_classes=["form-card"])
+        wait = label("Calculando…", "muted")
+        wait.add_css_class("form-row")
+        usage.append(wait)
         box.append(usage)
         cache = motor.ROOT / "pack-cache"
 
         def calculate():
-            lines = []
+            sizes = []
             for name, directory in (("Instancias", "instances"), ("Respaldos", "backups"),
                                     ("Minecraft y Java", "minecraft"), ("Caché de modpacks", "pack-cache")):
                 total = 0
@@ -168,8 +170,29 @@ class DescargasMixin:
                                 total += path.stat().st_size
                         except OSError:
                             continue
-                lines.append(f"{name} · {total / 1024**2:,.1f} MiB")
-            GLib.idle_add(usage.set_text, "\n".join(lines))
+                sizes.append((name, total))
+            GLib.idle_add(show, sizes)
+
+        def show(sizes):
+            child = usage.get_first_child()
+            while child:
+                usage.remove(child)
+                child = usage.get_first_child()
+            biggest = max((size for _, size in sizes), default=0) or 1
+            for name, size in sizes:
+                line = Gtk.Box(spacing=18, css_classes=["form-row"])
+                text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, hexpand=True)
+                head = Gtk.Box()
+                head.append(label(name, "form-label"))
+                amount = label(f"{size / 1024**2:,.1f} MiB", "muted")
+                amount.set_hexpand(True)
+                amount.set_xalign(1)
+                head.append(amount)
+                text.append(head)
+                text.append(Gtk.ProgressBar(fraction=size / biggest, css_classes=["job-bar"]))
+                line.append(text)
+                usage.append(line)
+            return False
 
         def clear():
             dialog.destroy()

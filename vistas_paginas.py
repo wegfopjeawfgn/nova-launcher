@@ -5,7 +5,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk
 
 import i18n
-from widgets import button, label
+from widgets import button, label, ms
 
 NAV_ALIASES = {"Sesiones de juego": "Sesiones", "Editor de skins": "Skins", "Explorar Modrinth": "Explorar",
                "Modpacks en Modrinth": "Modpacks"}
@@ -14,7 +14,7 @@ NAV_ALIASES = {"Sesiones de juego": "Sesiones", "Editor de skins": "Skins", "Exp
 class PaginasMixin:
     def setup_pages(self, library):
         self.page_stack = Gtk.Stack(hexpand=True, vexpand=True, transition_type=Gtk.StackTransitionType.CROSSFADE,
-                                    transition_duration=200)
+                                    transition_duration=ms(200))
         self.page_stack.add_named(library, "library")
         self.current_page = None
         self.page_serial = 0
@@ -48,7 +48,9 @@ class PaginasMixin:
         self.page_serial += 1
         name = f"page{self.page_serial}"  # unique: a page that is still fading out must not shadow the new one
         self.page_stack.add_named(page, name)
+        page.add_css_class("entering")  # starts a few pixels low and rises as the crossfade runs
         self.page_stack.set_visible_child_name(name)
+        GLib.timeout_add(30, lambda: (page.remove_css_class("entering"), False)[1])
         self.current_page = (win, page)
         win.present = lambda: None
         win.close = lambda: self.leave_page(win)
@@ -63,22 +65,18 @@ class PaginasMixin:
             return False
         self.current_page = None
         if switch:
-            self.page_stack.set_visible_child_name("library")
+            self.page_stack.set_visible_child_name("roblox" if getattr(self, "current_game", None) == "roblox" else "library")
             self.mark_nav("Instancias")
-        GLib.timeout_add(300, lambda: (page.get_parent() is self.page_stack and self.page_stack.remove(page), False)[1])
+        GLib.timeout_add(ms(300), lambda: (page.get_parent() is self.page_stack and self.page_stack.remove(page), False)[1])
         return True
 
     def mark_nav(self, title):
         title = i18n.tr(title)
-        button_ = self.nav_box.get_first_child()
-        while button_:
-            if isinstance(button_, Gtk.Button):
-                texts = [w.get_label() for w in _labels(button_)]
-                if title in texts:
-                    button_.add_css_class("nav-active")
-                else:
-                    button_.remove_css_class("nav-active")
-            button_ = button_.get_next_sibling()
+        for item in self.nav_items:
+            on = title in [w.get_label() for w in _labels(item)]
+            (item.add_css_class if on else item.remove_css_class)("nav-active")
+            if on and item in self.more_items:
+                self.more_revealer.set_reveal_child(True)
 
 
 def _labels(widget):
