@@ -203,3 +203,109 @@ h3 { font-size: 1.15rem; font-weight: 620; letter-spacing: -0.01em; font-variati
   .curve path, .hero-copy > *, .hero-shot { animation: none; }
   .btn, .rows h3, .terminal button { transition: none; }
 }
+
+/* ================= Estilo del launcher =================
+   El mismo marco nocturno de Nova: la página vive en un panel redondeado sobre el negro de la barra,
+   con el selector Minecraft/Roblox, subtítulos en mayúsculas y el cian como único acento. */
+:root { --radius: 18px; --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --panel: #0b0d12; --hairline: #1d222c; --hairline2: #2c3341; }
+body { background: var(--bg); }
+
+main { position: relative; margin: 0 clamp(8px, 1.4vw, 16px); border-radius: clamp(20px, 2.6vw, 30px); background: var(--panel);
+       box-shadow: inset 0 0 0 1px var(--hairline); overflow: clip; }
+.hero { background: radial-gradient(60% 55% at 78% 30%, rgba(143, 214, 232, 0.08), transparent 70%), radial-gradient(80% 60% at 40% 120%, rgba(110, 120, 170, 0.1), transparent 70%), var(--panel); }
+.bar.is-scrolled { background: rgba(7, 8, 11, 0.82); }
+.footer { margin-inline: clamp(8px, 1.4vw, 16px); width: auto; padding-inline: clamp(12px, 3vw, 32px); }
+
+.caption { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 18px; color: var(--ink3); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; }
+.caption::before { content: ""; width: 3px; height: 14px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 12px rgba(143, 214, 232, 0.5); }
+
+/* Barra: la sección actual queda marcada como en la barra lateral del launcher */
+.bar nav a { transition: color 200ms ease, background-color 240ms ease, box-shadow 240ms ease; }
+.bar nav a.is-active { color: var(--accent); background: var(--accent-dim); box-shadow: inset 0 0 0 1px rgba(143, 214, 232, 0.22); }
+
+/* Botones: Jugar del launcher, con su brillo al pasar el mouse */
+.btn { position: relative; overflow: hidden; transition: transform 220ms var(--ease-out), background-color 200ms ease, box-shadow 260ms ease; }
+.btn::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.28) 50%, transparent 65%);
+              transform: translateX(-120%); transition: transform 700ms var(--ease-out); pointer-events: none; }
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { transform: translateY(-2px); }
+  .btn:hover::after { transform: translateX(120%); }
+  .btn.primary:hover { box-shadow: 0 10px 30px rgba(143, 214, 232, 0.32); }
+}
+.btn:active { transform: scale(0.97); }
+
+/* Ventana del launcher */
+.win { border-radius: 20px; overflow: hidden; background: #07080b; box-shadow: inset 0 0 0 1px var(--hairline2), 0 40px 100px rgba(0, 0, 0, 0.6), 0 0 80px rgba(143, 214, 232, 0.06); }
+.win-bar { display: flex; align-items: center; gap: 14px; padding: 10px 16px; background: #07080b; }
+.win-brand { display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+.seg { position: relative; display: inline-flex; padding: 3px; border-radius: 999px; background: #181d27; box-shadow: inset 0 0 0 1px var(--hairline); }
+.seg-pill { position: absolute; top: 3px; left: 3px; bottom: 3px; width: 0; border-radius: 999px; background: #0f2830; box-shadow: inset 0 0 0 1px #21505d;
+            transition: transform 620ms var(--ease-out), width 620ms var(--ease-out); }
+.seg-btn { position: relative; z-index: 1; border: 0; background: transparent; color: var(--ink2); font: inherit; font-size: 0.84rem; font-weight: 560; padding: 6px 16px; min-height: 32px; border-radius: 999px; cursor: pointer; transition: color 240ms ease; }
+.seg-btn:hover { color: var(--ink); }
+.seg-btn.is-on { color: var(--accent-hover); }
+.win-search { flex: 1; max-width: 300px; margin-inline: auto; padding: 7px 14px; border-radius: 10px; background: #10131a; box-shadow: inset 0 0 0 1px var(--hairline2); color: var(--ink3); font-size: 0.8rem; white-space: nowrap; overflow: hidden; }
+.win-body { position: relative; overflow: hidden; aspect-ratio: 1280 / 758; background: var(--panel); }
+.win-body img { width: 100%; margin-top: -4.84%; }  /* la captura trae su propia barra: se recorta, la de arriba es la de la página */
+.win-body img.is-off { display: none; }
+.portal { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; }
+.portal.on { opacity: 1; }
+.win figcaption { padding: 11px 16px; font-size: 0.82rem; color: var(--ink3); border-top: 1px solid var(--hairline); background: #07080b; }
+
+/* Capturas: esquinas del launcher, se levantan y la imagen entra con un zoom suave */
+.shot { border-radius: 20px; box-shadow: inset 0 0 0 1px var(--hairline2), 0 30px 80px rgba(0, 0, 0, 0.5); transition: transform 600ms var(--ease-out), box-shadow 600ms ease; }
+.shot img { transition: transform 1400ms var(--ease-out); }
+.reveal:not(.visible) .shot img, .shot.reveal:not(.visible) img { transform: scale(1.06); }
+@media (hover: hover) and (pointer: fine) {
+  .shot:hover { transform: translateY(-5px); box-shadow: inset 0 0 0 1px rgba(143, 214, 232, 0.28), 0 40px 90px rgba(0, 0, 0, 0.55), 0 0 60px rgba(143, 214, 232, 0.07); }
+}
+
+/* Resumen: cuatro tarjetas que entran una tras otra */
+.strip ul { border-radius: var(--radius); background: #10131a; box-shadow: inset 0 0 0 1px var(--hairline2); }
+.strip.reveal { opacity: 1; transform: none; }
+.strip li { opacity: 0; transform: translateY(16px); transition: opacity 700ms var(--ease-out) calc(var(--i, 0) * 90ms), transform 800ms var(--ease-out) calc(var(--i, 0) * 90ms), background-color 240ms ease; }
+.strip.visible li { opacity: 1; transform: none; }
+@media (hover: hover) and (pointer: fine) { .strip li:hover { background: #151a23; } }
+.no-js .strip li { opacity: 1; transform: none; }
+
+.rows li, .kinds > div { transition: background-color 240ms ease; }
+.faq details { transition: background-color 240ms ease; border-radius: 4px; }
+.faq summary { transition: color 200ms ease; }
+.faq summary:hover { color: var(--accent-hover); }
+.faq summary::after { transition: transform 400ms var(--ease-out); }
+.faq details[open] summary::after { transform: rotate(180deg); }
+.terminal { border-radius: var(--radius); background: #10131a; }
+.terminal pre { background: #07080b; }
+
+/* Entrada: la estrella cae sobre el negro de la barra y, al terminar, el velo se disuelve */
+.intro-veil { display: none; }
+html.has-intro { overflow: hidden; }
+html.has-intro .intro-veil { display: block; position: fixed; inset: 0; z-index: 100; background: var(--bg); cursor: pointer;
+                             animation: veil-failsafe 0s linear 5s forwards; }
+.intro-veil[hidden] { display: none !important; }
+.intro-veil canvas { width: 100%; height: 100%; }
+.intro-word { position: absolute; left: 50%; top: calc(50% + 120px); transform: translateX(-50%) translateY(8px); opacity: 0; color: var(--ink2);
+              font-size: 0.82rem; font-weight: 700; letter-spacing: 0.7em; padding-left: 0.7em; transition: opacity 600ms var(--ease-out), transform 700ms var(--ease-out); }
+.intro-veil.word .intro-word { opacity: 1; transform: translateX(-50%); }
+.intro-veil.is-leaving { opacity: 0; pointer-events: none; transition: opacity 650ms ease; }
+@keyframes veil-failsafe { to { visibility: hidden; } }
+/* El contenido espera a que termine la entrada para animarse */
+html.has-intro:not(.intro-done) .hero-copy > *, html.has-intro:not(.intro-done) .hero-shot, html.has-intro:not(.intro-done) .curve path { animation-play-state: paused; }
+
+@media (max-width: 640px) {
+  .win-search { display: none; }
+  .win-bar { justify-content: space-between; padding: 8px 12px; }
+  .win-brand { font-size: 0.76rem; }
+  .intro-word { top: calc(50% + 100px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-veil { display: none !important; }
+  html.has-intro { overflow: auto; }
+  .strip li { opacity: 1; transform: none; transition: none; }
+  .reveal:not(.visible) .shot img, .shot img { transform: none; transition: none; }
+  .shot, .btn, .btn::after, .seg-pill, .seg-btn { transition: none; }
+}
+
+@media (max-width: 1100px) { .bar nav a { padding: 0 10px; font-size: 0.88rem; } }
+@media (max-width: 880px) { .bar nav a:not(.nav-cta) { display: none; } }
+.bar nav a { white-space: nowrap; }
