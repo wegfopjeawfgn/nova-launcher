@@ -34,6 +34,7 @@
     CurseForge: [["JEI", "Ver recetas y usos de cada objeto.", "Utilidad"], ["Create", "Máquinas y engranajes, para tu fábrica.", "Tecnología"], ["Biomes O' Plenty", "Más de 80 biomas nuevos.", "Mundo"], ["Journeymap", "Mapa en vivo del mundo.", "Utilidad"]]
   };
   var NEWS = [
+    ["1.16.0", "Nova en inglés, Java automático y diagnóstico de cierres con botón Corregir."],
     ["1.15.0", "Interfaz nueva, portal al elegir juego y ajustes de animaciones."],
     ["1.14.1", "Editor de skins con vista previa 3D y pantalla de inicio al jugar."],
     ["1.14.0", "Actualizaciones en segundo plano con SHA-256 comprobado."]
@@ -99,7 +100,7 @@
       if (n.length === 1) html += "<h4>" + n[0] + "</h4>";
       else html += '<button type="button" class="dm-nav' + (S.view === n[0] ? " on" : "") + '" data-view="' + n[0] + '">' + ico(n[0]) + n[1] + "</button>";
     });
-    html += '<div class="dm-me"><img src="assets/nova.svg" width="30" height="30" alt=""><span><b>Nova 1.15.0</b><span>Al día</span></span>' +
+    html += '<div class="dm-me"><img src="assets/nova.svg" width="30" height="30" alt=""><span><b>Nova 1.16.0</b><span>Al día</span></span>' +
       '<button type="button" data-view="set" aria-label="Ajustes">' + ico("gear") + "</button></div>";
     side.innerHTML = html;
   }
