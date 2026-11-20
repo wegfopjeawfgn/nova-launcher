@@ -1,5 +1,10 @@
 # Cambios
 
+## 1.16.1
+- **Arreglo**: si el Java elegido a mano en una instancia ya no existe, Salud ahora lo marca como error y ofrece **Usar el Java de Nova** (en la 1.16.0 solo mostraba «No se pudo comprobar Java», sin botón).
+- **Inglés**: se traducen mejor la barra de fallo (código de salida y mod sospechoso), «Consecuencia / Solución» en Salud, los «hace N min/h/días» y los contadores de la biblioteca.
+- Sin probar: en Windows, ni un cierre real del juego con el botón Corregir.
+
 ## 1.16.0
 - **Nova en inglés**: Ajustes → Idioma → English (se aplica al reiniciar). Están traducidos los menús, pantallas, botones, avisos y mensajes de estado; los textos con un nombre o un número en el medio se traducen por plantilla. Lo que falte sigue apareciendo en español. Para sumar otro idioma, copiá `locales/en.json` (ver `locales/README.md`; `tools/extraer_textos.py` lista todos los textos).
 - **Java automático**: si la instancia tiene un Java elegido a mano que ya no existe o es más viejo de lo que pide Minecraft, Nova lo avisa en la barra de estado y usa el Java que administra ella, en vez de fallar al iniciar. Un Java que no se puede comprobar se respeta.

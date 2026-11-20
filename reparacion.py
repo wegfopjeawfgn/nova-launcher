@@ -101,33 +101,34 @@ def diagnose(folder, instance, *, shared=None, java=None, memory_mb=None):
             f"Minecraft {version} aún no se descargó en esta computadora.",
             "Nada falla: se instala la primera vez que jugás.", "Tocá Jugar para instalarla."))
     if not problems.get("version"):
-        try:
-            executable, required, detected = java() if java else motor.java_report(instance)
-        except (OSError, ValueError, KeyError, ImportError, motor.subprocess.SubprocessError) as error:
-            found.append(_finding("java", "warning", "No se pudo comprobar Java",
-                                  f"La comprobación falló ({type(error).__name__}).",
-                                  "Si Java no responde, Minecraft no va a iniciar.",
-                                  "Revisá el ejecutable de Java en Editar instancia o en Ajustes."))
+        custom = instance.get("java")
+        if custom and not Path(custom).is_file():
+            found.append(_finding("java", "error", "Java no encontrado",
+                                  f"El ejecutable configurado no existe: {custom}",
+                                  "Minecraft no va a iniciar con ese Java; Nova usa el suyo, pero conviene limpiar la ruta.",
+                                  "Elegí otro Java o dejá el campo vacío para usar el de Nova.",
+                                  action="use_nova_java"))
         else:
-            custom = instance.get("java")
-            if custom and not Path(custom).is_file():
-                found.append(_finding("java", "error", "Java no encontrado",
-                                      f"El ejecutable configurado no existe: {custom}",
-                                      "Minecraft no va a iniciar.",
-                                      "Elegí otro Java o dejá el campo vacío para usar el de Nova.",
-                                      action="use_nova_java"))
-            elif required and detected and detected < required:
-                found.append(_finding("java", "error", "Java demasiado antiguo",
-                                      f"Minecraft {version} necesita Java {required} y se detectó Java {detected}.",
-                                      "El juego se cierra al iniciar con un error de versión de clase.",
-                                      "Dejá el campo de Java vacío para que Nova use el compatible.",
-                                      action="use_nova_java"))
-            elif custom and required and detected and required <= 11 and detected > required + 6:
-                found.append(_finding("java", "warning", "Java mucho más nuevo que el pedido",
-                                      f"Minecraft {version} pide Java {required} y se detectó Java {detected}.",
-                                      "Las versiones viejas del juego y de los mods suelen fallar con un Java tan nuevo.",
-                                      "Dejá el campo de Java vacío para que Nova use el compatible.",
-                                      action="use_nova_java"))
+            try:
+                executable, required, detected = java() if java else motor.java_report(instance)
+            except (OSError, ValueError, KeyError, ImportError, motor.subprocess.SubprocessError) as error:
+                found.append(_finding("java", "warning", "No se pudo comprobar Java",
+                                      f"La comprobación falló ({type(error).__name__}).",
+                                      "Si Java no responde, Minecraft no va a iniciar.",
+                                      "Revisá el ejecutable de Java en Editar instancia o en Ajustes."))
+            else:
+                if required and detected and detected < required:
+                    found.append(_finding("java", "error", "Java demasiado antiguo",
+                                          f"Minecraft {version} necesita Java {required} y se detectó Java {detected}.",
+                                          "El juego se cierra al iniciar con un error de versión de clase.",
+                                          "Dejá el campo de Java vacío para que Nova use el compatible.",
+                                          action="use_nova_java"))
+                elif custom and required and detected and required <= 11 and detected > required + 6:
+                    found.append(_finding("java", "warning", "Java mucho más nuevo que el pedido",
+                                          f"Minecraft {version} pide Java {required} y se detectó Java {detected}.",
+                                          "Las versiones viejas del juego y de los mods suelen fallar con un Java tan nuevo.",
+                                          "Dejá el campo de Java vacío para que Nova use el compatible.",
+                                          action="use_nova_java"))
     ram = memory_mb if memory_mb is not None else physical_memory_mb()
     memory = instance.get("memory")
     if "memory" not in problems and ram:

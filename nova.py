@@ -1590,6 +1590,195 @@ class Nova(
                         cause = {"advice": "", "mod": "", "action": None}
                     if cause["action"]:
                         failure_fix.append(cause["action"])
+                    message = consola.failure_message(result, cause)
+            except Exception as exc:
+                errores.record(exc, "nova.worker")
+                GLib.idle_add(self.finished, f"No se pudo completar: {exc}")
+            else:
+                GLib.idle_add(saved)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+
+
+
+
+    def remove_instance(self, folder, name):
+        if self.parallel:
+            self.status.set_text("Cerrá la segunda sesión antes de eliminar instancias.")
+            return
+        dialog = Gtk.Dialog(title="Eliminar instancia", transient_for=self.window, modal=True)
+        dialog.add_button("Cancelar", Gtk.ResponseType.CANCEL)
+        dialog.add_button("Mover a la Papelera", Gtk.ResponseType.OK).add_css_class("danger")
+        dialog.set_default_response(Gtk.ResponseType.CANCEL)
+        box = dialog.get_content_area()
+        box.add_css_class("menu")
+        message = label(f"«{name}» se moverá a la Papelera junto con sus mundos, mods y ajustes.")
+        message.set_wrap(True)
+        message.set_max_width_chars(48)
+        box.append(message)
+
+        def respond(_, response):
+            if response == Gtk.ResponseType.OK:
+                try:
+                    with motor.instance_lock(folder):
+                        Gio.File.new_for_path(str(folder)).trash(None)
+                except (GLib.Error, OSError, RuntimeError) as error:
+                    self.status.set_text(f"No se pudo eliminar la instancia: {error}")
+                else:
+                    atajos.remove(folder)
+                    self.status.set_text(f"«{name}» se movió a la Papelera.")
+                    self.refresh()
+            dialog.destroy()
+
+        dialog.connect("response", respond)
+        dialog.present()
+
+    def open_log(self, folder):
+        consola.open_console(self.window, folder / "minecraft.log")
+
+    def select(self, folder):
+        if self.selected == folder:
+            return
+        self.selected = folder
+        self.library["selected"] = folder.name
+        self.save_library()
+        if folder in self.instance_rows:
+            self.expand_instance(folder)
+        else:
+            self.refresh()
+
+
+
+
+
+
+
+
+
+    def save_library(self):
+        try:
+            motor.save(motor.ROOT / "library.json", self.library)
+        except OSError as error:
+            self.status.set_text(f"No se pudo guardar la biblioteca: {error}")
+
+    def toggle_favorite(self, folder):
+        favorites = self.library.setdefault("favorites", [])
+        if folder.name in favorites:
+            favorites.remove(folder.name)
+        else:
+            favorites.append(folder.name)
+        self.save_library()
+        self.refresh()
+
+    def play(self, server=None, *, offline=False):
+        if self.busy or self.parallel or self.selected is None:
+            return
+        if self.instances[self.selected].get("client") == "pomme":
+            self.play_pomme()
+            return
+        if not self.profile and (offline or not self.microsoft_active):
+            self.edit_profile(after_save=lambda: self.play(server, offline=offline))
+            self.status.set_text("Elegí el nombre con el que querés jugar.")
+            return
+        folder = self.selected
+        profile = self.profile
+        microsoft = self.microsoft if self.microsoft_active and not offline else None
+        instance = dict(self.instances[folder])
+        instance["java"] = instance["java"] or self.preferences["java"]
+        if instance.get("resolution", "default") == "default":
+            instance["resolution"] = self.preferences["resolution"]
+        behavior = self.preferences["launch_behavior"]
+        if os.name == "nt" and behavior == "close" or behavior == "close" and servidor_local.running():
+            behavior = "minimize"  # closing Nova would leave a running server without control
+        if self.preferences["console"] and behavior != "close":
+            self.open_log(folder)
+        self.busy = True
+        self.failure_log.set_visible(False)
+        self.failure_fix.set_visible(False)
+        self.launch_stage = "Preparando…"
+        self.status.set_text("Preparando Minecraft…")
+        self.refresh()
+        if behavior != "close":
+            self.launch_screen_show(folder, instance, microsoft[1]["name"] if microsoft else profile)
+
+        minimized = False
+        failure_fix = []
+        began = []
+        clicked = time.monotonic()
+        wall = []
+
+        def started(player):
+            nonlocal minimized
+            began.append(time.monotonic())
+            wall.append(time.time())
+            self.running = folder, player, server
+            self.library["selected"] = folder.name
+            self.library.setdefault("recent", {})[folder.name] = time.time()
+            self.save_library()
+            if behavior == "close" and not self.parallel:
+                self.quit()
+                return
+            if behavior == "minimize":
+                self.window.minimize()
+                minimized = True
+            self.refresh()
+            self.launch_screen_started(minimized)
+
+        def finish(message, failed):
+            self.running = None
+            self.launch_stage = ""
+            if began:
+                seconds = time.monotonic() - began[0]
+                tiempo.add(self.library, folder.name, seconds)
+                self.save_library()
+                estadisticas.record_session(folder.name, started_at=wall[0], seconds=seconds,
+                                            launch_seconds=began[0] - clicked, ok=not failed)
+            self.finished(message)
+            self.failed_log = folder / "minecraft.log"
+            self.failure_log.set_visible(failed)
+            self.failure_action = (folder, failure_fix[0]) if failed and failure_fix else None
+            self.failure_fix.set_visible(bool(self.failure_action))
+            self.launch_screen_finished(failed, message)
+            if minimized:
+                self.window.unminimize()
+                self.window.present()
+
+        def show_stage(message):
+            self.status.set_text(message)
+            self.launch_screen_update(message)
+            self.launch_stage = ("Descargando…" if message.startswith("Descargando") else
+                                 "En juego" if message.startswith("Minecraft abierto") else
+                                 "Iniciando…" if message.startswith("Iniciando") else "Preparando…")
+            if self.selected == folder:
+                self.play_label.set_text(self.launch_stage)
+
+        def worker():
+            def status(message):
+                GLib.idle_add(show_stage, message)
+            try:
+                failed = False
+                session = None
+                if microsoft:
+                    status("Verificando la cuenta de Microsoft…")
+                    import cuentas
+                    session = cuentas.refresh(*microsoft)
+                if session:
+                    GLib.idle_add(self.store_session, microsoft, session)
+                result = motor.launch(
+                    folder, profile, instance, status, session=session,
+                    on_started=lambda: GLib.idle_add(started, session["name"] if session else profile),
+                    detach=behavior == "close", server=server, offline=offline,
+                )
+                message = "Minecraft cerrado."
+                if result != 0:
+                    failed = True
+                    try:
+                        cause = consola.analyze(consola.read_log(folder / "minecraft.log"), folder / "game")
+                    except OSError:
+                        cause = {"advice": "", "mod": "", "action": None}
+                    if cause["action"]:
+                        failure_fix.append(cause["action"])
                     message = (f"Minecraft terminó con código {result}. "
                                f"{cause['advice'] or 'Abrí Ver registro para ver los detalles.'}"
                                + (f" Sospechoso: {cause['mod']}." if cause["mod"] else ""))

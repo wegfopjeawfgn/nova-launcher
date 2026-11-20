@@ -7,6 +7,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import GLib, Gtk
 
 import errores
+import i18n
 import modanalisis
 import reparacion
 from widgets import label, button
@@ -79,8 +80,8 @@ class SaludMixin:
                                   css_classes=["state", SEVERITY_CLASS[item["severity"]]]))
             body.append(line)
             for text in ((item["reason"] if kind == "mod" else item["meaning"]),
-                         (None if kind == "mod" else "Consecuencia: " + item["consequence"]),
-                         "Solución: " + item["fix"]):
+                         (None if kind == "mod" else i18n.tr("Consecuencia: ") + i18n.tr(item["consequence"])),
+                         i18n.tr("Solución: ") + i18n.tr(item["fix"])):
                 if text:
                     note = label(text, "muted")
                     note.set_wrap(True)
