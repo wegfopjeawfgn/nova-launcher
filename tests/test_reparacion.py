@@ -63,6 +63,16 @@ class RepairTests(unittest.TestCase):
         self.install()
         self.assertEqual(self.ids({"java": str(self.root / "nope")}), [("java", "error")])
 
+    def test_missing_custom_java_is_found_even_when_the_check_would_raise(self):
+        self.install()
+
+        def broken():
+            raise FileNotFoundError("no such file")
+
+        found = reparacion.diagnose(self.folder, {**GOOD, "java": str(self.root / "nope")}, shared=self.shared,
+                                    java=broken, memory_mb=16384)
+        self.assertEqual([(f["id"], f["severity"], f["action"]) for f in found], [("java", "error", "use_nova_java")])
+
     def test_java_check_failure_is_a_warning(self):
         self.install()
 

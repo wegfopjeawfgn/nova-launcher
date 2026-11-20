@@ -1,6 +1,8 @@
 """Show the current Minecraft log and recognize common startup errors."""
 import re
 
+import i18n
+
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -63,6 +65,15 @@ def analyze(text, game_folder=None):
         if description:
             advice = f"El juego se cerró: {description.group(1).strip()[:140]}."
     return {"advice": advice, "mod": mod, "action": action}
+
+
+def failure_message(code, cause):
+    """Status-bar text for a failed start, in the language of the interface."""
+    parts = [i18n.tr(f"Minecraft terminó con código {code}."),
+             i18n.tr(cause["advice"] or "Abrí Ver registro para ver los detalles.")]
+    if cause["mod"]:
+        parts.append(i18n.tr(f"Sospechoso: {cause['mod']}."))
+    return " ".join(parts)
 
 
 def report(text, lines=80):

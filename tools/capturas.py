@@ -305,6 +305,34 @@ def scene_list(app, state):
         app.leave_page()
         app.show_health(app.selected)
 
+    def instance_folder():
+        return DATA / "nova-launcher" / "instances" / "demo0"
+
+    def health_java():
+        """Instance whose chosen Java no longer exists: the real finding and its one-click fix."""
+        config = instance_folder() / "instance.json"
+        data = json.loads(config.read_text(encoding="utf-8"))
+        data["java"] = "/opt/jdk-17-viejo/bin/java"
+        config.write_text(json.dumps(data), encoding="utf-8")
+        app.refresh()
+        app.leave_page()
+        app.show_health(instance_folder())
+
+    def failure(log_text, report_text=""):
+        def run():
+            import consola
+            app.choose_game("minecraft", save=False)
+            game = instance_folder() / "game"
+            if report_text:
+                (game / "crash-reports").mkdir(parents=True, exist_ok=True)
+                (game / "crash-reports" / "crash-2026-11-20_10.00.00-client.txt").write_text(report_text, encoding="utf-8")
+            cause = consola.analyze(log_text, game)
+            app.status.set_text(consola.failure_message(1, cause))
+            app.failure_log.set_visible(True)
+            app.failure_action = (instance_folder(), cause["action"]) if cause["action"] else None
+            app.failure_fix.set_visible(bool(cause["action"]))
+        return run
+
     def pomme():
         app.leave_page()
         app.selected = DATA / "nova-launcher" / "instances" / "demo4"
@@ -358,7 +386,7 @@ def scene_list(app, state):
         app.choose_game("roblox", save=False)
         GLib.timeout_add(1500, lambda: app.roblox_servers({"place": 920587237, "name": "Adopt Me!", "universe": None}) or False)
 
-    def settings_scene():
+    def settings_scene(top=False):
         app.choose_game("minecraft", save=False)
         app.global_settings()
 
@@ -366,7 +394,7 @@ def scene_list(app, state):
             def walk(widget):
                 if isinstance(widget, Gtk.ScrolledWindow):
                     adj = widget.get_vadjustment()
-                    adj.set_value(adj.get_upper())
+                    adj.set_value(0 if top else adj.get_upper())
                 child = widget.get_first_child()
                 while child:
                     walk(child)
@@ -552,6 +580,7 @@ def scene_list(app, state):
         ("lanzando", launching_scene, 2500),
         ("skins", skins_scene, 2500),
         ("ajustes-nova", settings_scene, 2500),
+        ("ajustes-idioma", lambda: settings_scene(True), 2500),
         ("actualizacion", update_card_scene, 1200),
         ("roblox-servidores", roblox_servers_scene, 5000),
         ("roblox-guia", roblox_guide_scene, 3000),
@@ -562,6 +591,9 @@ def scene_list(app, state):
         ("pomme", pomme, 700),
         ("pomme-descarga", pomme_download, 900),
         ("salud", health, 1500),
+        ("salud-java", health_java, 1500),
+        ("fallo-java", failure("java.lang.UnsupportedClassVersionError: class file version 65.0"), 900),
+        ("fallo-mod", failure("net.fabricmc.loader: Mixin apply failed", "---- Minecraft Crash Report ----\nDescription: Mod initialization failed\n\nSuspected Mods: \n\tSodium (sodium)\n"), 900),
         ("plantillas", page("show_templates"), 900),
         ("estadisticas", page("show_statistics"), 900),
         ("respaldos", page("show_backups"), 900),

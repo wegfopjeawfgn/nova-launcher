@@ -1590,9 +1590,7 @@ class Nova(
                         cause = {"advice": "", "mod": "", "action": None}
                     if cause["action"]:
                         failure_fix.append(cause["action"])
-                    message = (f"Minecraft terminó con código {result}. "
-                               f"{cause['advice'] or 'Abrí Ver registro para ver los detalles.'}"
-                               + (f" Sospechoso: {cause['mod']}." if cause["mod"] else ""))
+                    message = consola.failure_message(result, cause)
             except Exception as exc:
                 errores.record(exc, "nova.worker")
                 failed = True

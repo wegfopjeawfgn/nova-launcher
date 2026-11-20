@@ -1,2 +1,2 @@
 """Single source of truth for the Nova Launcher release number."""
-NOVA_VERSION = "1.16.0"
+NOVA_VERSION = "1.16.1"
