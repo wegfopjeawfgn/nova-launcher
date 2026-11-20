@@ -3,6 +3,10 @@
 Estado: **el instalador no está firmado.** Windows SmartScreen puede advertir al abrirlo hasta que el archivo
 gane reputación o esté firmado. Nova no inventa certificados ni firmas y no pide desactivar protecciones.
 
+## Estado (noviembre de 2026)
+La solicitud a SignPath Foundation **no fue aceptada por ahora**: el proyecto es muy nuevo y poco conocido. Se puede volver a
+pedir cuando tenga más trayectoria (más descargas, estrellas en GitHub, tiempo de actividad y menciones públicas).
+
 ## Qué se puede hacer hoy
 - Publicar siempre el SHA-256 junto al instalador (ya se hace) y explicar cómo comprobarlo (ver el README).
 - Mantener la compilación en GitHub Actions: es el requisito habitual para poder firmar sin exponer claves.

@@ -1,8 +1,11 @@
 # Política de firma de código
 
-Los instaladores de Windows de Nova Launcher se firman con un certificado gratuito para proyectos de código abierto:
+> **Estado: hoy el instalador de Windows NO está firmado.** Se pidió la firma gratuita de SignPath Foundation y no se aceptó
+> por ahora porque el proyecto todavía es muy nuevo y poco conocido. Este documento queda como borrador de la política que
+> se aplicaría si se consigue una firma más adelante.
 
-> Firma de código gratuita proporcionada por [SignPath.io](https://about.signpath.io/), certificado de [SignPath Foundation](https://signpath.org/).
+Si se obtiene la firma, los instaladores de Windows de Nova Launcher se firmarían con un certificado para proyectos de código abierto
+(por ejemplo el de [SignPath Foundation](https://signpath.org/)). Hasta entonces, comprobá el SHA-256 de cada descarga (ver el README).
 
 ## Qué se firma
 
