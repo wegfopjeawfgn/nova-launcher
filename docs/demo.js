@@ -100,7 +100,7 @@
       if (n.length === 1) html += "<h4>" + n[0] + "</h4>";
       else html += '<button type="button" class="dm-nav' + (S.view === n[0] ? " on" : "") + '" data-view="' + n[0] + '">' + ico(n[0]) + n[1] + "</button>";
     });
-    html += '<div class="dm-me"><img src="assets/nova.svg" width="30" height="30" alt=""><span><b>Nova 1.16.0</b><span>Al día</span></span>' +
+    html += '<div class="dm-me"><img src="assets/nova.svg" width="30" height="30" alt=""><span><b>Nova 1.16.1</b><span>Al día</span></span>' +
       '<button type="button" data-view="set" aria-label="Ajustes">' + ico("gear") + "</button></div>";
     side.innerHTML = html;
   }
