@@ -24,6 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&family=Martian+Mono:wdth,wght@87.5,400;87.5,500&display=swap">
   <link rel="stylesheet" href="estilos.css">
+  <link rel="stylesheet" href="demo.css">
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Nova Launcher","applicationCategory":"GameApplication","operatingSystem":"Windows, Fedora Linux","url":"https://novalaunchermc.vercel.app/","downloadUrl":"https://github.com/wegfopjeawfgn/nova-launcher/releases/latest","description":"Launcher de terceros para Minecraft Java Edition: instancias, mods, respaldos, skins, servidor local y acceso a Roblox.","inLanguage":"es","publisher":{"@type":"Organization","name":"Nova Studios","url":"https://studiosnova.vercel.app/"}}
   </script>
@@ -35,6 +36,7 @@
     <div class="wrap bar-in">
       <a class="brand" href="./" aria-label="Nova Launcher, ir al inicio"><img src="assets/nova.svg" width="32" height="32" alt=""><span>Nova Launcher</span></a>
       <nav aria-label="Navegación">
+        <a href="#probar">Probalo</a>
         <a href="#funciones">Funciones</a>
         <a href="#roblox">Roblox</a>
         <a href="#servidor">Mi servidor</a>
@@ -99,6 +101,22 @@
         <li><b>Modrinth, CurseForge y tu equipo</b><span>mods, modpacks, shaders y texturas</span></li>
         <li><b>Windows x64 y Fedora</b><span>instaladores con SHA-256</span></li>
       </ul>
+    </section>
+
+    <section class="section wrap" id="probar" aria-labelledby="probar-titulo">
+      <div class="demo-head reveal">
+        <p class="caption">PROBALO</p>
+        <h2 id="probar-titulo">Tocá el launcher, sin instalar nada</h2>
+        <p>Esta maqueta funciona de verdad: cambiá entre Minecraft y Roblox, tocá Jugar, instalá un mod, pintá una skin o probá el tema claro y las velocidades de animación. Los datos son de ejemplo.</p>
+      </div>
+      <div class="dm-try" aria-label="Atajos para probar">
+        <button type="button" data-try="play">Tocá Jugar</button>
+        <button type="button" data-try="roblox">Pasá a Roblox</button>
+        <button type="button" data-try="mods">Instalá un mod</button>
+        <button type="button" data-try="skin">Pintá una skin</button>
+        <button type="button" data-try="theme">Probá el tema claro</button>
+      </div>
+      <div id="demo"><img src="assets/nova-biblioteca.webp" width="1280" height="820" loading="lazy" alt="Biblioteca de Nova Launcher con el banner de una instancia y el botón Jugar"></div>
     </section>
 
     <section class="section wrap import" id="roblox" aria-labelledby="roblox-titulo">
@@ -454,5 +472,6 @@
   <script>document.documentElement.classList.remove("no-js")</script>
   <script src="efectos.js" defer></script>
   <script src="entrada.js" defer></script>
+  <script src="demo.js" defer></script>
 </body>
 </html>
