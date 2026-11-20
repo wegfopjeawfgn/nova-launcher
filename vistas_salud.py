@@ -91,6 +91,8 @@ class SaludMixin:
                 body.append(button(f"Desactivar {item['file']}", lambda: disable(item), "quiet-button"))
             elif action == "reset_settings":
                 body.append(button("Corregir ajustes", lambda: reset(), "quiet-button"))
+            elif action == "use_nova_java":
+                body.append(button("Usar el Java de Nova", lambda: use_nova_java(), "quiet-button"))
             return body
 
         def disable(item):
@@ -120,6 +122,20 @@ class SaludMixin:
 
             self.confirm("Corregir ajustes", "Nova restablecerá solo los valores inválidos de RAM y argumentos "
                          "de Java. Antes guarda una copia de instance.json.", "Corregir", run)
+
+        def use_nova_java():
+            def run():
+                try:
+                    changes = reparacion.apply("use_nova_java", folder)
+                except (OSError, ValueError) as error:
+                    self.status.set_text(f"No se pudo corregir: {error}")
+                else:
+                    self.refresh()
+                    self.status.set_text("Java corregido · " + "; ".join(changes) + ". Se guardó una copia como instance.json.bak-…")
+                analyze()
+
+            self.confirm("Usar el Java de Nova", "Se vaciará la ruta de Java de esta instancia para que Nova use el "
+                         "compatible. Antes guarda una copia de instance.json.", "Corregir", run)
 
         def render(mine, mods, repairs, failure):
             if mine != token[0]:

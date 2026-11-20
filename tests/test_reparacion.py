@@ -119,6 +119,30 @@ class RepairTests(unittest.TestCase):
         self.assertEqual(reparacion.apply("reset_settings", self.folder), [])
         self.assertEqual(list(self.folder.glob("instance.json.bak-*")), [])
 
+    def test_java_problems_offer_the_one_click_fix(self):
+        self.install()
+        found = reparacion.diagnose(self.folder, {**GOOD, "java": "/usr/bin/java"}, shared=self.shared,
+                                    java=lambda: ("/usr/bin/java", 21, 17), memory_mb=16384)
+        self.assertEqual([(f["id"], f["action"]) for f in found], [("java", "use_nova_java")])
+
+    def test_much_newer_java_is_a_warning_for_old_minecraft(self):
+        self.install()
+        custom = self.root / "java"
+        custom.write_text("")
+        found = reparacion.diagnose(self.folder, {**GOOD, "java": str(custom)}, shared=self.shared,
+                                    java=lambda: (str(custom), 8, 21), memory_mb=16384)
+        self.assertEqual([(f["id"], f["severity"], f["action"]) for f in found], [("java", "warning", "use_nova_java")])
+
+    def test_use_nova_java_clears_the_path_and_keeps_a_backup(self):
+        config = self.folder / "instance.json"
+        config.write_text(json.dumps({**GOOD, "java": "/opt/old/java", "name": "Mi mundo"}))
+        changes = reparacion.apply("use_nova_java", self.folder)
+        self.assertEqual(len(changes), 1)
+        saved = json.loads(config.read_text())
+        self.assertEqual((saved["java"], saved["name"]), ("", "Mi mundo"))
+        self.assertEqual(json.loads(next(self.folder.glob("instance.json.bak-*")).read_text())["java"], "/opt/old/java")
+        self.assertEqual(reparacion.apply("use_nova_java", self.folder), [])
+
     def test_unknown_action(self):
         with self.assertRaises(ValueError):
             reparacion.apply("format_disk", self.folder)

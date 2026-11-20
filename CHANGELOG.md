@@ -1,5 +1,13 @@
 # Cambios
 
+## 1.16.0
+- **Nova en inglés**: Ajustes → Idioma → English (se aplica al reiniciar). Están traducidos los menús, pantallas, botones, avisos y mensajes de estado; los textos con un nombre o un número en el medio se traducen por plantilla. Lo que falte sigue apareciendo en español. Para sumar otro idioma, copiá `locales/en.json` (ver `locales/README.md`; `tools/extraer_textos.py` lista todos los textos).
+- **Java automático**: si la instancia tiene un Java elegido a mano que ya no existe o es más viejo de lo que pide Minecraft, Nova lo avisa en la barra de estado y usa el Java que administra ella, en vez de fallar al iniciar. Un Java que no se puede comprobar se respeta.
+- **Diagnóstico de cierres**: cuando Minecraft se cierra con error, Nova lee el registro y el último informe de fallos del juego (`crash-reports`), muestra la causa en español y, si el mod sospechoso aparece en el informe, lo nombra. Si la causa se arregla con un clic (Java incompatible, RAM o argumentos de Java inválidos), aparece el botón **Corregir**, que guarda antes una copia de `instance.json`.
+- **Salud de la instancia**: el análisis suma «Java mucho más nuevo que el pedido» (versiones viejas del juego) y un botón **Usar el Java de Nova** en los problemas de Java.
+- **Web**: maqueta interactiva del launcher en la portada (Minecraft y Roblox, Jugar con pasos, mods, skins, respaldos, tema claro y velocidad de animaciones).
+- Sin probar: en Windows, ni el inglés ni el botón Corregir con un cierre real del juego (se probó con registros e informes de ejemplo y con los tests).
+
 ## 1.15.0
 - **Rediseño de la interfaz**: marco nocturno con un panel redondeado, selector Minecraft/Roblox en la barra de arriba, barra lateral más corta (lo menos usado queda detrás de «Más») y portada de instancia más grande. Ajustes, Almacenamiento y Estadísticas pasan a tarjetas ordenadas, y el resto de las pantallas hereda los nuevos colores, bordes y esquinas, en tema oscuro y claro.
 - **Animaciones nuevas**:

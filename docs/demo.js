@@ -12,6 +12,7 @@
     explore: '<circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/>',
     skins: '<path d="M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"/>',
     servers: '<rect x="4" y="4" width="16" height="7" rx="2"/><rect x="4" y="13" width="16" height="7" rx="2"/><path d="M8 7.5h.01M8 16.5h.01"/>',
+    backups: '<path d="M12 4a8 8 0 1 0 8 8M12 8v4l3 2M20 4v4h-4"/>',
     games: '<rect x="3" y="7" width="18" height="11" rx="4"/><path d="M8 10v5M5.5 12.5h5M16 11h.01M18 14h.01"/>',
     fav: '<path d="m12 4 2.4 5 5.6.7-4.1 3.8 1.1 5.5L12 16.2 7 19l1.1-5.5L4 9.7 9.6 9z"/>',
     gear: '<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>'
@@ -20,7 +21,7 @@
   var STAR = '<svg class="dm-lstar" viewBox="0 0 100 100" aria-hidden="true"><path fill="currentColor" d="M50 4C54 30 70 46 96 50 70 54 54 70 50 96 46 70 30 54 4 50 30 46 46 30 50 4Z"/></svg>';
 
   var NAV = {
-    minecraft: [["BIBLIOTECA"], ["inst", "Instancias"], ["news", "Novedades"], ["DESCUBRIR"], ["explore", "Explorar"], ["HERRAMIENTAS"], ["skins", "Skins"], ["servers", "Servidores"]],
+    minecraft: [["BIBLIOTECA"], ["inst", "Instancias"], ["news", "Novedades"], ["DESCUBRIR"], ["explore", "Explorar"], ["HERRAMIENTAS"], ["skins", "Skins"], ["backups", "Respaldos"], ["servers", "Servidores"]],
     roblox: [["JUEGOS"], ["games", "Explorar"], ["fav", "Favoritos"], ["DESCUBRIR"], ["servers", "Servidores"]]
   };
   var INSTANCES = [
@@ -46,7 +47,7 @@
   var PALETTE = ["#e0ac86", "#8a5a3c", "#3a2a22", "#ffffff", "#1c1c24", "#3868c8", "#2a3f8f", "#5fd38a", "#2e7d4f", "#e0524d", "#f2a93b", "#f2e06b", "#8e5bd9", "#e96fb0", "#44c7d6", "#9aa3b2"];
   var STEPS = [["Preparar", "Preparando la instancia…"], ["Archivos", "Descargando recursos de Minecraft…"], ["Iniciar Java", "Iniciando Java 21…"], ["En juego", "¡Listo! Minecraft se abre."]];
 
-  var S = { game: "minecraft", view: "inst", theme: "dark", speed: "medium", inst: 0, source: "Modrinth", installed: {}, fav: {}, query: "", color: PALETTE[5], tool: "pen", tab: "all", running: {} };
+  var S = { game: "minecraft", view: "inst", theme: "dark", speed: "medium", inst: 0, source: "Modrinth", installed: {}, backups: [["Supervivencia · automático", "Hace 2 días · 412 MB"], ["Antes de actualizar mods", "Hace 6 días · 398 MB"]], fav: {}, query: "", color: PALETTE[5], tool: "pen", tab: "all", running: {} };
   var K = { soft: 1.45, medium: 1, fast: 0.55, off: 0 };
   var ms = function (v) { return reduce ? 0 : v * K[S.speed]; };
   var done = {};
@@ -149,6 +150,14 @@
         var up = S.running[i];
         return '<div class="dm-row"><span class="ico" style="background:linear-gradient(135deg,#2e6b4f,#5fd38a)"></span><span><b>' + s[0] + "</b><small>" + s[1] + ' · <span class="dm-state' + (up ? " up" : "") + '"><i></i>' + (up ? "En línea · " + s[2] : "Detenido") + "</span></small></span>" +
           '<button type="button" class="dm-btn' + (up ? "" : " pri") + '" data-srv="' + i + '">' + (up ? "Detener" : "Iniciar") + "</button></div>";
+      }).join("") + "</div></div>";
+  };
+  V.backups = function () {
+    return '<div class="dm-view"><div class="dm-head"><div><h3>Respaldos</h3><p class="dm-sub">Cada copia se verifica con SHA-256 antes de restaurarla</p></div>' +
+      '<button type="button" class="dm-btn pri" data-act="backup">+ Crear respaldo</button></div><div class="dm-list">' +
+      S.backups.map(function (b, i) {
+        return '<div class="dm-row"><span class="ico" style="background:linear-gradient(135deg,#3b4f8c,#8fd6e8)"></span><span><b>' + esc(b[0]) + "</b><small>" + esc(b[1]) +
+          ' · <span class="dm-state up"><i></i>Verificado</span></small></span><button type="button" class="dm-btn' + (S.restored === i ? " ok" : "") + '" data-restore="' + i + '">' + (S.restored === i ? "✓ Restaurado como instancia nueva" : "Restaurar") + "</button></div>";
       }).join("") + "</div></div>";
   };
   V.set = function () {
@@ -272,6 +281,8 @@
     else if (d.tool) { S.tool = d.tool; render(true); }
     else if (d.act === "clear") { grid.forEach(function (r) { r.fill(null); }); paintAll(); }
     else if (d.act === "equip") { t.textContent = "✓ Equipada"; t.classList.add("ok"); mark("skin"); }
+    else if (d.act === "backup") { S.backups.unshift(["Supervivencia · manual", "Ahora · 415 MB"]); S.restored = -1; render(true); mark("backup"); }
+    else if (d.restore) { S.restored = +d.restore; render(true); }
     else if (d.srv) { S.running[d.srv] = !S.running[d.srv]; render(true); }
     else if (d.set === "theme") { S.theme = d.val; root.setAttribute("data-theme", d.val); render(true); mark("theme"); }
     else if (d.set === "speed") { S.speed = d.val; root.setAttribute("data-speed", d.val); render(true); setGameUI(); }

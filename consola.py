@@ -38,6 +38,33 @@ def diagnose(text):
     return ""
 
 
+SUSPECT = re.compile(r"Suspected Mods?:\s*\n?\s*([^\n]+)", re.I)
+DESCRIPTION = re.compile(r"^Description:\s*(.+)$", re.M)
+FIXES = {"UnsupportedClassVersionError": "use_nova_java", "Unrecognized option": "reset_settings",
+         "Invalid maximum heap size": "reset_settings"}
+
+
+def analyze(text, game_folder=None):
+    """Cause of a failed start: {"advice", "mod", "action"}. Reads the newest crash report when the game wrote one."""
+    advice = diagnose(text or "")
+    action = next((fix for marker, fix in FIXES.items() if marker in (text or "")), None)
+    mod, report_text = "", ""
+    try:
+        reports = sorted((game_folder / "crash-reports").glob("crash-*.txt"), key=lambda p: p.stat().st_mtime) if game_folder else []
+        if reports:
+            report_text = reports[-1].read_text(encoding="utf-8", errors="replace")[:60_000]
+    except OSError:
+        pass
+    found = SUSPECT.search(report_text)
+    if found and found.group(1).strip().lower() not in ("none", "none."):
+        mod = found.group(1).strip()[:120]
+    if not advice and report_text:
+        description = DESCRIPTION.search(report_text)
+        if description:
+            advice = f"El juego se cerró: {description.group(1).strip()[:140]}."
+    return {"advice": advice, "mod": mod, "action": action}
+
+
 def report(text, lines=80):
     """Build a shareable report: platform, Nova version, the hint and the log tail."""
     import platform

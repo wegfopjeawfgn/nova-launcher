@@ -44,10 +44,27 @@ class TranslationTests(unittest.TestCase):
         self.assertEqual(i18n.set_language("../README"), "es")
 
     def test_every_english_key_is_a_real_spanish_string_used_in_the_app(self):
+        sys.path.insert(0, str(i18n.HERE / "tools"))
+        import extraer_textos
         data = json.loads((i18n.LOCALES / "en.json").read_text(encoding="utf-8"))
-        source = "".join(p.read_text(encoding="utf-8") for p in i18n.HERE.glob("*.py"))
-        missing = [key for key in data if key not in source]
+        used = extraer_textos.harvest()
+        # textos que el código arma por pedazos (plural, tiempos) y se traducen en el lugar donde se componen
+        composed = {"hace {} día", "hace {} días", "1 instancia", "{} instancias", "instalado", "instalados", " · {} jugadas", "hace {} min", "hace {} h", "{} · {} jugadas"}
+        missing = [key for key in data if key not in used and key not in composed]
         self.assertEqual(missing, [])
+
+    def test_placeholders_match_in_every_translation(self):
+        data = json.loads((i18n.LOCALES / "en.json").read_text(encoding="utf-8"))
+        wrong = [key for key, value in data.items() if key.count("{}") != value.count("{}")]
+        self.assertEqual(wrong, [])
+
+    def test_templates_translate_texts_with_values_in_the_middle(self):
+        with tempfile.TemporaryDirectory() as folder:
+            (Path(folder) / "en.json").write_text(json.dumps({"Descargando {} MiB": "Downloading {} MiB"}))
+            with mock.patch.object(i18n, "LOCALES", Path(folder)):
+                i18n.set_language("en")
+                self.assertEqual(i18n.tr("Descargando 12 MiB"), "Downloading 12 MiB")
+                self.assertEqual(i18n.tr("Otra cosa"), "Otra cosa")
 
 
 if __name__ == "__main__":

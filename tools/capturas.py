@@ -7,6 +7,7 @@ No network, no account. Used to keep the website screenshots in sync with the ap
     python3 tools/capturas.py SALIDA            # writes SALIDA/<name>.png for every scene
     python3 tools/capturas.py SALIDA principal  # only the named scenes
     NOVA_CAPTURA_TEMA=light python3 tools/capturas.py SALIDA
+    NOVA_CAPTURA_IDIOMA=en python3 tools/capturas.py SALIDA
 """
 import json
 import os
@@ -73,7 +74,7 @@ def build_demo():
     (root / "library.json").write_text(json.dumps(library), encoding="utf-8")
     (root / "accounts.json").write_text(json.dumps({"active": "Alex", "profiles": ["Alex"]}), encoding="utf-8")
     theme = os.environ.get("NOVA_CAPTURA_TEMA", "dark")
-    (root / "settings.json").write_text(json.dumps({"theme": theme, "memory": 4}), encoding="utf-8")
+    (root / "settings.json").write_text(json.dumps({"theme": theme, "memory": 4, "language": os.environ.get("NOVA_CAPTURA_IDIOMA", "es")}), encoding="utf-8")
 
 
 def demo_downloads():
