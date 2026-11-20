@@ -38,3 +38,25 @@ class DiagnoseTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipIf(consola is None, "PyGObject/GTK no está instalado")
+class AnalyzeTests(unittest.TestCase):
+    def test_java_version_error_offers_the_java_fix(self):
+        result = consola.analyze("java.lang.UnsupportedClassVersionError: x")
+        self.assertEqual(result["action"], "use_nova_java")
+        self.assertIn("Java", result["advice"])
+
+    def test_crash_report_names_the_suspected_mod(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            game = Path(tmp)
+            (game / "crash-reports").mkdir()
+            (game / "crash-reports" / "crash-2026-11-20_10.00.00-client.txt").write_text(
+                "---- Minecraft Crash Report ----\nDescription: Ticking entity\n\nSuspected Mods: \n\tCreate (create)\n")
+            result = consola.analyze("nothing known", game)
+        self.assertIn("Ticking entity", result["advice"])
+        self.assertEqual(result["mod"], "Create (create)")
+
+    def test_no_report_and_no_pattern_is_empty(self):
+        self.assertEqual(consola.analyze("all fine"), {"advice": "", "mod": "", "action": None})

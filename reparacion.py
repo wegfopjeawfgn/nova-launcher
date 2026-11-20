@@ -114,12 +114,20 @@ def diagnose(folder, instance, *, shared=None, java=None, memory_mb=None):
                 found.append(_finding("java", "error", "Java no encontrado",
                                       f"El ejecutable configurado no existe: {custom}",
                                       "Minecraft no va a iniciar.",
-                                      "Elegí otro Java o dejá el campo vacío para usar el de Nova."))
+                                      "Elegí otro Java o dejá el campo vacío para usar el de Nova.",
+                                      action="use_nova_java"))
             elif required and detected and detected < required:
                 found.append(_finding("java", "error", "Java demasiado antiguo",
                                       f"Minecraft {version} necesita Java {required} y se detectó Java {detected}.",
                                       "El juego se cierra al iniciar con un error de versión de clase.",
-                                      "Dejá el campo de Java vacío para que Nova use el compatible."))
+                                      "Dejá el campo de Java vacío para que Nova use el compatible.",
+                                      action="use_nova_java"))
+            elif custom and required and detected and required <= 11 and detected > required + 6:
+                found.append(_finding("java", "warning", "Java mucho más nuevo que el pedido",
+                                      f"Minecraft {version} pide Java {required} y se detectó Java {detected}.",
+                                      "Las versiones viejas del juego y de los mods suelen fallar con un Java tan nuevo.",
+                                      "Dejá el campo de Java vacío para que Nova use el compatible.",
+                                      action="use_nova_java"))
     ram = memory_mb if memory_mb is not None else physical_memory_mb()
     memory = instance.get("memory")
     if "memory" not in problems and ram:
@@ -150,18 +158,24 @@ def diagnose(folder, instance, *, shared=None, java=None, memory_mb=None):
 
 def apply(action, folder):
     """Run one safe repair and return a summary of what changed. Raises ValueError for unknown actions."""
-    if action != "reset_settings":
+    if action not in ("reset_settings", "use_nova_java"):
         raise ValueError("Reparación desconocida.")
     config = Path(folder) / "instance.json"
     instance = motor.read(config, None)
     if not isinstance(instance, dict):
         raise ValueError("No se pudo leer instance.json.")
+    if action == "use_nova_java":
+        if not instance.get("java"):
+            return []
+        _backup(config)
+        previous, instance["java"] = instance["java"], ""
+        motor.save(config, instance)
+        return [f"Java: {previous} → administrado por Nova"]
     problems = invalid_settings(instance)
     changes = []
     if not {"memory", "memory_min", "jvm_args"} & set(problems):
         return changes
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    shutil.copy2(config, config.with_name(f"instance.json.bak-{stamp}"))
+    _backup(config)
     if "memory" in problems:
         changes.append(f"RAM: {instance.get('memory')!r} → 4 GB")
         instance["memory"] = 4
@@ -173,3 +187,8 @@ def apply(action, folder):
         instance["jvm_args"] = ""
     motor.save(config, instance)
     return changes
+
+
+def _backup(config):
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    shutil.copy2(config, config.with_name(f"instance.json.bak-{stamp}"))

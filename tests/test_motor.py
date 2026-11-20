@@ -81,3 +81,30 @@ class HeapArgumentTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UsableJavaTests(unittest.TestCase):
+    def test_empty_means_nova_java(self):
+        self.assertEqual(motor.usable_java({"java": ""}), ("", ""))
+
+    def test_missing_file_falls_back_with_a_notice(self):
+        path, note = motor.usable_java({"java": "/nope/java", "version": "1.21.1"})
+        self.assertEqual(path, "")
+        self.assertIn("no existe", note)
+
+    def test_too_old_java_falls_back(self):
+        import tempfile
+        from unittest import mock
+        with tempfile.NamedTemporaryFile() as java, mock.patch.object(motor, "java_report", return_value=(java.name, 21, 17)):
+            path, note = motor.usable_java({"java": java.name, "version": "1.21.1"})
+        self.assertEqual(path, "")
+        self.assertIn("Java elegido es el 17", note)
+
+    def test_good_or_unverifiable_java_is_respected(self):
+        import tempfile
+        from unittest import mock
+        with tempfile.NamedTemporaryFile() as java:
+            with mock.patch.object(motor, "java_report", return_value=(java.name, 21, 21)):
+                self.assertEqual(motor.usable_java({"java": java.name}), (java.name, ""))
+            with mock.patch.object(motor, "java_report", side_effect=OSError):
+                self.assertEqual(motor.usable_java({"java": java.name}), (java.name, ""))

@@ -25,6 +25,7 @@ import pantalla_carga
 import estadisticas
 import i18n
 import inicio
+import reparacion
 import respaldos
 import servidor_gestion
 import servidor_local
@@ -157,6 +158,7 @@ class Nova(
             **motor.read(motor.ROOT / "settings.json", {}),
         }
         i18n.set_language(self.preferences.get("language", "es"))
+        i18n.install_gtk()
         self.apply_speed()
         self.release_repo = actualizaciones.repository(
             motor.read(HERE / "canal.json", {}).get("repository", "")
@@ -358,6 +360,10 @@ class Nova(
                                   "quiet-button")
         self.failure_log.set_visible(False)
         statusbar.append(self.failure_log)
+        self.failure_fix = button("Corregir", self.fix_failure, "quiet-button")
+        self.failure_fix.set_visible(False)
+        self.failure_action = None
+        statusbar.append(self.failure_fix)
         outer.append(statusbar)
         self.library_query.connect("search-changed", lambda _: self.refresh())
         self.library_filter.connect("changed", lambda _: self.refresh())
@@ -1063,8 +1069,8 @@ class Nova(
         self.visible_instances = visible
         count = len(visible)
         played = tiempo.total(self.library)
-        self.library_count.set_text(("1 instancia" if count == 1 else f"{count} instancias")
-                                    + (f" · {tiempo.short(played)} jugadas" if played else ""))
+        self.library_count.set_text(i18n.tr("1 instancia" if count == 1 else f"{count} instancias")
+                                    + (i18n.tr(f" · {tiempo.short(played)} jugadas") if played else ""))
         if self.selected not in visible:
             self.selected = next((folder for folder in visible
                                   if folder.name == self.library.get("selected")), next(iter(visible), None))
@@ -1500,6 +1506,7 @@ class Nova(
             self.open_log(folder)
         self.busy = True
         self.failure_log.set_visible(False)
+        self.failure_fix.set_visible(False)
         self.launch_stage = "Preparando…"
         self.status.set_text("Preparando Minecraft…")
         self.refresh()
@@ -1507,6 +1514,7 @@ class Nova(
             self.launch_screen_show(folder, instance, microsoft[1]["name"] if microsoft else profile)
 
         minimized = False
+        failure_fix = []
         began = []
         clicked = time.monotonic()
         wall = []
@@ -1540,6 +1548,8 @@ class Nova(
             self.finished(message)
             self.failed_log = folder / "minecraft.log"
             self.failure_log.set_visible(failed)
+            self.failure_action = (folder, failure_fix[0]) if failed and failure_fix else None
+            self.failure_fix.set_visible(bool(self.failure_action))
             self.launch_screen_finished(failed, message)
             if minimized:
                 self.window.unminimize()
@@ -1575,11 +1585,14 @@ class Nova(
                 if result != 0:
                     failed = True
                     try:
-                        diagnosis = consola.diagnose(consola.read_log(folder / "minecraft.log"))
+                        cause = consola.analyze(consola.read_log(folder / "minecraft.log"), folder / "game")
                     except OSError:
-                        diagnosis = ""
+                        cause = {"advice": "", "mod": "", "action": None}
+                    if cause["action"]:
+                        failure_fix.append(cause["action"])
                     message = (f"Minecraft terminó con código {result}. "
-                               f"{diagnosis or 'Abrí Ver registro para ver los detalles.'}")
+                               f"{cause['advice'] or 'Abrí Ver registro para ver los detalles.'}"
+                               + (f" Sospechoso: {cause['mod']}." if cause["mod"] else ""))
             except Exception as exc:
                 errores.record(exc, "nova.worker")
                 failed = True
@@ -1587,6 +1600,27 @@ class Nova(
             GLib.idle_add(finish, message, failed)
 
         threading.Thread(target=worker, daemon=True).start()
+
+    def fix_failure(self):
+        if not self.failure_action:
+            return
+        folder, action = self.failure_action
+        title, text = (("Usar el Java de Nova", "Se vaciará la ruta de Java de esta instancia para que Nova use el compatible. Antes guarda una copia de instance.json.")
+                       if action == "use_nova_java" else
+                       ("Corregir ajustes", "Nova restablecerá solo los valores inválidos de RAM y argumentos de Java. Antes guarda una copia de instance.json."))
+
+        def run():
+            try:
+                changes = reparacion.apply(action, folder)
+            except (OSError, ValueError) as error:
+                self.status.set_text(f"No se pudo corregir: {error}")
+                return
+            self.refresh()
+            self.failure_fix.set_visible(False)
+            self.failure_action = None
+            self.status.set_text("Corregido · " + ("; ".join(changes) or "no había nada que cambiar") + ". Probá jugar de nuevo.")
+
+        self.confirm(title, text, "Corregir", run)
 
     def store_session(self, previous, session):
         if self.microsoft is previous:

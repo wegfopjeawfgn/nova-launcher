@@ -1,18 +1,20 @@
 """Text for the home strip at the top of the library: last game, downloads, account and Nova itself."""
 
+import i18n
+
 
 def ago(seconds):
     seconds = max(0, int(seconds))
     if seconds < 60:
-        return "hace un momento"
+        return i18n.tr("hace un momento")
     minutes = seconds // 60
     if minutes < 60:
-        return f"hace {minutes} min"
+        return i18n.tr(f"hace {minutes} min")
     hours = minutes // 60
     if hours < 24:
-        return f"hace {hours} h"
+        return i18n.tr(f"hace {hours} h")
     days = hours // 24
-    return f"hace {days} día" + ("" if days == 1 else "s")
+    return i18n.tr(f"hace {days} día" + ("" if days == 1 else "s"))
 
 
 def summary(*, recent, names, now, downloading, queued, account, update):
@@ -23,8 +25,8 @@ def summary(*, recent, names, now, downloading, queued, account, update):
         if key in names and isinstance(when, (int, float)) and not isinstance(when, bool):
             if last is None or when > last[1]:
                 last = (key, when)
-    cards = [{"key": "last", "title": "Última partida",
-              "text": f"{names[last[0]]} · {ago(now - last[1])}" if last else "Todavía no jugaste"}]
+    cards = [{"key": "last", "title": i18n.tr("Última partida"),
+              "text": f"{names[last[0]]} · {ago(now - last[1])}" if last else i18n.tr("Todavía no jugaste")}]
     parts = []
     if downloading:
         parts.append("1 en curso")

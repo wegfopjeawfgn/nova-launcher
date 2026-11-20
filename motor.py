@@ -181,6 +181,24 @@ def java_report(instance):
     return str(executable), required, int(match[1]) if match else None
 
 
+def usable_java(instance):
+    """(ruta, aviso): el Java elegido si sirve; si falta o es más viejo que el pedido, "" para usar el de Nova.
+
+    Nunca bloquea el inicio: si no se puede comprobar, se respeta lo que eligió la persona."""
+    custom = instance.get("java")
+    if not custom:
+        return "", ""
+    if not Path(custom).is_file():
+        return "", "El Java elegido no existe: uso el que administra Nova."
+    try:
+        _, required, detected = java_report(instance)
+    except (OSError, ValueError, KeyError, ImportError, subprocess.SubprocessError):
+        return custom, ""
+    if required and detected and detected < required:
+        return "", f"El Java elegido es el {detected} y Minecraft pide el {required}: uso el que administra Nova."
+    return custom, ""
+
+
 def prepare(instance, status, *, repair=False, offline=False):
     from minecraft_launcher_lib import command, install, mod_loader
 
@@ -258,8 +276,11 @@ def launch(folder, profile, instance, status, session=None, *, on_started=None, 
             options.update(customResolution=True, resolutionWidth=width, resolutionHeight=height)
         if session:
             options.update(username=session["name"], uuid=session["id"], token=session["access_token"])
-        if instance["java"]:
-            options["executablePath"] = instance["java"]
+        java, note = usable_java(instance)
+        if note:
+            status(note)
+        if java:
+            options["executablePath"] = java
         if server:
             host, port = servidores.address_parts(server)
             options["quickPlayMultiplayer"] = f"{host}:{port}" if port else host
