@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://novalaunchermc.vercel.app/sitemap.xml
+Sitemap: https://www.novamc.site/sitemap.xml

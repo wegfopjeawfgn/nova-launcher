@@ -12,7 +12,7 @@ Minecraft Java players on Fedora and Windows who keep several instances with mod
 
 ## Product Purpose
 
-Nova Launcher is a third-party desktop launcher for Minecraft Java Edition (GTK 4, Python), GPL-3.0-or-later. It manages instances, Modrinth and CurseForge content, content imported from local files, verified backups, skins, servers and mod health checks. The website at novalaunchermc.vercel.app presents and distributes it. Success: a player installs it and gets a working, organised instance quickly.
+Nova Launcher is a third-party desktop launcher for Minecraft Java Edition (GTK 4, Python), GPL-3.0-or-later. It manages instances, Modrinth and CurseForge content, content imported from local files, verified backups, skins, servers and mod health checks. The website at www.novamc.site presents and distributes it. Success: a player installs it and gets a working, organised instance quickly.
 
 ## Positioning
 
