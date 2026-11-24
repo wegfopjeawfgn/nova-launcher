@@ -132,7 +132,7 @@ class RespaldosMixin:
         box.append(format_choice)
         info = label("El .mrpack incluye referencias para los archivos activos que coinciden "
                      "con Modrinth. Los archivos sin coincidencia y la carpeta config se guardan dentro "
-                     "del archivo (hasta 512 MiB).", "muted")
+                     "del archivo (hasta 512 MiB). Revisá que la config no tenga claves o contraseñas antes de compartirlo.", "muted")
         info.set_wrap(True)
         info.set_max_width_chars(48)
         box.append(info)

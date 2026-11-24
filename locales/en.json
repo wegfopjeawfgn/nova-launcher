@@ -409,7 +409,7 @@
  "Ej. Mundo cooperativo con amigos": "E.g. Co-op world with friends",
  "Ejecutable de Java": "Java executable",
  "Ejecutá el instalador y volvé a abrir Nova.": "Run the installer and reopen Nova.",
- "El .mrpack incluye referencias para los archivos activos que coinciden con Modrinth. Los archivos sin coincidencia y la carpeta config se guardan dentro del archivo (hasta 512 MiB).": "The .mrpack includes references for the active files that match Modrinth. Files without a match and the config folder are stored inside the archive (up to 512 MiB).",
+ "El .mrpack incluye referencias para los archivos activos que coinciden con Modrinth. Los archivos sin coincidencia y la carpeta config se guardan dentro del archivo (hasta 512 MiB). Revisá que la config no tenga claves o contraseñas antes de compartirlo.": "The .mrpack includes references for the active files that match Modrinth. Files without a match and the config folder are stored inside the archive (up to 512 MiB). Check that the config has no keys or passwords before sharing it.",
  "El Java descargado no trae el programa java.": "The downloaded Java does not include the java program.",
  "El Java elegido es el {} y Minecraft pide el {}: uso el que administra Nova.": "The chosen Java is {} and Minecraft requires {}: using the one managed by Nova.",
  "El Java elegido no existe: uso el que administra Nova.": "The chosen Java does not exist: using the one managed by Nova.",
