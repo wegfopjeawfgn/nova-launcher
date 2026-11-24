@@ -184,6 +184,35 @@ class ExportTests(RespaldosCase):
                                            "downloads": ["https://cdn.modrinth.com/k.jar"],
                                            "fileSize": 5}])
 
+    def test_mrpack_includes_loose_files_and_config(self):
+        source = self.make_instance(loader="fabric", loader_version="0.16.9")
+        game = source / "game"
+        (game / "mods" / "manual.jar").write_bytes(b"manual")
+        (game / "config").mkdir()
+        (game / "config" / "a.toml").write_text("x=1")
+        out = self.folder / "o.mrpack"
+        with mock.patch("catalogo.versions_by_hash", return_value={}):
+            summary = respaldos.export_instance(source, out, False)
+        self.assertEqual(summary, {"referenced": 0, "included": 1, "config": 1})
+        with zipfile.ZipFile(out) as archive:
+            self.assertEqual(sorted(archive.namelist()), ["modrinth.index.json",
+                             "overrides/config/a.toml", "overrides/mods/manual.jar"])
+
+    def test_mrpack_limit_and_config_symlink(self):
+        source = self.make_instance(loader="fabric", loader_version="0.16.9")
+        (source / "game" / "mods" / "big.jar").write_bytes(b"x")
+        out = self.folder / "l.mrpack"
+        with mock.patch("catalogo.versions_by_hash", return_value={}):
+            with mock.patch.object(Path, "stat", return_value=mock.Mock(st_size=600 * 1024**2, st_mode=0o100644)):
+                with self.assertRaises(ValueError):
+                    respaldos.export_instance(source, out, False)
+            outside = self.folder / "outside"
+            outside.mkdir()
+            os.symlink(outside, source / "game" / "config")
+            with self.assertRaises(ValueError):
+                respaldos.export_instance(source, out, False)
+        self.assertFalse(out.exists())
+
     def test_worlds_with_symlinks_are_refused(self):
         source = self.make_instance()
         world = self.add_world(source)

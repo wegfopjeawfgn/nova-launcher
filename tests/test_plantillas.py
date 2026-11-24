@@ -14,6 +14,17 @@ GOOD = {"format": "nova-profile", "format_version": 1, "name": "PvP", "version":
         "notes": "hola", "mods": [{"id": "sodium", "name": "Sodium", "version": "0.6"}]}
 
 
+class PerformanceProfileTests(unittest.TestCase):
+    def test_profiles_respect_ram_and_args(self):
+        self.assertIsNone(plantillas.performance_profile("manual", 16384))
+        got = {k: plantillas.performance_profile(k, 32768)["memory"] for k in plantillas.PROFILES}
+        self.assertEqual(got, {"ahorro": 2, "equilibrado": 4, "maximo": 8})
+        self.assertEqual(plantillas.performance_profile("maximo", 8192)["memory"], 4)
+        self.assertEqual(plantillas.performance_profile("ahorro", 1024)["memory"], 1)
+        self.assertEqual(plantillas.performance_profile("maximo")["memory"], 8)
+        motor.parse_jvm_args(plantillas.performance_profile("equilibrado")["jvm_args"])
+
+
 class TemplateTests(unittest.TestCase):
     def test_every_template_is_valid(self):
         self.assertEqual(len(plantillas.TEMPLATES), 7)

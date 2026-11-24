@@ -414,6 +414,7 @@ def installed_view(app, folder, category=None):
     view.append(status)
     database = folder / "downloads.json"
     available = {}
+    sources = {}
 
     def refresh():
         while child := rows.get_first_child():
@@ -504,39 +505,45 @@ def installed_view(app, folder, category=None):
 
     def check_updates():
         instance = app.instances[folder]
-        entries = motor.read(database, {})
-        installed_mods = {path.name.removesuffix(".disabled") for path in content_files(folder, "mod")}
-        projects = {project: entry for project, entry in entries.items()
-                    if entry["category"] == "mod" and entry["file"] in installed_mods}
-        if not projects:
-            status.set_text("Las actualizaciones se consultan para mods descargados desde Nova.")
+        paths = content_files(folder, "mod")
+        if not paths:
+            status.set_text("Todavía no hay mods instalados.")
             return
         updates.set_sensitive(False)
         status.set_text("Buscando actualizaciones compatibles…")
 
-        def finished(message, matches):
+        def finished(message, matches, origins):
             available.clear()
             available.update(matches)
+            sources.clear()
+            sources.update(origins)
             batch.set_sensitive(bool(matches))
             refresh()
             updates.set_sensitive(True)
             status.set_text(message)
 
         def worker():
-            matches = {}
+            matches, origins = {}, {}
             try:
+                hashes = {}
+                for path in paths:
+                    stat = path.stat()
+                    hashes.setdefault(content_hash(path, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns), path)
+                current = catalogo.versions_by_hash(hashes)
+                latest = catalogo.updates_by_hash(current, instance)
                 names = []
-                for project, entry in projects.items():
-                    versions = catalogo.releases(project, "mod", instance)
-                    latest = next((v for v in versions if v["version_type"] == "release"), None)
-                    current = next((v for v in versions if v["id"] == entry["id"]), None)
-                    if latest and current and latest["date_published"] > current["date_published"]:
-                        matches[project] = latest
-                        names.append(f"{entry['name']} ({latest['version_number']})")
+                for digest, version in current.items():
+                    new = latest.get(digest)
+                    project = version["project_id"]
+                    if (new and new["version_type"] == "release" and new["id"] != version["id"]
+                            and new["date_published"] > version["date_published"] and project not in matches):
+                        matches[project] = new
+                        origins[project] = (version["name"], version["id"], hashes[digest].name.removesuffix(".disabled"))
+                        names.append(f"{version['name']} ({new['version_number']})")
                 message = "Actualizaciones disponibles · " + ", ".join(names) if names else "Mods al día."
-            except (requests.RequestException, ValueError, KeyError):
+            except (requests.RequestException, ValueError, KeyError, OSError):
                 message = "No se pudieron consultar las actualizaciones de Modrinth."
-            GLib.idle_add(finished, message, matches)
+            GLib.idle_add(finished, message, matches, origins)
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -581,9 +588,7 @@ def installed_view(app, folder, category=None):
         threading.Thread(target=worker, daemon=True).start()
 
     def review_batch():
-        entries = motor.read(database, {})
-        pending = [(entries[key]["name"], release) for key, release in available.items()
-                   if key in entries and entries[key]["id"] != release["id"]]
+        pending = [(key, sources[key][0], release) for key, release in available.items() if key in sources]
         if not pending:
             return
         dialog = Gtk.Dialog(title="Revisar actualizaciones", transient_for=app.window, modal=True)
@@ -592,23 +597,33 @@ def installed_view(app, folder, category=None):
         box = dialog.get_content_area()
         box.add_css_class("menu")
         scroll = Gtk.ScrolledWindow(max_content_height=260, propagate_natural_height=True)
-        summary = Gtk.Label(label="\n".join(f"{name} → {release['version_number']}"
-                                               for name, release in pending), xalign=0, wrap=True)
-        scroll.set_child(summary)
+        checks = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        boxes = [(key, name, release, Gtk.CheckButton(label=f"{name} → {release['version_number']}", active=True))
+                 for key, name, release in pending]
+        for *_, check in boxes:
+            checks.append(check)
+        scroll.set_child(checks)
         box.append(scroll)
 
-        def apply():
-            for count, (name, release) in enumerate(pending):
+        def apply(chosen):
+            for count, (key, name, release) in enumerate(chosen):
                 try:
+                    with motor.instance_lock(folder):
+                        entries = motor.read(database, {})
+                        if key not in entries:  # mod importado a mano: Nova lo adopta para poder revertirlo
+                            _, current_id, file = sources[key]
+                            entries[key] = {"id": current_id, "file": file, "category": "mod", "name": name}
+                            motor.save(database, entries)
                     catalogo.install_content(folder, app.instances[folder], "mod", release, update=True)
                 except Exception as error:
                     errores.record(error, "biblioteca.apply")
                     raise ValueError(f"Se actualizaron {count} mods. Falló {name}: {error}") from error
 
         def respond(_, response):
+            chosen = [(key, name, release) for key, name, release, check in boxes if check.get_active()]
             dialog.destroy()
-            if response == Gtk.ResponseType.OK:
-                change(apply, f"{len(pending)} mods actualizados. Podés revertirlos individualmente.")
+            if response == Gtk.ResponseType.OK and chosen:
+                change(lambda: apply(chosen), f"{len(chosen)} mods actualizados. Podés revertirlos individualmente.")
 
         dialog.connect("response", respond)
         dialog.present()

@@ -108,7 +108,10 @@ def copy_instance(source, mode, *, auto=False):
 
 
 def export_instance(source, destination, include_worlds):
-    """Share portable settings, verified references and optional worlds."""
+    """Share portable settings, verified references and optional worlds.
+
+    Returns {"referenced": n, "included": n, "config": n}: Modrinth references, loose
+    mod/pack files and config files stored in overrides (all 0 outside .mrpack)."""
     extension = destination.suffix.lower()
     if extension not in {".zip", ".mrpack"}:
         raise ValueError("Guardá la instancia con extensión .zip o .mrpack.")
@@ -123,14 +126,34 @@ def export_instance(source, destination, include_worlds):
         manifest = {"formatVersion": 1, "name": settings["name"], "dependencies": dependencies}
         game = source / "game"
         manifest_name = "nova-pack.json"
+        summary = {"referenced": 0, "included": 0, "config": 0}
+        extras = []
         if extension == ".mrpack":
             if loader != "vanilla" and not settings["loader_version"]:
                 raise ValueError("Fijá una versión del cargador antes de exportar un .mrpack.")
             manifest_name = "modrinth.index.json"
-            manifest.update(game="minecraft", versionId="1.0.0", files=modrinth_references(game))
+            if game.is_symlink():
+                raise ValueError("La carpeta del juego no puede ser un enlace simbólico.")
+            references, loose = modrinth_references(game)
+            manifest.update(game="minecraft", versionId="1.0.0", files=references)
+            config = game / "config"
+            extras = [(path, "loose") for path in loose]
+            if config.is_symlink():
+                raise ValueError("La carpeta config no puede ser un enlace simbólico.")
+            for path in sorted(config.rglob("*")):
+                if path.is_symlink():
+                    raise ValueError("Quitá los enlaces simbólicos de config antes de exportar.")
+                if path.is_file():
+                    extras.append((path, "config"))
+            if sum(path.stat().st_size for path, _ in extras) > 512 * 1024**2:
+                raise ValueError("Los archivos que no están en Modrinth y config superan el límite de 512 MiB.")
+            summary.update(referenced=len(references), included=len(loose),
+                           config=len(extras) - len(loose))
         staged = Path(temporary) / "instance.zip"
         with zipfile.ZipFile(staged, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.writestr(manifest_name, json.dumps(manifest))
+            for path, _ in extras:
+                archive.write(path, f"overrides/{path.relative_to(game).as_posix()}")
             saves = game / "saves"
             total = 0
             if include_worlds:
@@ -145,6 +168,7 @@ def export_instance(source, destination, include_worlds):
                             raise ValueError("Los mundos superan el límite de 4 GiB.")
                         archive.write(path, f"overrides/{path.relative_to(game).as_posix()}")
         staged.replace(destination)
+    return summary
 
 
 def modrinth_references(game):
@@ -160,7 +184,7 @@ def modrinth_references(game):
                 digest = hashlib.file_digest(stream, "sha512").hexdigest()
             files.setdefault(digest, []).append(path)
     versions = catalogo.versions_by_hash(files)
-    references = []
+    references, loose = [], []
     for digest, paths in files.items():
         match = next((entry for entry in versions.get(digest, {}).get("files", [])
                       if entry["hashes"].get("sha512") == digest
@@ -171,7 +195,9 @@ def modrinth_references(game):
                 references.append({"path": path.relative_to(game).as_posix(),
                                    "hashes": match["hashes"], "downloads": [match["url"]],
                                    "fileSize": path.stat().st_size})
-    return references
+        else:
+            loose.extend(paths)
+    return references, loose
 
 
 def worlds(folder, *, backups=False):

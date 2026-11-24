@@ -377,3 +377,16 @@ class ImportPackTests(TempRootCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UpdatesByHashCase(unittest.TestCase):
+    def test_posts_loader_and_version_in_batches(self):
+        from unittest import mock
+        response = mock.Mock(json=lambda: {"h": {"id": "v2"}})
+        with mock.patch("catalogo.requests.post", return_value=response) as post:
+            found = catalogo.updates_by_hash(["h"] * 101, {"loader": "fabric", "version": "1.21"})
+        self.assertEqual(post.call_count, 2)
+        self.assertTrue(post.call_args.args[0].endswith("/version_files/update"))
+        self.assertEqual(post.call_args.kwargs["json"]["loaders"], ["fabric"])
+        self.assertEqual(post.call_args.kwargs["json"]["game_versions"], ["1.21"])
+        self.assertEqual(found, {"h": {"id": "v2"}})

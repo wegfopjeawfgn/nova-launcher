@@ -49,6 +49,21 @@ def apply_template(key, *, ram_mb=None):
     return settings
 
 
+PROFILES = {"ahorro": 2, "equilibrado": 4, "maximo": 8}  # GB before the half-of-RAM cap
+
+
+def performance_profile(key, ram_mb=None):
+    """Memory (GB) and JVM args for a performance profile. "manual" or unknown keys change nothing (None).
+    Memory never goes above half of the installed RAM when it is known."""
+    if key not in PROFILES:
+        return None
+    memory = PROFILES[key]
+    if ram_mb:
+        memory = max(1, min(memory, int(ram_mb * 0.5) // 1024))
+    motor.parse_jvm_args(G1)
+    return {"memory": memory, "jvm_args": G1}
+
+
 def export_profile(instance, mods=()):
     """Portable description of an instance. `mods` is [(id, name, version)], kept only for reference."""
     return {

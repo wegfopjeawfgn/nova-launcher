@@ -131,7 +131,8 @@ class RespaldosMixin:
         format_choice.set_active_id("zip")
         box.append(format_choice)
         info = label("El .mrpack incluye referencias para los archivos activos que coinciden "
-                     "con Modrinth. Los archivos sin coincidencia se omiten.", "muted")
+                     "con Modrinth. Los archivos sin coincidencia y la carpeta config se guardan dentro "
+                     "del archivo (hasta 512 MiB).", "muted")
         info.set_wrap(True)
         info.set_max_width_chars(48)
         box.append(info)
@@ -143,10 +144,18 @@ class RespaldosMixin:
             include_worlds = worlds.get_active()
             dialog.destroy()
             if response == Gtk.ResponseType.OK:
+                result = {}
+
+                def done():
+                    if result.get("referenced") or result.get("included") or result.get("config"):
+                        self.status.set_text(
+                            f"Instancia exportada · {result['referenced']} mods referenciados, "
+                            f"{result['included']} archivos incluidos, {result['config']} de config.")
+
                 self.save_file("Exportar instancia", f"instancia-nova.{extension}", lambda path:
                                self.background_file("Exportando instancia…",
-                                   lambda: respaldos.export_instance(folder, path, include_worlds),
-                                   f"Instancia exportada en {path}."))
+                                   lambda: result.update(respaldos.export_instance(folder, path, include_worlds)),
+                                   f"Instancia exportada en {path}.", after_save=done))
 
         dialog.connect("response", respond)
         dialog.present()
