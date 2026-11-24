@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar
+## 1.17.0
 - **Actualizar mods**: «Buscar actualizaciones» ahora detecta también los mods que agregaste a mano (los identifica por hash), consulta Modrinth en lote y abre una lista ordenada con una casilla por mod («versión actual → nueva») y el botón «Actualizar N mods». Los mods adoptados se pueden revertir.
 - **Perfil de rendimiento**: en el formulario de cada instancia, Ahorro, Equilibrado o Máximo rellenan la memoria y los argumentos de Java (nunca más de la mitad de tu RAM). En Fabric y Quilt sugiere Sodium y Lithium.
 - **Exportar .mrpack**: los archivos que no están en Modrinth y la carpeta `config` ahora se guardan dentro del archivo (hasta 512 MiB) en vez de omitirse, y al terminar se muestra un resumen.
