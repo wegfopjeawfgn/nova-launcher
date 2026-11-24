@@ -52,6 +52,11 @@ def apply_template(key, *, ram_mb=None):
 PROFILES = {"ahorro": 2, "equilibrado": 4, "maximo": 8}  # GB before the half-of-RAM cap
 
 
+def valid_profile(key):
+    """Stored profile key, or "manual" when it is missing or unknown."""
+    return key if isinstance(key, str) and key in PROFILES else "manual"
+
+
 def performance_profile(key, ram_mb=None):
     """Memory (GB) and JVM args for a performance profile. "manual" or unknown keys change nothing (None).
     Memory never goes above half of the installed RAM when it is known."""

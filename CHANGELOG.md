@@ -1,5 +1,10 @@
 # Cambios
 
+## Sin publicar
+- **Perfil de rendimiento**: el perfil elegido ahora se guarda en la instancia y se ve al reabrirla.
+- **Flatpak**: usa los mismos datos que la instalación normal (`~/.local/share/nova-launcher`), así que ya no abre una copia vacía; las dependencias de pip quedan fijadas con hash para poder publicarlo en Flathub.
+- **Web**: portada más corta y clara, con «Qué incluye» en tarjetas y el texto largo plegado, y una demo interactiva rehecha para parecerse al launcher real.
+
 ## 1.17.0
 - **Actualizar mods**: «Buscar actualizaciones» ahora detecta también los mods que agregaste a mano (los identifica por hash), consulta Modrinth en lote y abre una lista ordenada con una casilla por mod («versión actual → nueva») y el botón «Actualizar N mods». Los mods adoptados se pueden revertir.
 - **Perfil de rendimiento**: en el formulario de cada instancia, Ahorro, Equilibrado o Máximo rellenan la memoria y los argumentos de Java (nunca más de la mitad de tu RAM). En Fabric y Quilt sugiere Sodium y Lithium.
