@@ -41,7 +41,7 @@
     CurseForge: [["JEI", "Ver recetas y usos de cada objeto.", "Utilidad", "#6a4fc0"], ["Create", "Máquinas y engranajes para tu fábrica.", "Tecnología", "#d98a1f"], ["Biomes O' Plenty", "Más de 80 biomas nuevos.", "Mundo", "#3f9b57"], ["Journeymap", "Mapa en vivo del mundo.", "Utilidad", "#2a7fa8"], ["Farmer's Delight", "Cocina y cultivos nuevos.", "Comida", "#c0392b"], ["Waystones", "Teletransportate entre puntos.", "Aventura", "#3b4f8c"]]
   };
   var PACKS = [["Mejoras visuales", "Rendimiento y gráficos listos para jugar", "38 mods · 1.21.1", 38, "#3b4f8c"], ["Mundo de máquinas", "Automatización y fábricas", "64 mods · 1.20.1", 64, "#d98a1f"], ["Supervivencia suave", "Vanilla+ con pequeñas mejoras", "12 mods · 1.21.4", 12, "#3f9b57"]];
-  var NEWS = [["1.17.0", "Perfil de rendimiento al editar una instancia, y Salud con avisos más claros."], ["1.16.0", "Nova en inglés, Java automático y diagnóstico de cierres con botón Corregir."], ["1.15.0", "Interfaz nueva, portal al elegir juego y ajustes de animaciones."], ["1.14.1", "Editor de skins con vista previa 3D y pantalla de inicio al jugar."]];
+  var NEWS = [["1.17.1", "Perfil de rendimiento al editar una instancia, y Salud con avisos más claros."], ["1.16.0", "Nova en inglés, Java automático y diagnóstico de cierres con botón Corregir."], ["1.15.0", "Interfaz nueva, portal al elegir juego y ajustes de animaciones."], ["1.14.1", "Editor de skins con vista previa 3D y pantalla de inicio al jugar."]];
   var PUB = [["Mundo de ejemplo", "juega.ejemplo.test", "Vanilla 1.21.4", "28 ms", "12 jugadores"], ["Aventuras de prueba", "aventura.ejemplo.test", "Paper 1.21.11", "41 ms", "5 jugadores"], ["Creativo abierto", "creativo.ejemplo.test", "Fabric 1.21.1", "35 ms", "0 jugadores"]];
   var SESSIONS = [["Hoy", "Supervivencia", "1 h 12 min"], ["Ayer", "Create Nova", "48 min"], ["Hace 3 días", "Servidor de amigos", "2 h 05 min"], ["Hace 6 días", "Supervivencia", "3 h 20 min"]];
   var FINDINGS = [
@@ -117,7 +117,7 @@
     var inMore = MORE.some(function (m) { return m[0] === act; }), open = S.more || inMore;
     html += '<button type="button" class="dm-nav" data-a="more" aria-expanded="' + open + '">' + ico("dots") + "Más</button><div class=\"dm-sub-nav" + (open ? " open" : "") + '">' +
       MORE.map(function (m) { return '<button type="button" class="dm-nav' + (act === m[0] ? " on" : "") + '" data-view="' + m[0] + '"' + (open ? "" : ' tabindex="-1"') + ">" + ico(m[2]) + m[1] + "</button>"; }).join("") + "</div>";
-    html += '<div class="dm-me"><img src="assets/nova.svg" width="30" height="30" alt=""><span><b>Nova 1.17.0</b><small>Al día</small></span><button type="button" data-view="set" class="' + (S.view === "set" ? "on" : "") + '" aria-label="Ajustes">' + ico("gear") + "</button></div>";
+    html += '<div class="dm-me"><img src="assets/nova.svg" width="30" height="30" alt=""><span><b>Nova 1.17.1</b><small>Al día</small></span><button type="button" data-view="set" class="' + (S.view === "set" ? "on" : "") + '" aria-label="Ajustes">' + ico("gear") + "</button></div>";
     side.innerHTML = html;
   }
   function setGameUI() {
