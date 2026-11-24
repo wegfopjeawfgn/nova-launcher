@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar
+## 1.17.1
 - **Perfil de rendimiento**: el perfil elegido ahora se guarda en la instancia y se ve al reabrirla.
 - **Flatpak**: usa los mismos datos que la instalación normal (`~/.local/share/nova-launcher`), así que ya no abre una copia vacía; las dependencias de pip quedan fijadas con hash para poder publicarlo en Flathub.
 - **Web**: portada más corta y clara, con «Qué incluye» en tarjetas y el texto largo plegado, y una demo interactiva rehecha para parecerse al launcher real.
