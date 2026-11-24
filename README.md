@@ -35,7 +35,7 @@ La web está en `docs/`. En GitHub Pages, seleccioná **Deploy from a branch**, 
 
 ## Flatpak (experimental)
 
-`packaging/flatpak/io.nova.launcher.yml` describe el paquete Flatpak y el workflow **Compilar Flatpak** lo construye desde GitHub Actions. Todavía no se probó una instalación real.
+`packaging/flatpak/io.nova.launcher.yml` describe el paquete Flatpak y el workflow **Compilar Flatpak** lo construye desde GitHub Actions. Se compiló, instaló y abrió en Fedora (GNOME 50); falta probar una partida completa y sumar fuentes fijadas para Flathub.
 
 ## Desarrollo
 

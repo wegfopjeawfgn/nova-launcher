@@ -11,15 +11,12 @@ finish-args:
   - --socket=pulseaudio
   - --device=dri
 modules:
-  - name: python-deps
+  - name: nova-launcher
     buildsystem: simple
     build-options:
       build-args: [--share=network]  # local builds only; Flathub needs pinned sources
     build-commands:
       - pip3 install --prefix=/app --no-cache-dir -r requirements.txt
-  - name: nova-launcher
-    buildsystem: simple
-    build-commands:
       - install -d /app/share/nova-launcher
       - cp -r *.py nova.css nova-light.css nova-logo.svg referencia.png canal.json icons branding locales /app/share/nova-launcher/
       - |
