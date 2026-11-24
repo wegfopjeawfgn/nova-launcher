@@ -1,5 +1,12 @@
 # Cambios
 
+## Sin publicar
+- **Actualizar mods**: «Buscar actualizaciones» ahora detecta también los mods que agregaste a mano (los identifica por hash), consulta Modrinth en lote y abre una lista ordenada con una casilla por mod («versión actual → nueva») y el botón «Actualizar N mods». Los mods adoptados se pueden revertir.
+- **Perfil de rendimiento**: en el formulario de cada instancia, Ahorro, Equilibrado o Máximo rellenan la memoria y los argumentos de Java (nunca más de la mitad de tu RAM). En Fabric y Quilt sugiere Sodium y Lithium.
+- **Exportar .mrpack**: los archivos que no están en Modrinth y la carpeta `config` ahora se guardan dentro del archivo (hasta 512 MiB) en vez de omitirse, y al terminar se muestra un resumen.
+- **Flatpak**: el manifiesto instala las dependencias en el mismo módulo; se compiló, instaló y abrió en Fedora.
+- Sin probar: las pantallas nuevas con clics reales en Windows, ni contra la API real de Modrinth más allá de lo que se usó a mano.
+
 ## 1.16.1
 - **Arreglo**: si el Java elegido a mano en una instancia ya no existe, Salud ahora lo marca como error y ofrece **Usar el Java de Nova** (en la 1.16.0 solo mostraba «No se pudo comprobar Java», sin botón).
 - **Inglés**: se traducen mejor la barra de fallo (código de salida y mod sospechoso), «Consecuencia / Solución» en Salud, los «hace N min/h/días» y los contadores de la biblioteca.

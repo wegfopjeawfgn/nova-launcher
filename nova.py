@@ -21,6 +21,7 @@ import consola
 import historial
 import integraciones
 import motor
+import plantillas
 import pantalla_carga
 import estadisticas
 import i18n
@@ -784,6 +785,26 @@ class Nova(
         memory_min = row(performance, "Memoria mínima", Gtk.SpinButton.new_with_range(0, 32, 1),
                          hint="En GB. 0 deja que Java decida.", width=120)
         memory_min.set_value(values.get("memory_min", 0))
+        profile = row(performance, "Perfil de rendimiento", Gtk.ComboBoxText(), width=300,
+                      hint="Rellena la memoria y los argumentos de Java; después podés ajustarlos.")
+        for key, title in (("manual", "Manual"), ("ahorro", "Ahorro"), ("equilibrado", "Equilibrado"),
+                           ("maximo", "Máximo")):
+            profile.append(key, title)
+        profile.set_active_id("manual")
+
+        def profile_changed(_):
+            chosen = plantillas.performance_profile(profile.get_active_id(), reparacion.physical_memory_mb())
+            if chosen:
+                memory.set_value(chosen["memory"])
+                jvm_args.set_text(chosen["jvm_args"])
+
+        profile.connect("changed", profile_changed)
+        sodium_tip = label("Para más FPS, instalá Sodium y Lithium desde el catálogo", "opt-hint")
+        sodium_tip.set_wrap(True)
+        sodium_tip.set_halign(Gtk.Align.START)
+        sodium_tip.set_visible(loader.get_active_id() in ("fabric", "quilt"))
+        loader.connect("changed", lambda _: sodium_tip.set_visible(loader.get_active_id() in ("fabric", "quilt")))
+        performance.append(sodium_tip)
         resolution = row(performance, "Tamaño de la ventana", resolution_field(
             values.get("resolution"), "Usar ajuste de Nova"), width=300)
 

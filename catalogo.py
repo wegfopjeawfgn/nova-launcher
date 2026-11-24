@@ -54,6 +54,21 @@ def versions_by_hash(hashes):
     return matches
 
 
+def updates_by_hash(hashes, instance):
+    """Latest compatible version per installed sha512, in one POST per 100 files."""
+    hashes = list(hashes)
+    found = {}
+    for start in range(0, len(hashes), 100):
+        response = requests.post(f"{API}/version_files/update", timeout=15,
+                                 json={"hashes": hashes[start:start + 100], "algorithm": "sha512",
+                                       "loaders": [instance["loader"]],
+                                       "game_versions": [instance["version"]]},
+                                 headers={"User-Agent": motor.USER_AGENT})
+        response.raise_for_status()
+        found.update(response.json())
+    return found
+
+
 def releases(project, category, instance):
     params = {}
     if category != "modpack":
