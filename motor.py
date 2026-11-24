@@ -30,7 +30,9 @@ else:
 VERSION = "1.21.4"
 DATA_HOME = (Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData/Local")
              if os.name == "nt" else Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share"))
-ROOT = DATA_HOME / "nova-launcher"
+# Flatpak overrides XDG_DATA_HOME with a sandbox folder; share the native install's data instead.
+ROOT = (Path.home() / ".local/share/nova-launcher" if os.environ.get("FLATPAK_ID") and os.name != "nt"
+        else DATA_HOME / "nova-launcher")
 LOADERS = {"vanilla": "Vanilla", "fabric": "Fabric", "forge": "Forge",
            "neoforge": "NeoForge", "quilt": "Quilt"}
 DEFAULTS = {"version": VERSION, "loader": "vanilla", "loader_version": "", "java": "", "jvm_args": "",

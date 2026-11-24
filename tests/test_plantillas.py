@@ -25,6 +25,17 @@ class PerformanceProfileTests(unittest.TestCase):
         motor.parse_jvm_args(plantillas.performance_profile("equilibrado")["jvm_args"])
 
 
+    def test_stored_profile_is_validated_and_persists(self):
+        self.assertEqual(plantillas.valid_profile("maximo"), "maximo")
+        for bad in (None, "", "turbo", 3, ["ahorro"]):
+            self.assertEqual(plantillas.valid_profile(bad), "manual")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "instance.json"
+            motor.save(path, {"performance_profile": plantillas.valid_profile("equilibrado")})
+            self.assertEqual(json.loads(path.read_text())["performance_profile"], "equilibrado")
+            self.assertEqual(plantillas.valid_profile(json.loads(path.read_text()).get("nope")), "manual")
+
+
 class TemplateTests(unittest.TestCase):
     def test_every_template_is_valid(self):
         self.assertEqual(len(plantillas.TEMPLATES), 7)

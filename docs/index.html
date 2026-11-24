@@ -23,8 +23,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&family=Martian+Mono:wdth,wght@87.5,400;87.5,500&display=swap">
-  <link rel="stylesheet" href="estilos.css">
-  <link rel="stylesheet" href="demo.css">
+  <link rel="stylesheet" href="estilos.css?v=1.17.0">
+  <link rel="stylesheet" href="demo.css?v=1.17.0">
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Nova Launcher","applicationCategory":"GameApplication","operatingSystem":"Windows, Fedora Linux","url":"https://www.novamc.site/","downloadUrl":"https://github.com/wegfopjeawfgn/nova-launcher/releases/latest","description":"Launcher de terceros para Minecraft Java Edition: instancias, mods, respaldos, skins, servidor local y acceso a Roblox.","inLanguage":"es","publisher":{"@type":"Organization","name":"Nova Studios","url":"https://studiosnova.vercel.app/"}}
   </script>
@@ -36,12 +36,8 @@
     <div class="wrap bar-in">
       <a class="brand" href="./" aria-label="Nova Launcher, ir al inicio"><img src="assets/nova.svg" width="32" height="32" alt=""><span>Nova Launcher</span></a>
       <nav aria-label="Navegación">
+        <a href="#funciones">Qué incluye</a>
         <a href="#probar">Probalo</a>
-        <a href="#funciones">Funciones</a>
-        <a href="#roblox">Roblox</a>
-        <a href="#servidor">Mi servidor</a>
-        <a href="#rust">Rust</a>
-        <a href="#importar">Importar</a>
         <a href="#detalle">En detalle</a>
         <a href="#instalacion">Instalación</a>
         <a href="#preguntas">Preguntas</a>
@@ -55,23 +51,17 @@
       <canvas class="sky" data-sky aria-hidden="true"></canvas>
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <div class="badge-row">
-            <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.17.0</b></p>
-          <a class="badge badge-link" href="#roblox"><span aria-hidden="true"></span> Nuevo · Roblox</a>
-          <a class="badge badge-link" href="#servidor"><span aria-hidden="true"></span> Nuevo · Mi servidor</a>
-          </div>
-          <h1 id="titulo">Tus mods.<br>Tus mundos.<br><em>Un solo launcher.</em></h1>
-          <p class="intro">Nova Launcher organiza tus instancias de Minecraft Java: instalá mods, importá los que ya tenés, guardá respaldos verificados y armá tu propio servidor para jugar con amigos. Y si también jugás Roblox, lo abrís desde el mismo lugar.</p>
+          <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.17.0</b></p>
+          <h1 id="titulo">Tus mods. Tus mundos.<br><em>Un solo launcher.</em></h1>
+          <p class="intro">Launcher de Minecraft Java para quien juega con varias instancias y mods, en Windows y Fedora. Si jugás Roblox, también lo abrís desde acá.</p>
           <div class="actions">
             <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.17.0-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
             <div class="windows-download" id="windows-download">
               <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.17.0/nova-launcher-1.17.0-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
             </div>
           </div>
-          <p class="download-meta">Comprobá cada archivo con su suma:
-            <a id="release-checksum" href="descargas/nova-launcher-1.17.0-1.noarch.rpm.sha256" download>SHA-256 del RPM</a> ·
-            <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.17.0/nova-launcher-1.17.0-windows-x64-setup.exe.sha256">SHA-256 del instalador</a>
-          </p>
+          <p class="download-meta">Cada archivo tiene su suma SHA-256: <a id="release-checksum" href="descargas/nova-launcher-1.17.0-1.noarch.rpm.sha256" download>RPM</a> · <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.17.0/nova-launcher-1.17.0-windows-x64-setup.exe.sha256">instalador</a>. Comprobala antes de instalar: los instaladores no están firmados.</p>
+          <p class="download-meta">Proyecto de terceros, sin relación con Mojang ni Microsoft.</p>
         </div>
         <figure class="win hero-shot" data-win>
           <div class="win-bar">
@@ -94,13 +84,34 @@
       <svg class="curve" viewBox="0 0 1440 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 100H760L790 94 806 26 818 14 832 32C850 60 900 80 960 86S1120 96 1180 98 1340 101 1440 100"/></svg>
     </section>
 
-    <section class="strip wrap reveal" aria-label="Resumen">
-      <ul data-stagger>
-        <li><b>Minecraft y Roblox</b><span>elegís a qué jugar al abrir</span></li>
-        <li><b>Tu propio servidor</b><span>Vanilla, Paper, Fabric o Forge, gratis</span></li>
-        <li><b>Modrinth, CurseForge y tu equipo</b><span>mods, modpacks, shaders y texturas</span></li>
-        <li><b>Windows x64 y Fedora</b><span>instaladores con SHA-256</span></li>
-      </ul>
+    <section class="section wrap" id="funciones" aria-labelledby="funciones-titulo">
+      <p class="caption">QUÉ INCLUYE</p>
+      <h2 id="funciones-titulo">Lo que hace Nova</h2>
+      <div class="groups reveal" data-stagger>
+        <div class="group">
+          <h3>Tus instancias</h3>
+          <ul class="cards">
+            <li>Instancias y mods de Modrinth y CurseForge</li>
+            <li>Salud de mods y reparación de instancias</li>
+            <li>Respaldos con suma SHA-256 verificable</li>
+            <li>Perfiles de rendimiento para empezar rápido</li>
+          </ul>
+        </div>
+        <div class="group">
+          <h3>Jugar con otros</h3>
+          <ul class="cards">
+            <li>Servidores propios en tu PC, con túnel opcional</li>
+            <li>Roblox en el mismo launcher</li>
+          </ul>
+        </div>
+        <div class="group">
+          <h3>A tu medida</h3>
+          <ul class="cards">
+            <li>Skins con editor 3D</li>
+            <li>Interfaz en español e inglés</li>
+          </ul>
+        </div>
+      </div>
     </section>
 
     <section class="section wrap" id="probar" aria-labelledby="probar-titulo">
@@ -119,10 +130,12 @@
       <div id="demo"><img src="assets/nova-biblioteca.webp" width="1280" height="820" loading="lazy" alt="Biblioteca de Nova Launcher con el banner de una instancia y el botón Jugar"></div>
     </section>
 
-    <section class="section wrap import" id="roblox" aria-labelledby="roblox-titulo">
+    <section class="section wrap" id="detalle" aria-labelledby="detalle-titulo">
+      <p class="caption">EN DETALLE</p>
+      <h2 id="detalle-titulo">Si querés ver más</h2>
+      <details class="more"><summary>Roblox</summary>
+    <div class="import det-body" id="roblox">
       <div class="copy reveal">
-        <p class="caption">ROBLOX</p>
-        <h2 id="roblox-titulo">Minecraft y Roblox, en un solo launcher</h2>
         <p>Al abrir Nova elegís a qué querés jugar. Con Roblox explorás los juegos del momento, elegís un servidor, entrás directo al juego y te unís a tus amigos, sin pasar por el navegador.</p>
         <dl class="kinds">
           <div><dt>Explorar</dt><dd>Tendencias, Más jugados, Emergentes y En grupo</dd></div>
@@ -155,11 +168,10 @@
           <figcaption>Los servidores de un juego. Servidores reales al momento de la captura.</figcaption>
         </figure>
       </div>
-    </section>
-
-    <section class="section wrap" id="servidor" aria-labelledby="servidor-titulo">
-      <p class="caption">MI SERVIDOR</p>
-        <h2 id="servidor-titulo">Tu propio servidor de Minecraft, gratis y desde Nova</h2>
+    </div>
+      </details>
+      <details class="more"><summary>Mi servidor</summary>
+    <div class="det-body" id="servidor">
       <p class="lead">Creá un servidor en tu PC para jugar con amigos: Vanilla, Paper, Fabric o Forge. Corre en tu computadora, no en la nube: solo está disponible mientras tu PC y el servidor estén encendidos. Nova no ofrece alojamiento.</p>
       <div class="showcase">
         <div class="row reveal">
@@ -205,12 +217,34 @@
           <figure class="shot narrow"><img src="assets/nova-servidor-importar.webp" width="520" height="814" loading="lazy" alt="Ventana Importar servidor con la carpeta elegida y el tipo, la versión, la memoria y el puerto detectados"><figcaption>Importar un servidor. Carpeta de ejemplo.</figcaption></figure>
         </div>
       </div>
-    </section>
-
-    <section class="section wrap import rust" id="rust" aria-labelledby="rust-titulo">
+    </div>
+      </details>
+      <details class="more"><summary>Importar lo que ya tenés</summary>
+    <div class="import det-body" id="importar">
       <div class="copy reveal">
-        <p class="caption">RUST</p>
-        <h2 id="rust-titulo">Minecraft también en Rust, sin dejar Java</h2>
+        <p>Elegí los archivos o arrastralos a la ventana. Nova mira dentro de cada uno, te dice qué es y a qué instancia va, y solo entonces lo copia.</p>
+        <dl class="kinds">
+          <div><dt>Mods</dt><dd><code>.jar</code> de Fabric, Quilt, Forge o NeoForge</dd></div>
+          <div><dt>Texturas</dt><dd><code>.zip</code> con <code>pack.mcmeta</code></dd></div>
+          <div><dt>Shaders</dt><dd><code>.zip</code> con la carpeta <code>shaders</code></dd></div>
+          <div><dt>Datos</dt><dd>paquetes de datos para un mundo de la instancia</dd></div>
+          <div><dt>Modpacks</dt><dd><code>.mrpack</code> o ZIP de CurseForge, como instancia nueva</dd></div>
+        </dl>
+        <ul class="checks">
+          <li>Avisa si un mod es de otro cargador o si la instancia es Vanilla.</li>
+          <li>Nunca pisa un archivo: si ya está, lo omite; si cambió, guarda una copia numerada.</li>
+          <li>Copia por pasos, así que una interrupción no deja archivos a medias.</li>
+        </ul>
+      </div>
+      <figure class="shot reveal">
+        <img src="assets/nova-importar.webp" width="580" height="643" loading="lazy" alt="Ventana Revisar archivos con un shader, un pack de texturas y dos mods listados con su tipo y tamaño, una advertencia de cargador y un archivo que no se puede importar">
+        <figcaption>Revisión antes de importar. Archivos de ejemplo.</figcaption>
+      </figure>
+    </div>
+      </details>
+      <details class="more"><summary>Cliente Rust (experimental)</summary>
+    <div class="import rust det-body" id="rust">
+      <div class="copy reveal">
         <p>Cada instancia puede usar <strong>Pomme</strong>, un cliente de Minecraft Java escrito en Rust. Java sigue siendo lo normal: Pomme es una opción más, y se elige por instancia en Editar instancia.</p>
         <dl class="kinds">
           <div><dt>Estado</dt><dd>experimental: Pomme está en desarrollo y le faltan funciones</dd></div>
@@ -235,92 +269,10 @@
           <figcaption>El aviso antes de descargar</figcaption>
         </figure>
       </div>
-    </section>
-
-    <section class="section wrap" id="funciones" aria-labelledby="funciones-titulo">
-      <p class="caption">FUNCIONES</p>
-        <h2 id="funciones-titulo">Todo lo que necesitás para jugar, en un solo lugar</h2>
-      <ul class="rows">
-        <li class="reveal">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Zm0 9 8-4.5M12 12 4 7.5m8 4.5v9"/></svg>
-          <h3>Instancias separadas</h3>
-          <p>Cada partida con su versión, cargador, RAM y Java. Plantillas para empezar rápido y perfiles que podés exportar e importar.</p>
-        </li>
-        <li class="reveal">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 3h6m-3-3v6"/></svg>
-          <h3>Mods sin vueltas</h3>
-          <p>Buscá en Modrinth y, con tu propia clave, en CurseForge. Nova revisa dependencias, actualiza en lote y deja volver a la versión anterior.</p>
-        </li>
-        <li class="reveal">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 20h16"/></svg>
-          <h3>Importá lo que ya tenés</h3>
-          <p>Sumá mods, texturas, shaders y paquetes de datos desde archivos de tu equipo, o abrí un modpack. Nova revisa cada archivo antes de copiarlo.</p>
-        </li>
-        <li class="reveal">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 3v3m6-3v3M9 18v3m6-3v3M3 9h3m-3 6h3m12-6h3m-3 6h3M7 6h10v12H7zm3 4h4v4h-4z"/></svg>
-          <h3>Cliente Rust (experimental)</h3>
-          <p>Elegí Pomme, un cliente de Minecraft Java escrito en Rust, para una instancia. Java sigue siendo lo normal y Nova pregunta antes de descargar nada.</p>
-        </li>
-        <li class="reveal">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.2 7.8 8 9 4.8-1.2 8-4.5 8-9V6l-8-3Zm-3.5 9 2.5 2.5 4.5-5"/></svg>
-          <h3>Salud y mods</h3>
-          <p>Lee los metadatos de tus mods y avisa de dependencias faltantes, cargador o versión incorrectos y duplicados. Solo marca lo que puede comprobar.</p>
-        </li>
-        <li class="reveal">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16v13H4zM3 4h18v3H3zm6 8h6"/></svg>
-          <h3>Respaldos verificados</h3>
-          <p>Copias manuales o automáticas con suma SHA-256 por archivo. Verificá su integridad y restaurá como una instancia separada.</p>
-        </li>
-        <li class="reveal">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h16v6H4zm0 10h16v6H4zM8 7h.01M8 17h.01"/></svg>
-          <h3>Servidores</h3>
-          <p>Entrá directo con la versión y los mods de la instancia, y comprobá si el servidor responde antes de abrir el juego.</p>
-        </li>
-        <li class="reveal">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16v6H4zm0 8h16v6H4zM8 8h.01M8 16h.01M14 8h3M14 16h3"/></svg>
-          <h3>Mi servidor</h3>
-          <p>Creá un servidor en tu PC con plugins o mods, respaldos automáticos, lista de jugadores y túnel opcional. Gratis y sin cuentas.</p>
-        </li>
-        <li class="reveal">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 5h14v14H5zm4 4h6v6H9z"/></svg>
-          <h3>Roblox</h3>
-          <p>Elegí a qué jugar al abrir, explorá juegos y abrilos directo con Sober en Linux o el cliente oficial en Windows y Mac.</p>
-        </li>
-        <li class="reveal">
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 20 1-4L16.5 4.5a2 2 0 0 1 3 3L8 19l-4 1Z"/></svg>
-          <h3>Editor de skins</h3>
-          <p>Pintá sobre la skin desplegada con vista 3D, guardala en tu biblioteca, traé la de cualquier jugador por su nombre y equipala en una instancia compatible.</p>
-        </li>
-      </ul>
-    </section>
-
-    <section class="section wrap import" id="importar" aria-labelledby="importar-titulo">
-      <div class="copy reveal">
-        <p class="caption">IMPORTAR</p>
-        <h2 id="importar-titulo">Importá lo que ya tenés en tu equipo</h2>
-        <p>Elegí los archivos o arrastralos a la ventana. Nova mira dentro de cada uno, te dice qué es y a qué instancia va, y solo entonces lo copia.</p>
-        <dl class="kinds">
-          <div><dt>Mods</dt><dd><code>.jar</code> de Fabric, Quilt, Forge o NeoForge</dd></div>
-          <div><dt>Texturas</dt><dd><code>.zip</code> con <code>pack.mcmeta</code></dd></div>
-          <div><dt>Shaders</dt><dd><code>.zip</code> con la carpeta <code>shaders</code></dd></div>
-          <div><dt>Datos</dt><dd>paquetes de datos para un mundo de la instancia</dd></div>
-          <div><dt>Modpacks</dt><dd><code>.mrpack</code> o ZIP de CurseForge, como instancia nueva</dd></div>
-        </dl>
-        <ul class="checks">
-          <li>Avisa si un mod es de otro cargador o si la instancia es Vanilla.</li>
-          <li>Nunca pisa un archivo: si ya está, lo omite; si cambió, guarda una copia numerada.</li>
-          <li>Copia por pasos, así que una interrupción no deja archivos a medias.</li>
-        </ul>
-      </div>
-      <figure class="shot reveal">
-        <img src="assets/nova-importar.webp" width="580" height="643" loading="lazy" alt="Ventana Revisar archivos con un shader, un pack de texturas y dos mods listados con su tipo y tamaño, una advertencia de cargador y un archivo que no se puede importar">
-        <figcaption>Revisión antes de importar. Archivos de ejemplo.</figcaption>
-      </figure>
-    </section>
-
-    <section class="section wrap" id="detalle" aria-labelledby="detalle-titulo">
-      <p class="caption">EN DETALLE</p>
-        <h2 id="detalle-titulo">Capturas reales de Nova</h2>
+    </div>
+      </details>
+      <details class="more"><summary>Capturas reales de Nova</summary>
+    <div class="det-body" id="capturas">
       <div class="showcase">
         <div class="row reveal">
           <div class="copy">
@@ -379,6 +331,8 @@
           <figure class="shot"><img src="assets/nova-entrada.webp" width="720" height="448" loading="lazy" alt="Animación de entrada de Nova: la estrella cae, rebota tres veces y suelta anillos de luz y chispas"><figcaption>La entrada de Nova</figcaption></figure>
         </div>
       </div>
+    </div>
+      </details>
     </section>
 
     <section class="section wrap install" id="instalacion" aria-labelledby="instalacion-titulo">
@@ -388,7 +342,7 @@
         <h3>Fedora</h3>
         <p>Descargá el RPM y ejecutá este comando donde lo guardaste. Después abrí <strong>Nova Launcher</strong> desde el menú de aplicaciones.</p>
         <h3>Windows x64</h3>
-        <p>Descargá el instalador, abrilo y buscá <strong>Nova Launcher</strong> en Inicio. Como el instalador no está firmado, Windows puede mostrar una advertencia: comprobá la suma SHA-256 antes de continuar.</p>
+        <p>Descargá el instalador, abrilo y buscá <strong>Nova Launcher</strong> en Inicio. Windows puede avisar porque no está firmado: comprobá antes su suma SHA-256.</p>
       </div>
       <div class="terminal">
         <span>Si el archivo está en Descargas</span>
@@ -470,8 +424,18 @@
   </footer>
   <script src="version.js" defer></script>
   <script>document.documentElement.classList.remove("no-js")</script>
-  <script src="efectos.js" defer></script>
-  <script src="entrada.js" defer></script>
-  <script src="demo.js" defer></script>
+  <script src="efectos.js?v=1.17.0" defer></script>
+  <script src="entrada.js?v=1.17.0" defer></script>
+  <script src="demo.js?v=1.17.0" defer></script>
+  <script>
+    // Un enlace directo (#roblox, #servidor…) abre el bloque plegado que lo contiene.
+    function openTarget() {
+      const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      const box = target && target.closest("details");
+      if (box) { box.open = true; target.scrollIntoView(); }
+    }
+    addEventListener("hashchange", openTarget);
+    addEventListener("DOMContentLoaded", openTarget);
+  </script>
 </body>
 </html>

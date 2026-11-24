@@ -35,7 +35,7 @@ La web está en `docs/`. En GitHub Pages, seleccioná **Deploy from a branch**, 
 
 ## Flatpak (experimental)
 
-`packaging/flatpak/io.nova.launcher.yml` describe el paquete Flatpak y el workflow **Compilar Flatpak** lo construye desde GitHub Actions. Se compiló, instaló y abrió en Fedora (GNOME 50); falta probar una partida completa y sumar fuentes fijadas para Flathub.
+`packaging/flatpak/io.nova.launcher.yml` describe el paquete Flatpak y el workflow **Compilar Flatpak** lo construye desde GitHub Actions. Se compiló, instaló y abrió en Fedora (GNOME 50); falta probar una partida completa. Usa los mismos datos que la instalación nativa (`~/.local/share/nova-launcher`, vía `--filesystem` y `FLATPAK_ID` en `motor.py`), y sus dependencias de Python son wheels con sha256 fijado (sin red al compilar), listas para Flathub.
 
 ## Desarrollo
 

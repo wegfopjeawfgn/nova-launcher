@@ -790,13 +790,23 @@ class Nova(
         for key, title in (("manual", "Manual"), ("ahorro", "Ahorro"), ("equilibrado", "Equilibrado"),
                            ("maximo", "Máximo")):
             profile.append(key, title)
-        profile.set_active_id("manual")
+        profile.set_active_id(plantillas.valid_profile(values.get("performance_profile")))  # shows it, fills nothing
+        applying = False
 
         def profile_changed(_):
+            nonlocal applying
             chosen = plantillas.performance_profile(profile.get_active_id(), reparacion.physical_memory_mb())
             if chosen:
-                memory.set_value(chosen["memory"])
-                jvm_args.set_text(chosen["jvm_args"])
+                applying = True
+                try:
+                    memory.set_value(chosen["memory"])
+                    jvm_args.set_text(chosen["jvm_args"])
+                finally:
+                    applying = False
+
+        def edited_by_hand(_):
+            if not applying:
+                profile.set_active_id("manual")
 
         profile.connect("changed", profile_changed)
         sodium_tip = label("Para más FPS, instalá Sodium y Lithium desde el catálogo", "opt-hint")
@@ -815,6 +825,8 @@ class Nova(
         jvm_args = row(java_card, "Argumentos extra", Gtk.Entry(text=values.get("jvm_args", ""),
                                                                  placeholder_text="-XX:+UseG1GC"),
                        hint="Opcional. Para usuarios avanzados.", width=300)
+        memory.connect("value-changed", edited_by_hand)
+        jvm_args.connect("changed", edited_by_hand)
 
         def choose_cover():
             picker = Gtk.FileChooserNative(title="Elegir portada", transient_for=dialog,
@@ -874,6 +886,7 @@ class Nova(
                     settings = {"version": version, "loader": loader.get_active_id(), "client": client.get_active_id(),
                                 "loader_version": build, "java": java_path, "cover": cover,
                                 "jvm_args": extra_args,
+                                "performance_profile": plantillas.valid_profile(profile.get_active_id()),
                                 "notes": notes.get_text().strip(),
                                 "resolution": resolution.get_active_id()}
                     if pending:
