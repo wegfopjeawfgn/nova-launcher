@@ -23,8 +23,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&family=Martian+Mono:wdth,wght@87.5,400;87.5,500&display=swap">
-  <link rel="stylesheet" href="estilos.css?v=1.17.1">
-  <link rel="stylesheet" href="demo.css?v=1.17.1">
+  <link rel="stylesheet" href="estilos.css?v=1.17.2">
+  <link rel="stylesheet" href="demo.css?v=1.17.2">
   <script type="application/ld+json">
   {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Nova Launcher","applicationCategory":"GameApplication","operatingSystem":"Windows, Fedora Linux","url":"https://www.novamc.site/","downloadUrl":"https://github.com/wegfopjeawfgn/nova-launcher/releases/latest","description":"Launcher de terceros para Minecraft Java Edition: instancias, mods, respaldos, skins, servidor local y acceso a Roblox.","inLanguage":"es","publisher":{"@type":"Organization","name":"Nova Studios","url":"https://studiosnova.vercel.app/"}}
   </script>
@@ -51,16 +51,16 @@
       <canvas class="sky" data-sky aria-hidden="true"></canvas>
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.17.1</b></p>
+          <p class="badge"><span aria-hidden="true"></span> Versión estable · <b id="release-version">1.17.2</b></p>
           <h1 id="titulo">Tus mods. Tus mundos.<br><em>Un solo launcher.</em></h1>
           <p class="intro">Launcher de Minecraft Java para quien juega con varias instancias y mods, en Windows y Fedora. Si jugás Roblox, también lo abrís desde acá.</p>
           <div class="actions">
-            <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.17.1-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
+            <a class="btn primary" id="release-rpm" href="descargas/nova-launcher-1.17.2-1.noarch.rpm" download><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Fedora</a>
             <div class="windows-download" id="windows-download">
-              <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.17.1/nova-launcher-1.17.1-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
+              <a class="btn" id="windows-installer" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.17.2/nova-launcher-1.17.2-windows-x64-setup.exe"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 19h16"/></svg> Descargar para Windows x64</a>
             </div>
           </div>
-          <p class="download-meta">Cada archivo tiene su suma SHA-256: <a id="release-checksum" href="descargas/nova-launcher-1.17.1-1.noarch.rpm.sha256" download>RPM</a> · <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.17.1/nova-launcher-1.17.1-windows-x64-setup.exe.sha256">instalador</a>. Comprobala antes de instalar: los instaladores no están firmados.</p>
+          <p class="download-meta">Cada archivo tiene su suma SHA-256: <a id="release-checksum" href="descargas/nova-launcher-1.17.2-1.noarch.rpm.sha256" download>RPM</a> · <a id="windows-checksum" href="https://github.com/wegfopjeawfgn/nova-launcher/releases/download/v1.17.2/nova-launcher-1.17.2-windows-x64-setup.exe.sha256">instalador</a>. Comprobala antes de instalar: los instaladores no están firmados.</p>
           <p class="download-meta">Proyecto de terceros, sin relación con Mojang ni Microsoft.</p>
         </div>
         <figure class="win hero-shot" data-win>
@@ -346,10 +346,10 @@
       </div>
       <div class="terminal">
         <span>Si el archivo está en Descargas</span>
-        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-1.17.1-1.noarch.rpm"</code></pre>
+        <pre><code id="install-downloads">sudo dnf install "$(xdg-user-dir DOWNLOAD)/nova-launcher-1.17.2-1.noarch.rpm"</code></pre>
         <button type="button" data-copy-command="install-downloads" hidden>Copiar comando para Descargas</button>
         <span>Si ya estás en la carpeta del archivo</span>
-        <pre><code id="install-current">sudo dnf install ./nova-launcher-1.17.1-1.noarch.rpm</code></pre>
+        <pre><code id="install-current">sudo dnf install ./nova-launcher-1.17.2-1.noarch.rpm</code></pre>
         <button type="button" data-copy-command="install-current" hidden>Copiar comando para esta carpeta</button>
         <p id="copy-status" role="status"></p>
         <p>RPM sin firma. El primer arranque de Minecraft descarga los archivos del juego.</p>
@@ -424,9 +424,9 @@
   </footer>
   <script src="version.js" defer></script>
   <script>document.documentElement.classList.remove("no-js")</script>
-  <script src="efectos.js?v=1.17.1" defer></script>
-  <script src="entrada.js?v=1.17.1" defer></script>
-  <script src="demo.js?v=1.17.1" defer></script>
+  <script src="efectos.js?v=1.17.2" defer></script>
+  <script src="entrada.js?v=1.17.2" defer></script>
+  <script src="demo.js?v=1.17.2" defer></script>
   <script>
     // Un enlace directo (#roblox, #servidor…) abre el bloque plegado que lo contiene.
     function openTarget() {
