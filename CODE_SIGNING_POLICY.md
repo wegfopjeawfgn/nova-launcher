@@ -1,8 +1,8 @@
 # Política de firma de código
 
-> **Estado: los instaladores de Windows todavía NO están firmados.** Esta política describe cómo se firmarán cuando SignPath Foundation apruebe la solicitud.
+> **Estado: los instaladores de Windows todavía NO están firmados.** La firma gratuita de SignPath Foundation todavía no se solicitó. Este documento es el borrador de la política que se aplicaría si se solicita y se aprueba.
 
-Cuando SignPath Foundation apruebe la solicitud, los instaladores de Windows de Nova Launcher se firmarán con un certificado gratuito para proyectos de código abierto.
+Si SignPath Foundation aprueba una solicitud futura, los instaladores de Windows de Nova Launcher se firmarán con un certificado gratuito para proyectos de código abierto.
 
 <!-- ACTIVAR cuando SignPath apruebe el certificado (atribución obligatoria):
 Free code signing provided by SignPath.io, certificate by SignPath Foundation.
