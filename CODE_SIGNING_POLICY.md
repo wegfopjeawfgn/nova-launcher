@@ -1,12 +1,16 @@
 # Política de firma de código
 
-Los instaladores de Windows de Nova Launcher se firman con un certificado gratuito para proyectos de código abierto:
+> **Estado: los instaladores de Windows todavía NO están firmados.** La firma gratuita de SignPath Foundation todavía no se solicitó. Este documento es el borrador de la política que se aplicaría si se solicita y se aprueba.
 
-> Firma de código gratuita proporcionada por [SignPath.io](https://about.signpath.io/), certificado de [SignPath Foundation](https://signpath.org/).
+Si SignPath Foundation aprueba una solicitud futura, los instaladores de Windows de Nova Launcher se firmarán con un certificado gratuito para proyectos de código abierto.
 
-## Qué se firma
+<!-- ACTIVAR cuando SignPath apruebe el certificado (atribución obligatoria):
+Free code signing provided by SignPath.io, certificate by SignPath Foundation.
+-->
 
-Solo el instalador de Windows (`nova-launcher-<versión>-windows-x64-setup.exe`) generado por el flujo de GitHub Actions de este repositorio, a partir del código fuente público y de una etiqueta de versión (`v*`). Nada se firma desde una computadora personal.
+## Qué se firmaría
+
+Solo el instalador de Windows (`nova-launcher-<versión>-windows-x64-setup.exe`) generado por el flujo de GitHub Actions de este repositorio, a partir del código fuente público y de una etiqueta de versión (`v*`). Nada se firmaría desde una computadora personal.
 
 ## Roles
 
@@ -15,7 +19,7 @@ Solo el instalador de Windows (`nova-launcher-<versión>-windows-x64-setup.exe`)
 | Autor y revisor del código | [wegfopjeawfgn](https://github.com/wegfopjeawfgn) |
 | Aprobador de cada firma | [wegfopjeawfgn](https://github.com/wegfopjeawfgn) |
 
-Cada firma la aprueba a mano el aprobador, después de revisar que el instalador salió del flujo público de este repositorio.
+Cada firma la aprobaría a mano el aprobador, después de revisar que el instalador salió del flujo público de este repositorio.
 
 ## Privacidad
 
