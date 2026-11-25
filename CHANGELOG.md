@@ -1,5 +1,12 @@
 # Cambios
 
+## Sin publicar
+- **Fuente**: la interfaz usa Noto Sans (OFL-1.1, en `fonts/`) con respaldo a Adwaita Sans/Cantarell/Segoe UI. En Windows Nova la registra al iniciar, sin instalarla en el sistema; en Fedora se usa la del sistema, así que también ahí cambia la tipografía. Sin probar en Windows.
+- **Servidores**: al crear o cambiar la memoria de un servidor, Nova no deja pedir más del 80 % de la RAM del equipo y dice cuánta tiene.
+- **Servidores**: si Java se cierra con error, la consola muestra sus últimas líneas y una pista cuando es un problema de memoria («Could not reserve enough space», OutOfMemoryError).
+- **Atajos de instancia en Windows**: «Crear atajo en el menú Inicio» crea un acceso directo `.lnk` que abre la instancia; se borra al eliminarla y al desinstalar Nova. Sin probar en Windows.
+- **Cerrar Nova al jugar en Windows**: la opción ya está disponible; el juego queda separado de Nova y, mientras siga abierto, Nova no deja tocar esa instancia. Sin probar en Windows.
+
 ## 1.17.1
 - **Perfil de rendimiento**: el perfil elegido ahora se guarda en la instancia y se ve al reabrirla.
 - **Flatpak**: usa los mismos datos que la instalación normal (`~/.local/share/nova-launcher`), así que ya no abre una copia vacía; las dependencias de pip quedan fijadas con hash para poder publicarlo en Flathub.

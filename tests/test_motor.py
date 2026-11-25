@@ -37,6 +37,21 @@ class SaveReadTests(unittest.TestCase):
         self.assertEqual(motor.read(self.path, {"d": 1}), {"d": 1})
 
 
+class DetachedGameTests(unittest.TestCase):
+    def test_a_live_detached_game_blocks_the_instance_and_a_dead_one_is_forgotten(self):
+        import os
+        from servidor_local import process_start
+        folder = Path(tempfile.mkdtemp())
+        marker = folder / ".nova-game.json"
+        motor.save(marker, {"pid": os.getpid(), "start": process_start(os.getpid())})
+        with self.assertRaisesRegex(RuntimeError, "Minecraft sigue abierto"):
+            motor.detached_game(folder)
+        motor.save(marker, {"pid": os.getpid(), "start": -1})  # same PID, another process
+        motor.detached_game(folder)
+        self.assertFalse(marker.exists())
+        motor.detached_game(folder)  # no marker: nothing to do
+
+
 class JvmArgsTests(unittest.TestCase):
     def test_accepts_flags(self):
         self.assertEqual(motor.parse_jvm_args("-XX:+UseG1GC -Xms1G"), ["-XX:+UseG1GC", "-Xms1G"])

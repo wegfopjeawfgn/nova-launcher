@@ -1,8 +1,10 @@
-"""Create an application-menu shortcut that starts one Nova instance directly (Linux)."""
+"""Create an application-menu shortcut that starts one Nova instance directly (Linux .desktop, Windows .lnk)."""
 import os
 from pathlib import Path
 import re
 import shutil
+import subprocess
+import sys
 
 
 INSTANCE_ID = re.compile(r"[0-9a-f]{32}")
@@ -44,9 +46,66 @@ def shortcut_path(instance_id):
     return data / "applications" / f"io.nova.launcher.{instance_id}.desktop"
 
 
+# Fixed script: every value comes from the environment, so an instance name can never become PowerShell code.
+LNK_SCRIPT = ("$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:NOVA_LNK); "
+              "$s.TargetPath = $env:NOVA_TARGET; $s.Arguments = $env:NOVA_ARGS; "
+              "$s.WorkingDirectory = $env:NOVA_DIR; $s.Description = $env:NOVA_NOTE; $s.Save()")
+
+
+def start_menu():
+    return Path(os.environ.get("APPDATA") or Path.home() / "AppData/Roaming") / "Microsoft/Windows/Start Menu/Programs/Nova Launcher"
+
+
+def lnk_name(name, tag=""):
+    title = re.sub(r'[\x00-\x1f\x7f<>:"/\\|?*]+', " ", name).strip(" .")[:60].strip(" .") or "Instancia"
+    return f"{title}{tag} · Nova.lnk"
+
+
+def windows_command(instance_id):
+    """(target, arguments, folder) like the Start-menu entry of nova.iss: pythonw.exe "…\\nova.py" --jugar <id>."""
+    python = Path(sys.executable)
+    windowless = python.with_name("pythonw.exe")
+    app = Path(__file__).resolve().parent
+    return (str(windowless if windowless.is_file() else python),
+            subprocess.list2cmdline([str(app / "nova.py"), "--jugar", instance_id]), str(app))
+
+
+def create_windows(folder, name):
+    if not valid_instance_id(folder.name):
+        raise ValueError("Identificador de instancia no válido.")
+    remove_windows(folder)  # a renamed instance must not leave its old shortcut behind
+    path = start_menu() / lnk_name(name)
+    if path.exists():  # another instance with the same name: keep both
+        path = path.with_name(lnk_name(name, f" ({folder.name[:6]})"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    target, arguments, working = windows_command(folder.name)
+    env = {**os.environ, "NOVA_LNK": str(path), "NOVA_TARGET": target, "NOVA_ARGS": arguments,
+           "NOVA_DIR": working, "NOVA_NOTE": "Iniciar con Nova Launcher"}
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", LNK_SCRIPT], env=env,
+                       capture_output=True, timeout=30, check=True,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except subprocess.SubprocessError as error:
+        raise RuntimeError("Windows no dejó crear el acceso directo.") from error
+    if not path.is_file():
+        raise RuntimeError("Windows no dejó crear el acceso directo.")
+    return path
+
+
+def remove_windows(folder):
+    """The .lnk is named after the instance, so find it by the id stored (UTF-16) in its arguments."""
+    marker = folder.name.encode("utf-16-le")
+    for link in start_menu().glob("*.lnk"):
+        try:
+            if marker in link.read_bytes():
+                link.unlink()
+        except OSError:
+            pass
+
+
 def create(folder, name, launcher=None):
     if os.name == "nt":
-        raise RuntimeError("Los atajos de instancia todavía solo están disponibles en Linux.")
+        return create_windows(folder, name)
     path = shortcut_path(folder.name)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
@@ -61,6 +120,9 @@ def create(folder, name, launcher=None):
 
 
 def remove(folder):
+    if os.name == "nt":
+        remove_windows(folder)
+        return
     try:
         shortcut_path(folder.name).unlink(missing_ok=True)
     except (OSError, ValueError):

@@ -9,6 +9,7 @@ software de terceros que se lista acá. Esta lista es informativa y no reemplaza
 | requests y sus dependencias (urllib3, idna, certifi, charset-normalizer) | Apache-2.0, MIT, BSD-3-Clause y MPL-2.0 según el paquete | Incluidas en el instalador de Windows; en Fedora vienen del sistema |
 | GTK 4, PyGObject y Cairo | LGPL-2.1-or-later | Del sistema en Fedora; incluidas en el runtime del instalador de Windows |
 | Python | PSF-2.0 | Del sistema en Fedora; incluido en el runtime del instalador de Windows |
+| Noto Sans 2.015 (`fonts/NotoSans.ttf`) | OFL-1.1 (texto completo en `fonts/OFL.txt`) | Incluida en el repo y en el instalador de Windows; en Fedora viene del sistema |
 
 El runtime de Windows se arma con paquetes de MSYS2 (UCRT64), cada uno con su propia licencia, que se
 distribuye junto a sus archivos. Minecraft es una marca de sus titulares; Nova no incluye ni redistribuye el juego.
@@ -42,3 +43,13 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
+
+## Noto Sans (OFL-1.1)
+
+Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)
+
+La fuente se distribuye sin modificar (solo se renombró el archivo `NotoSans[wdth,wght].ttf` de
+https://github.com/google/fonts/tree/main/ofl/notosans) bajo la SIL Open Font License 1.1, cuyo texto
+completo va en `fonts/OFL.txt` junto a la fuente. La OFL permite incluirla con software bajo cualquier
+licencia, incluida GPL-3.0-or-later: la fuente es una obra aparte que se agrega al paquete y sigue bajo la
+OFL; no se vende sola.

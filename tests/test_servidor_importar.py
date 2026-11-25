@@ -30,6 +30,9 @@ class Base(unittest.TestCase):
         self.source = Path(tempfile.mkdtemp(prefix="servidor-")) / "Mi Server Viejo"
         self.source.mkdir()
         sl.RUNNERS.clear()
+        ram = mock.patch.object(sl.reparacion, "physical_memory_mb", return_value=16000)  # tests never depend on this PC's RAM
+        ram.start()
+        self.addCleanup(ram.stop)
 
     def tearDown(self):
         motor.ROOT = self.original

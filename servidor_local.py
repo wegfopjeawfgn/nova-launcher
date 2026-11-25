@@ -20,6 +20,7 @@ import uuid
 import requests
 
 import motor
+import reparacion
 from nova_version import NOVA_VERSION
 
 KINDS = {"vanilla": "Vanilla (oficial)", "paper": "Paper (plugins)", "fabric": "Fabric (mods)", "forge": "Forge (mods)"}
@@ -245,11 +246,36 @@ def check_new(name, kind, version, memory, port):
         raise ValueError("Elegí una versión de Minecraft.")
     if not 1 <= int(memory) <= 64:
         raise ValueError("La memoria debe estar entre 1 y 64 GB.")
+    check_memory(memory)
     if not 1024 <= int(port) <= 65535:
         raise ValueError("El puerto debe estar entre 1024 y 65535.")
     if int(port) in {m.get("port") for m in all_servers()}:
         raise ValueError("Otro servidor de Nova ya usa ese puerto.")
     return name
+
+
+def check_memory(memory):
+    """Refuse more than 80 % of the installed RAM (same limit as Nova Repair); skip it when the system does not say."""
+    ram = reparacion.physical_memory_mb()
+    if ram and int(memory) * 1024 > ram * 0.8:
+        raise ValueError(f"Pediste {int(memory)} GB y este equipo tiene unos {ram // 1024} GB de RAM: el sistema se "
+                         f"quedaría sin memoria. Elegí {max(1, int(ram * 0.8) // 1024)} GB o menos.")
+
+
+RESERVE_ERROR = re.compile(r"Could not reserve enough space|Invalid maximum heap size|Cannot allocate memory|"
+                           r"insufficient memory for the Java Runtime", re.I)
+HEAP_ERROR = re.compile(r"OutOfMemoryError", re.I)
+
+
+def exit_report(tail):
+    """Console lines after Java ends with an error: the last things it said and, for memory errors, what to do."""
+    lines = ["[Nova] Últimas líneas de Java antes de cerrarse:"] + [f"    {line}" for line in tail or ["(Java no escribió nada)"]]
+    if any(RESERVE_ERROR.search(line) for line in tail):
+        lines.append("[Nova] Java no pudo reservar la memoria asignada: bajala en Ajustes del servidor o cerrá otros programas.")
+    elif any(HEAP_ERROR.search(line) for line in tail):
+        lines.append("[Nova] El servidor se quedó sin la memoria asignada: subila en Ajustes si el equipo tiene RAM libre, "
+                     "o quitá mods o plugins pesados.")
+    return lines
 
 
 def create(name, kind, version, memory, port, *, eula, progress=None, status=None):
@@ -560,9 +586,11 @@ class Runner:
             threading.Thread(target=self._read, args=(self.process,), daemon=True).start()
 
     def _read(self, process):
+        tail = collections.deque(maxlen=12)  # only this run: self.lines also keeps earlier ones
         for line in process.stdout:
             line = line.rstrip("\r\n")
             self.lines.append(line)
+            tail.append(line)
             track_players(self.online, line)
             self._emit("line", line)
             if self.state == "starting" and re.search(r"\bDone \(", line):
@@ -578,9 +606,10 @@ class Runner:
             self.pid = None
             self.online = set()
             _pid_file(folder(self.sid)).unlink(missing_ok=True)
-            note = f"[Nova] El servidor se apagó (código {code})."
-            self.lines.append(note)
-            self._emit("line", note)
+            asked = self.state == "stopping"  # Nova's own stop can end in terminate/kill: that is not a crash
+            for note in [f"[Nova] El servidor se apagó (código {code})."] + ([] if code == 0 or asked else exit_report(tail)):
+                self.lines.append(note)
+                self._emit("line", note)
             self._set("stopped")
             again, self._restart = self._restart, False
         _run_stop_hooks(self.sid)
