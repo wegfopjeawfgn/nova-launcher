@@ -1,6 +1,6 @@
 # Cambios
 
-## Sin publicar
+## 1.17.2
 - **Fuente**: la interfaz usa Noto Sans (OFL-1.1, en `fonts/`) con respaldo a Adwaita Sans/Cantarell/Segoe UI. En Windows Nova la registra al iniciar, sin instalarla en el sistema; en Fedora se usa la del sistema, así que también ahí cambia la tipografía. Sin probar en Windows.
 - **Servidores**: al crear o cambiar la memoria de un servidor, Nova no deja pedir más del 80 % de la RAM del equipo y dice cuánta tiene.
 - **Servidores**: si Java se cierra con error, la consola muestra sus últimas líneas y una pista cuando es un problema de memoria («Could not reserve enough space», OutOfMemoryError).

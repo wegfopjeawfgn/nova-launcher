@@ -1,5 +1,5 @@
 Name:           nova-launcher
-Version:        1.17.1
+Version:        1.17.2
 Release:        1
 Summary:        Third-party launcher for Minecraft Java Edition
 License:        GPL-3.0-or-later AND BSD-2-Clause
@@ -44,6 +44,9 @@ install -Dpm644 nova-logo.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/app
 %{_datadir}/icons/hicolor/scalable/apps/io.nova.launcher.svg
 
 %changelog
+* Tue Nov 24 2026 Nova Launcher <nova@localhost> - 1.17.2-1
+- Bundled Noto Sans font, server RAM check and error hints, Windows Start menu shortcuts, close Nova while playing on Windows.
+
 * Tue Nov 24 2026 Nova Launcher <nova@localhost> - 1.17.1-1
 - Saved performance profile, Flatpak shares data with the native install, website and demo redone.
 
