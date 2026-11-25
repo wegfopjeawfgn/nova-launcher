@@ -21,6 +21,10 @@ Source: "bundle\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ign
 [Icons]
 Name: "{group}\Nova Launcher"; Filename: "{app}\runtime\bin\pythonw.exe"; Parameters: """{app}\app\nova.py"""; WorkingDir: "{app}\app"
 
+[UninstallDelete]
+; instance shortcuts that Nova creates from the instance menu
+Type: files; Name: "{group}\*.lnk"
+
 [Run]
 Filename: "{app}\runtime\bin\pythonw.exe"; Parameters: """{app}\app\nova.py"""; WorkingDir: "{app}\app"; Description: "Abrir Nova Launcher"; Flags: nowait postinstall skipifsilent
 Filename: "{app}\runtime\bin\pythonw.exe"; Parameters: """{app}\app\nova.py"""; WorkingDir: "{app}\app"; Flags: nowait runasoriginaluser; Check: RelaunchAfterUpdate

@@ -30,6 +30,13 @@ class LicenseTests(unittest.TestCase):
         flatpak = (ROOT / "packaging" / "flatpak" / "io.nova.launcher.yml").read_text(encoding="utf-8")
         self.assertIn("LICENSE THIRD_PARTY_LICENSES.md", flatpak)
 
+    def test_windows_ships_the_font_with_its_licence(self):
+        windows = (ROOT / ".github" / "workflows" / "windows.yml").read_text(encoding="utf-8")
+        self.assertIn("locales fonts", windows)
+        self.assertGreater((ROOT / "fonts" / "NotoSans.ttf").stat().st_size, 100000)
+        self.assertIn("SIL OPEN FONT LICENSE Version 1.1", (ROOT / "fonts" / "OFL.txt").read_text(encoding="utf-8"))
+        self.assertIn("Noto Sans", (ROOT / "THIRD_PARTY_LICENSES.md").read_text(encoding="utf-8"))
+
     def test_docs_mention_the_license_and_windows_checks(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("GPL-3.0-or-later", readme)

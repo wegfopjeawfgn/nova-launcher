@@ -125,6 +125,13 @@ class Nova(
         if self.window:
             self.window.present()
             return
+        if os.name == "nt":  # Windows no trae Noto Sans; sin ella GTK cae en una «Sans» genérica
+            try:
+                gi.require_version("PangoCairo", "1.0")
+                from gi.repository import PangoCairo
+                PangoCairo.FontMap.get_default().add_font_file(str(HERE / "fonts" / "NotoSans.ttf"))
+            except (AttributeError, ValueError, GLib.Error):
+                pass  # Pango viejo o falta el archivo: el CSS cae en la fuente de respaldo
         self.css_provider = Gtk.CssProvider()
         self.css_provider.load_from_path(str(HERE / "nova.css"))
         Gtk.StyleContext.add_provider_for_display(
@@ -439,7 +446,8 @@ class Nova(
         except (OSError, RuntimeError, ValueError) as error:
             self.status.set_text(f"No se pudo crear el atajo: {error}")
         else:
-            self.status.set_text(f"Atajo creado · buscá «{name} · Nova» en el menú de aplicaciones.")
+            self.status.set_text(f"Atajo creado · buscá «{name} · Nova» en el menú Inicio." if os.name == "nt" else
+                                 f"Atajo creado · buscá «{name} · Nova» en el menú de aplicaciones.")
 
     def copy_instance(self, folder, mode):
         def task():
@@ -989,8 +997,7 @@ class Nova(
         behavior = Gtk.ComboBoxText()
         behavior.append("keep", "Mantener Nova abierto")
         behavior.append("minimize", "Minimizar Nova hasta que se cierre Minecraft")
-        if os.name != "nt":
-            behavior.append("close", "Cerrar Nova")
+        behavior.append("close", "Cerrar Nova")
         if not behavior.set_active_id(self.preferences["launch_behavior"]):
             behavior.set_active_id("keep")
         field(minecraft, "Al iniciar Minecraft", behavior, "El registro se guarda aunque cierres Nova.")
@@ -1384,8 +1391,8 @@ class Nova(
         add_action("Crear respaldo", lambda: self.copy_instance(folder, "backup"))
         add_action("Exportar instancia", lambda: self.export_instance(folder))
         add_action("Exportar perfil", lambda: self.export_profile(folder))
-        if os.name != "nt" and not Path("/.flatpak-info").exists():  # a sandbox cannot export launchers
-            add_action("Crear atajo en el menú", lambda: self.create_shortcut(folder, instance["name"]))
+        if not Path("/.flatpak-info").exists():  # a sandbox cannot export launchers
+            add_action("Crear atajo en el menú Inicio" if os.name == "nt" else "Crear atajo en el menú", lambda: self.create_shortcut(folder, instance["name"]))
         add_action("Reparar instalación", lambda: self.repair_instance(folder, instance))
         if instance["loader"] in ("fabric", "quilt"):
             full_branding = pantalla_carga.logo_supported(instance)
@@ -1534,7 +1541,7 @@ class Nova(
         if instance.get("resolution", "default") == "default":
             instance["resolution"] = self.preferences["resolution"]
         behavior = self.preferences["launch_behavior"]
-        if os.name == "nt" and behavior == "close" or behavior == "close" and servidor_local.running():
+        if behavior == "close" and servidor_local.running():
             behavior = "minimize"  # closing Nova would leave a running server without control
         if self.preferences["console"] and behavior != "close":
             self.open_log(folder)

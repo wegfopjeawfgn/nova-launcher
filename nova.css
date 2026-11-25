@@ -20,6 +20,8 @@
 @define-color nova_warm #f1d49b;
 
 /* Base */
+/* Noto Sans viene en fonts/ para Windows (Nova la registra al iniciar); en Linux suele estar en el sistema. */
+window, tooltip { font-family: "Noto Sans", "Adwaita Sans", Cantarell, "Segoe UI", sans-serif; }
 window { background: @nova_canvas; color: @nova_text; }
 /* The window is a night frame (title bar, sidebar, status bar); pages live in one rounded panel inside it. */
 window.nova-main { background: @nova_sidebar; }

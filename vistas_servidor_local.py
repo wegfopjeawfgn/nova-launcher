@@ -729,6 +729,8 @@ class ServidorLocalMixin:
                 others = {m["port"] for m in sl.all_servers() if m["id"] != sid}
                 if port.get_value_as_int() in others:
                     raise ValueError("Otro servidor de Nova ya usa ese puerto.")
+                if memory.get_value_as_int() != sl.load(sid)["memory"]:
+                    sl.check_memory(memory.get_value_as_int())
                 sl.write_properties(path, {
                     "motd": motd.get_text(), "server-port": str(port.get_value_as_int()), "query.port": str(port.get_value_as_int()),
                     "gamemode": mode.get_active_id(), "difficulty": difficulty.get_active_id(),

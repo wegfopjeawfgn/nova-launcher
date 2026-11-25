@@ -30,6 +30,9 @@ class Base(unittest.TestCase):
         self.original = motor.ROOT
         motor.ROOT = Path(tempfile.mkdtemp())
         sl.RUNNERS.clear()
+        ram = mock.patch.object(sl.reparacion, "physical_memory_mb", return_value=16000)  # tests never depend on this PC's RAM
+        ram.start()
+        self.addCleanup(ram.stop)
 
     def tearDown(self):
         sl.stop_all(wait=2)
@@ -357,6 +360,25 @@ class CreateTests(Base):
             with self.assertRaises(ValueError, msg=args):
                 sl.check_new(*args)
 
+    def test_memory_is_checked_against_the_real_ram(self):
+        with mock.patch.object(sl.reparacion, "physical_memory_mb", return_value=8000):
+            sl.check_memory(6)
+            with self.assertRaisesRegex(ValueError, "unos 7 GB.*6 GB o menos"):
+                sl.check_memory(7)
+            with self.assertRaises(ValueError):
+                sl.check_new("x", "paper", "1.21", 16, 25600)
+        with mock.patch.object(sl.reparacion, "physical_memory_mb", return_value=None):
+            sl.check_memory(64)  # unknown RAM never blocks
+
+    def test_exit_report_shows_the_tail_and_a_memory_hint(self):
+        reserve = sl.exit_report(["Error occurred during initialization of VM",
+                                  "Could not reserve enough space for 16777216KB object heap"])
+        self.assertIn("    Could not reserve enough space for 16777216KB object heap", reserve)
+        self.assertIn("bajala", reserve[-1])
+        self.assertIn("subila", sl.exit_report(["java.lang.OutOfMemoryError: Java heap space"])[-1])
+        self.assertEqual(sl.exit_report([])[1:], ["    (Java no escribió nada)"])
+        self.assertEqual(len(sl.exit_report(["Unrecognized option: -Xfoo"])), 2)
+
     def test_download_checks_hash_and_size(self):
         class Response:
             def __init__(self, data):
@@ -539,6 +561,30 @@ class RunnerTests(Base):
             runner.send("list")
         sl.delete(sid)
         self.assertFalse(path.exists())
+
+    def test_a_crash_leaves_the_last_java_lines_in_the_console(self):
+        sid, path = self.make()
+        sl.write_eula(path)
+        self.script.write_text("import sys\nprint('Could not reserve enough space for object heap', flush=True)\nsys.exit(1)\n")
+        runner = sl.runner(sid)
+        runner.start()
+        end = time.monotonic() + 8
+        while not any("bajala" in line for line in runner.lines) and time.monotonic() < end:
+            time.sleep(0.05)
+        self.assertIn("    Could not reserve enough space for object heap", runner.lines)
+        self.assertTrue(any("bajala" in line for line in runner.lines))
+
+    def test_a_requested_stop_is_not_reported_as_a_crash(self):
+        sid, path = self.make()
+        sl.write_eula(path)
+        self.script.write_text(FAKE.replace("sys.exit(0)", "sys.exit(143)"))  # like a server ended by terminate()
+        runner = sl.runner(sid)
+        runner.start()
+        self.wait(runner, "running")
+        runner.stop()
+        self.wait(runner, "stopped")
+        self.assertIn("[Nova] El servidor se apagó (código 143).", runner.lines)
+        self.assertFalse(any("Últimas líneas" in line for line in runner.lines))
 
     def test_restart_comes_back_up(self):
         sid, path = self.make()

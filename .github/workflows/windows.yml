@@ -31,7 +31,7 @@ jobs:
           mkdir -p "$bundle"/{app,runtime}
           cp -R /ucrt64/{bin,lib,share,etc} "$bundle/runtime/"
           cp *.py nova.css nova-light.css nova-logo.svg referencia.png canal.json "$bundle/app/"
-          cp -R icons branding locales "$bundle/app/"
+          cp -R icons branding locales fonts "$bundle/app/"
           cp LICENSE THIRD_PARTY_LICENSES.md "$bundle/app/"
           "$bundle/runtime/bin/python.exe" -m pip install --target "$bundle/app" -r requirements.txt
           cd "$bundle/app"
@@ -60,7 +60,7 @@ jobs:
           New-Item -ItemType Directory -Force $env:LOCALAPPDATA | Out-Null
           Push-Location "$target/app"
           try {
-            & "../runtime/bin/python.exe" -c "import nova; from gi.repository import GLib; app=nova.Nova(); app.check_release=lambda:None; nova.motor.versions=lambda:[]; GLib.timeout_add(1500, app.quit); app.run([]); assert app.window is not None, 'No se abrió la ventana de Nova'"
+            & "../runtime/bin/python.exe" -c "import nova; from gi.repository import GLib; app=nova.Nova(); app.check_release=lambda:None; nova.motor.versions=lambda:[]; GLib.timeout_add(1500, app.quit); app.run([]); assert app.window is not None, 'No se abrió la ventana de Nova'; from gi.repository import PangoCairo; assert 'Noto Sans' in [f.get_name() for f in PangoCairo.FontMap.get_default().list_families()], 'GTK no ve Noto Sans'"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally {
             Pop-Location

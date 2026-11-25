@@ -155,7 +155,21 @@ def file_lock(path, *, blocking=False):
 
 
 def instance_lock(folder):
+    if os.name == "nt":
+        detached_game(folder)
     return file_lock(folder / ".nova.lock")
+
+
+def detached_game(folder):
+    """A game started with «Cerrar Nova» on Windows cannot inherit the lock, so its PID is kept here meanwhile."""
+    marker = folder / ".nova-game.json"
+    data = read(marker, None)
+    if not isinstance(data, dict):
+        return
+    from servidor_local import process_start
+    if data.get("start") is not None and process_start(data.get("pid")) == data["start"]:
+        raise RuntimeError("Minecraft sigue abierto con esta instancia. Cerralo antes de usarla desde Nova.")
+    marker.unlink(missing_ok=True)
 
 
 def open_folder(path):
@@ -299,14 +313,21 @@ def launch(folder, profile, instance, status, session=None, *, on_started=None, 
         log_file = log_path or folder / "minecraft.log"
         rotate_log(log_file)
         with log_file.open("w", encoding="utf-8") as log:
-            platform_options = ({} if os.name == "nt" else
+            # Windows: a detached game (DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP) outlives Nova closing.
+            platform_options = (({"creationflags": 0x00000008 | 0x00000200} if detach else {}) if os.name == "nt" else
                                 {"pass_fds": (lock.fileno(),), "start_new_session": detach})
             process = subprocess.Popen(args, cwd=game, stdout=log, stderr=subprocess.STDOUT,
                                        **platform_options)
+            if detach and os.name == "nt":
+                from servidor_local import process_start
+                save(folder / ".nova-game.json", {"pid": process.pid, "start": process_start(process.pid)})
             status("Minecraft abierto · " + profile)
-            if on_started:
-                try:
-                    return process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    on_started()
-            return process.wait()
+            try:
+                if on_started:
+                    try:
+                        return process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        on_started()
+                return process.wait()
+            finally:  # if Nova quits first this never runs and the marker keeps guarding the instance
+                (folder / ".nova-game.json").unlink(missing_ok=True)
